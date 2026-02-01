@@ -8,12 +8,15 @@
 - AI-распознавание суммы, описания и даты транзакции (Claude Vision)
 - CRUD операции с транзакциями
 - Отчёты по месяцам и категориям
+- Интерактивные графики (круговая диаграмма, столбчатые графики)
+- Адаптивный интерфейс (работает на мобильных)
 - REST API с автодокументацией (Swagger UI)
 
 ## Технологии
 
 | Компонент | Технология |
 |-----------|------------|
+| Frontend | React 19, TypeScript, TailwindCSS, Recharts |
 | Backend | Python 3.12, FastAPI, SQLAlchemy |
 | Database | PostgreSQL 16 |
 | AI | Anthropic Claude Vision API |
@@ -21,117 +24,86 @@
 
 ## Быстрый старт
 
-### 1. Клонировать проект
+### 1. Настроить переменные окружения
 
 ```bash
 cd home-finance
-```
-
-### 2. Настроить переменные окружения
-
-```bash
 cp .env.example .env
 # Отредактируйте .env и добавьте ваш ANTHROPIC_API_KEY
 ```
 
-### 3. Запустить в Docker
+### 2. Запустить в Docker
 
 ```bash
 docker-compose up --build
 ```
 
-### 4. Открыть API
+### 3. Открыть приложение
 
-- API: http://localhost:8000
-- Swagger UI: http://localhost:8000/docs
-- Health check: http://localhost:8000/health
+| URL | Описание |
+|-----|----------|
+| http://localhost:3000 | Веб-интерфейс |
+| http://localhost:8000 | Backend API |
+| http://localhost:8000/docs | Swagger UI |
 
-## API Endpoints
+## Скриншоты
 
-### Транзакции
+### Главная страница
+- Сводка расходов за месяц
+- Быстрые действия (добавить, отчёты)
+- Последние транзакции
 
-| Метод | URL | Описание |
-|-------|-----|----------|
-| POST | `/api/transactions` | Создать транзакцию |
-| GET | `/api/transactions` | Список транзакций (с пагинацией) |
-| GET | `/api/transactions/{id}` | Получить транзакцию |
-| PUT | `/api/transactions/{id}` | Обновить транзакцию |
-| DELETE | `/api/transactions/{id}` | Удалить транзакцию |
-| GET | `/api/transactions/reports/monthly` | Отчёт по месяцам |
+### Загрузка скриншота
+- Drag-n-drop загрузка
+- AI распознавание
+- Редактирование данных
 
-### Загрузка скриншотов
-
-| Метод | URL | Описание |
-|-------|-----|----------|
-| POST | `/api/upload` | Загрузить и распознать скриншот |
-| POST | `/api/upload/parse-only` | Распознать без сохранения |
-
-## Примеры запросов
-
-### Создать транзакцию
-
-```bash
-curl -X POST http://localhost:8000/api/transactions \
-  -H "Content-Type: application/json" \
-  -d '{
-    "amount": 1500.00,
-    "description": "Пятёрочка",
-    "category": "Food",
-    "date": "2024-01-15T14:30:00"
-  }'
-```
-
-### Загрузить скриншот
-
-```bash
-curl -X POST http://localhost:8000/api/upload \
-  -F "file=@screenshot.png"
-```
-
-### Получить транзакции
-
-```bash
-curl http://localhost:8000/api/transactions?page=1&per_page=20
-```
-
-### Отчёт по месяцам
-
-```bash
-curl http://localhost:8000/api/transactions/reports/monthly?year=2024
-```
+### Отчёты
+- Графики по месяцам
+- Круговая диаграмма по категориям
+- Детализация расходов
 
 ## Разработка
 
-### Локальный запуск (без Docker)
+### Режим разработки (с моками)
+
+Frontend работает с mock данными — не требует backend:
 
 ```bash
-cd backend
-
-# Создать виртуальное окружение
-python -m venv venv
-source venv/bin/activate  # Linux/Mac
-venv\Scripts\activate     # Windows
-
-# Установить зависимости
-pip install -r requirements.txt
-
-# Запустить PostgreSQL (например, через Docker)
-docker run -d --name pg -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=home_finance -p 5432:5432 postgres:16-alpine
-
-# Настроить переменные
-export DATABASE_URL=postgresql://postgres:postgres@localhost:5432/home_finance
-export ANTHROPIC_API_KEY=your_key
-
-# Запустить сервер
-uvicorn app.main:app --reload
+cd frontend
+npm install
+npm run dev
 ```
 
-### Запуск тестов
+Открыть http://localhost:3000
+
+### Полный стек (с backend)
 
 ```bash
+# Терминал 1: Backend
 cd backend
-pip install pytest pytest-asyncio
+python -m venv venv
+venv\Scripts\activate
+pip install -r requirements.txt
+docker run -d --name pg -e POSTGRES_PASSWORD=postgres -e POSTGRES_DB=home_finance -p 5432:5432 postgres:16-alpine
+set DATABASE_URL=postgresql://postgres:postgres@localhost:5432/home_finance
+uvicorn app.main:app --reload
+
+# Терминал 2: Frontend
+cd frontend
+npm run dev
+```
+
+### Тесты
+
+```bash
+# Backend
+cd backend
 pytest
+
+# Frontend (добавить позже)
+cd frontend
+npm test
 ```
 
 ## Структура проекта
@@ -140,25 +112,54 @@ pytest
 home-finance/
 ├── backend/
 │   ├── app/
-│   │   ├── __init__.py
 │   │   ├── main.py           # FastAPI приложение
 │   │   ├── config.py         # Настройки
 │   │   ├── database.py       # Подключение к БД
 │   │   ├── models.py         # SQLAlchemy модели
 │   │   ├── schemas.py        # Pydantic схемы
 │   │   ├── routers/
-│   │   │   ├── transactions.py  # CRUD транзакций
-│   │   │   └── upload.py        # Загрузка скриншотов
+│   │   │   ├── transactions.py
+│   │   │   └── upload.py
 │   │   └── services/
-│   │       └── ocr_service.py   # AI распознавание
+│   │       └── ocr_service.py
 │   ├── tests/
-│   ├── requirements.txt
-│   └── Dockerfile
-├── uploads/                  # Загруженные скриншоты
+│   ├── Dockerfile
+│   └── requirements.txt
+├── frontend/
+│   ├── src/
+│   │   ├── api/              # API клиент и моки
+│   │   ├── components/       # React компоненты
+│   │   ├── pages/            # Страницы приложения
+│   │   ├── types/            # TypeScript типы
+│   │   ├── App.tsx
+│   │   └── main.tsx
+│   ├── Dockerfile
+│   ├── nginx.conf
+│   └── package.json
+├── uploads/
 ├── docker-compose.yml
-├── .env.example
 └── README.md
 ```
+
+## API Endpoints
+
+### Транзакции
+
+| Метод | URL | Описание |
+|-------|-----|----------|
+| POST | `/api/transactions` | Создать транзакцию |
+| GET | `/api/transactions` | Список транзакций |
+| GET | `/api/transactions/{id}` | Получить транзакцию |
+| PUT | `/api/transactions/{id}` | Обновить транзакцию |
+| DELETE | `/api/transactions/{id}` | Удалить транзакцию |
+| GET | `/api/transactions/reports/monthly` | Отчёт по месяцам |
+
+### Загрузка
+
+| Метод | URL | Описание |
+|-------|-----|----------|
+| POST | `/api/upload` | Загрузить и распознать |
+| POST | `/api/upload/parse-only` | Только распознать |
 
 ## Лицензия
 
