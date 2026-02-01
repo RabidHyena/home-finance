@@ -161,6 +161,15 @@ home-finance/
 | POST | `/api/upload` | Загрузить и распознать |
 | POST | `/api/upload/parse-only` | Только распознать |
 
+## Документация
+
+| Документ | Описание |
+|----------|----------|
+| [REQUIREMENTS.md](docs/REQUIREMENTS.md) | Функциональные и нефункциональные требования |
+| [ARCHITECTURE.md](docs/ARCHITECTURE.md) | Архитектура системы, технологии, решения |
+| [API.md](docs/API.md) | Документация REST API с примерами |
+| [ROADMAP.md](ROADMAP.md) | План развития проекта |
+
 ## Лицензия
 
 MIT
