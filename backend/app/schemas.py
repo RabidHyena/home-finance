@@ -1,0 +1,80 @@
+from pydantic import BaseModel, Field
+from datetime import datetime
+from decimal import Decimal
+from typing import Optional
+
+
+class TransactionBase(BaseModel):
+    """Base schema for transaction data."""
+
+    amount: Decimal = Field(..., description="Transaction amount", ge=0)
+    description: str = Field(..., description="Transaction description", max_length=500)
+    category: Optional[str] = Field(None, description="Transaction category", max_length=100)
+    date: datetime = Field(..., description="Transaction date")
+
+
+class TransactionCreate(TransactionBase):
+    """Schema for creating a transaction."""
+
+    image_path: Optional[str] = None
+    raw_text: Optional[str] = None
+
+
+class TransactionUpdate(BaseModel):
+    """Schema for updating a transaction."""
+
+    amount: Optional[Decimal] = Field(None, ge=0)
+    description: Optional[str] = Field(None, max_length=500)
+    category: Optional[str] = Field(None, max_length=100)
+    date: Optional[datetime] = None
+
+
+class TransactionResponse(TransactionBase):
+    """Schema for transaction response."""
+
+    id: int
+    image_path: Optional[str] = None
+    raw_text: Optional[str] = None
+    created_at: datetime
+    updated_at: datetime
+
+    class Config:
+        from_attributes = True
+
+
+class TransactionList(BaseModel):
+    """Schema for paginated transaction list."""
+
+    items: list[TransactionResponse]
+    total: int
+    page: int
+    per_page: int
+
+
+class ParsedTransaction(BaseModel):
+    """Schema for AI-parsed transaction data."""
+
+    amount: Decimal
+    description: str
+    date: datetime
+    category: Optional[str] = None
+    raw_text: str
+    confidence: float = Field(..., ge=0, le=1)
+
+
+class MonthlyReport(BaseModel):
+    """Schema for monthly spending report."""
+
+    year: int
+    month: int
+    total_amount: Decimal
+    transaction_count: int
+    by_category: dict[str, Decimal]
+
+
+class HealthResponse(BaseModel):
+    """Schema for health check response."""
+
+    status: str
+    database: str
+    version: str
