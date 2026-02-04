@@ -32,6 +32,7 @@ def create_transaction(
         description=transaction.description,
         category=transaction.category,
         date=transaction.date,
+        currency=transaction.currency,
         image_path=transaction.image_path,
         raw_text=transaction.raw_text,
     )
@@ -83,52 +84,6 @@ def get_transactions(
         page=page,
         per_page=per_page,
     )
-
-
-@router.get("/{transaction_id}", response_model=TransactionResponse)
-def get_transaction(
-    transaction_id: int,
-    db: Session = Depends(get_db),
-):
-    """Get a single transaction by ID."""
-    transaction = db.query(Transaction).filter(Transaction.id == transaction_id).first()
-    if not transaction:
-        raise HTTPException(status_code=404, detail="Transaction not found")
-    return transaction
-
-
-@router.put("/{transaction_id}", response_model=TransactionResponse)
-def update_transaction(
-    transaction_id: int,
-    update_data: TransactionUpdate,
-    db: Session = Depends(get_db),
-):
-    """Update an existing transaction."""
-    transaction = db.query(Transaction).filter(Transaction.id == transaction_id).first()
-    if not transaction:
-        raise HTTPException(status_code=404, detail="Transaction not found")
-
-    update_dict = update_data.model_dump(exclude_unset=True)
-    for field, value in update_dict.items():
-        setattr(transaction, field, value)
-
-    db.commit()
-    db.refresh(transaction)
-    return transaction
-
-
-@router.delete("/{transaction_id}", status_code=204)
-def delete_transaction(
-    transaction_id: int,
-    db: Session = Depends(get_db),
-):
-    """Delete a transaction."""
-    transaction = db.query(Transaction).filter(Transaction.id == transaction_id).first()
-    if not transaction:
-        raise HTTPException(status_code=404, detail="Transaction not found")
-
-    db.delete(transaction)
-    db.commit()
 
 
 @router.get("/export")
@@ -249,3 +204,49 @@ def get_monthly_reports(
         )
 
     return reports
+
+
+@router.get("/{transaction_id}", response_model=TransactionResponse)
+def get_transaction(
+    transaction_id: int,
+    db: Session = Depends(get_db),
+):
+    """Get a single transaction by ID."""
+    transaction = db.query(Transaction).filter(Transaction.id == transaction_id).first()
+    if not transaction:
+        raise HTTPException(status_code=404, detail="Transaction not found")
+    return transaction
+
+
+@router.put("/{transaction_id}", response_model=TransactionResponse)
+def update_transaction(
+    transaction_id: int,
+    update_data: TransactionUpdate,
+    db: Session = Depends(get_db),
+):
+    """Update an existing transaction."""
+    transaction = db.query(Transaction).filter(Transaction.id == transaction_id).first()
+    if not transaction:
+        raise HTTPException(status_code=404, detail="Transaction not found")
+
+    update_dict = update_data.model_dump(exclude_unset=True)
+    for field, value in update_dict.items():
+        setattr(transaction, field, value)
+
+    db.commit()
+    db.refresh(transaction)
+    return transaction
+
+
+@router.delete("/{transaction_id}", status_code=204)
+def delete_transaction(
+    transaction_id: int,
+    db: Session = Depends(get_db),
+):
+    """Delete a transaction."""
+    transaction = db.query(Transaction).filter(Transaction.id == transaction_id).first()
+    if not transaction:
+        raise HTTPException(status_code=404, detail="Transaction not found")
+
+    db.delete(transaction)
+    db.commit()
