@@ -1,54 +1,37 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { CheckCircle } from 'lucide-react';
-import { api } from '../api/client';
 import { UploadZone, TransactionForm } from '../components';
-import type { ParsedTransaction, TransactionCreate } from '../types';
+import { useUploadAndParse, useCreateTransaction } from '../hooks/useApi';
+import type { TransactionCreate } from '../types';
 
 type Step = 'upload' | 'review' | 'success';
 
 export function UploadPage() {
   const navigate = useNavigate();
   const [step, setStep] = useState<Step>('upload');
-  const [isLoading, setIsLoading] = useState(false);
-  const [parsedData, setParsedData] = useState<ParsedTransaction | null>(null);
-  const [error, setError] = useState<string | null>(null);
+
+  const uploadMutation = useUploadAndParse();
+  const createMutation = useCreateTransaction();
+
+  const error = uploadMutation.error || createMutation.error;
 
   const handleFileSelect = async (file: File) => {
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      const result = await api.uploadAndParse(file);
-      setParsedData(result);
+    const result = await uploadMutation.mutateAsync(file);
+    if (result) {
       setStep('review');
-    } catch (err) {
-      setError('Не удалось распознать изображение. Попробуйте другой скриншот.');
-      console.error('Upload error:', err);
-    } finally {
-      setIsLoading(false);
     }
   };
 
   const handleSubmit = async (data: TransactionCreate) => {
-    setIsLoading(true);
-    setError(null);
-
-    try {
-      await api.createTransaction(data);
-      setStep('success');
-    } catch (err) {
-      setError('Не удалось сохранить транзакцию');
-      console.error('Save error:', err);
-    } finally {
-      setIsLoading(false);
-    }
+    await createMutation.mutateAsync(data);
+    setStep('success');
   };
 
   const handleReset = () => {
     setStep('upload');
-    setParsedData(null);
-    setError(null);
+    uploadMutation.reset();
+    createMutation.reset();
   };
 
   return (
@@ -70,13 +53,15 @@ export function UploadPage() {
             color: 'var(--color-danger)',
           }}
         >
-          {error}
+          {uploadMutation.error
+            ? 'Не удалось распознать изображение. Попробуйте другой скриншот.'
+            : 'Не удалось сохранить транзакцию'}
         </div>
       )}
 
       {step === 'upload' && (
         <div className="card">
-          <UploadZone onFileSelect={handleFileSelect} isLoading={isLoading} />
+          <UploadZone onFileSelect={handleFileSelect} isLoading={uploadMutation.isPending} />
           <div
             style={{
               marginTop: '1.5rem',
@@ -105,14 +90,14 @@ export function UploadPage() {
         </div>
       )}
 
-      {step === 'review' && parsedData && (
+      {step === 'review' && uploadMutation.data && (
         <div className="card">
           <TransactionForm
-            initialData={parsedData}
+            initialData={uploadMutation.data}
             onSubmit={handleSubmit}
             onCancel={handleReset}
-            isLoading={isLoading}
-            confidence={parsedData.confidence}
+            isLoading={createMutation.isPending}
+            confidence={uploadMutation.data.confidence}
           />
         </div>
       )}

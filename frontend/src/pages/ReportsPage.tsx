@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Calendar } from 'lucide-react';
-import { api } from '../api/client';
 import { MonthlyChart, CategoryChart } from '../components';
+import { useMonthlyReports } from '../hooks/useApi';
 import type { MonthlyReport } from '../types';
 import { CATEGORY_LABELS, type Category } from '../types';
 
@@ -11,28 +11,16 @@ const MONTH_NAMES = [
 ];
 
 export function ReportsPage() {
-  const [reports, setReports] = useState<MonthlyReport[]>([]);
-  const [loading, setLoading] = useState(true);
+  const { data: reports = [], isLoading, error } = useMonthlyReports();
   const [selectedReport, setSelectedReport] = useState<MonthlyReport | null>(null);
 
   useEffect(() => {
-    async function loadReports() {
-      try {
-        const data = await api.getMonthlyReports();
-        setReports(data);
-        if (data.length > 0) {
-          setSelectedReport(data[0]);
-        }
-      } catch (error) {
-        console.error('Failed to load reports:', error);
-      } finally {
-        setLoading(false);
-      }
+    if (reports.length > 0 && !selectedReport) {
+      setSelectedReport(reports[0]);
     }
-    loadReports();
-  }, []);
+  }, [reports, selectedReport]);
 
-  if (loading) {
+  if (isLoading) {
     return (
       <div style={{ padding: '2rem', textAlign: 'center' }}>Загрузка...</div>
     );
@@ -43,6 +31,21 @@ export function ReportsPage() {
       <h1 style={{ fontSize: '1.5rem', fontWeight: 600, marginBottom: '1.5rem' }}>
         Отчёты
       </h1>
+
+      {error && (
+        <div
+          style={{
+            marginBottom: '1rem',
+            padding: '1rem',
+            borderRadius: '0.5rem',
+            backgroundColor: 'rgba(239, 68, 68, 0.1)',
+            border: '1px solid var(--color-danger)',
+            color: 'var(--color-danger)',
+          }}
+        >
+          Не удалось загрузить отчёты. Попробуйте обновить страницу.
+        </div>
+      )}
 
       {reports.length === 0 ? (
         <div

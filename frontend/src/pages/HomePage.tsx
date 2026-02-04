@@ -1,36 +1,19 @@
-import { useEffect, useState } from 'react';
 import { Link } from 'react-router-dom';
 import { TrendingDown, ArrowRight, Plus } from 'lucide-react';
-import { api } from '../api/client';
 import { TransactionCard } from '../components';
-import type { Transaction, MonthlyReport } from '../types';
+import { useTransactions, useMonthlyReports } from '../hooks/useApi';
 
 export function HomePage() {
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [currentMonth, setCurrentMonth] = useState<MonthlyReport | null>(null);
-  const [loading, setLoading] = useState(true);
+  const { data: txData, isLoading: txLoading, error: txError } = useTransactions(1, 5);
+  const { data: reports, isLoading: repLoading, error: repError } = useMonthlyReports();
 
-  useEffect(() => {
-    async function loadData() {
-      try {
-        const [txResult, reports] = await Promise.all([
-          api.getTransactions(1, 5),
-          api.getMonthlyReports(),
-        ]);
-        setTransactions(txResult.items);
-        if (reports.length > 0) {
-          setCurrentMonth(reports[0]);
-        }
-      } catch (error) {
-        console.error('Failed to load data:', error);
-      } finally {
-        setLoading(false);
-      }
-    }
-    loadData();
-  }, []);
+  const isLoading = txLoading || repLoading;
+  const error = txError || repError;
 
-  if (loading) {
+  const transactions = txData?.items ?? [];
+  const currentMonth = reports?.[0] ?? null;
+
+  if (isLoading) {
     return (
       <div style={{ padding: '2rem', textAlign: 'center' }}>
         Загрузка...
@@ -43,6 +26,21 @@ export function HomePage() {
       <h1 style={{ fontSize: '1.5rem', fontWeight: 600, marginBottom: '1.5rem' }}>
         Главная
       </h1>
+
+      {error && (
+        <div
+          style={{
+            marginBottom: '1rem',
+            padding: '1rem',
+            borderRadius: '0.5rem',
+            backgroundColor: 'rgba(239, 68, 68, 0.1)',
+            border: '1px solid var(--color-danger)',
+            color: 'var(--color-danger)',
+          }}
+        >
+          Не удалось загрузить данные. Попробуйте обновить страницу.
+        </div>
+      )}
 
       {/* Summary Card */}
       <div

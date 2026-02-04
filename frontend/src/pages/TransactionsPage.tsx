@@ -1,86 +1,50 @@
-import { useEffect, useState, useCallback } from 'react';
+import { useState } from 'react';
 import { Plus, Filter } from 'lucide-react';
-import { api } from '../api/client';
 import { TransactionCard, TransactionForm } from '../components';
+import {
+  useTransactions,
+  useCreateTransaction,
+  useUpdateTransaction,
+  useDeleteTransaction,
+} from '../hooks/useApi';
 import type { Transaction, TransactionCreate, Category } from '../types';
 import { CATEGORIES, CATEGORY_LABELS } from '../types';
 
 export function TransactionsPage() {
-  const [transactions, setTransactions] = useState<Transaction[]>([]);
-  const [loading, setLoading] = useState(true);
   const [page, setPage] = useState(1);
-  const [total, setTotal] = useState(0);
   const [filter, setFilter] = useState<Category | ''>('');
   const [showForm, setShowForm] = useState(false);
-  const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(
-    null
-  );
-  const [saving, setSaving] = useState(false);
+  const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
 
   const perPage = 10;
 
-  const loadTransactions = useCallback(async () => {
-    setLoading(true);
-    try {
-      const result = await api.getTransactions(
-        page,
-        perPage,
-        filter || undefined
-      );
-      setTransactions(result.items);
-      setTotal(result.total);
-    } catch (error) {
-      console.error('Failed to load transactions:', error);
-    } finally {
-      setLoading(false);
-    }
-  }, [page, filter]);
+  const { data, isLoading, error } = useTransactions(page, perPage, filter || undefined);
+  const createMutation = useCreateTransaction();
+  const updateMutation = useUpdateTransaction();
+  const deleteMutation = useDeleteTransaction();
 
-  useEffect(() => {
-    loadTransactions();
-  }, [loadTransactions]);
+  const transactions = data?.items ?? [];
+  const total = data?.total ?? 0;
+  const totalPages = Math.ceil(total / perPage);
 
-  const handleCreate = async (data: TransactionCreate) => {
-    setSaving(true);
-    try {
-      await api.createTransaction(data);
-      setShowForm(false);
-      setPage(1);
-      await loadTransactions();
-    } catch (error) {
-      console.error('Failed to create transaction:', error);
-    } finally {
-      setSaving(false);
-    }
+  const mutationError = createMutation.error || updateMutation.error || deleteMutation.error;
+
+  const handleCreate = async (formData: TransactionCreate) => {
+    await createMutation.mutateAsync(formData);
+    setShowForm(false);
+    setPage(1);
   };
 
-  const handleUpdate = async (data: TransactionCreate) => {
+  const handleUpdate = async (formData: TransactionCreate) => {
     if (!editingTransaction) return;
-
-    setSaving(true);
-    try {
-      await api.updateTransaction(editingTransaction.id, data);
-      setEditingTransaction(null);
-      await loadTransactions();
-    } catch (error) {
-      console.error('Failed to update transaction:', error);
-    } finally {
-      setSaving(false);
-    }
+    await updateMutation.mutateAsync({ id: editingTransaction.id, data: formData });
+    setEditingTransaction(null);
   };
 
   const handleDelete = async (id: number) => {
     if (!confirm('Удалить транзакцию?')) return;
-
-    try {
-      await api.deleteTransaction(id);
-      await loadTransactions();
-    } catch (error) {
-      console.error('Failed to delete transaction:', error);
-    }
+    deleteMutation.mutate(id);
   };
-
-  const totalPages = Math.ceil(total / perPage);
 
   return (
     <div>
@@ -104,6 +68,23 @@ export function TransactionsPage() {
           <Plus size={18} /> Добавить
         </button>
       </div>
+
+      {(error || mutationError) && (
+        <div
+          style={{
+            marginBottom: '1rem',
+            padding: '1rem',
+            borderRadius: '0.5rem',
+            backgroundColor: 'rgba(239, 68, 68, 0.1)',
+            border: '1px solid var(--color-danger)',
+            color: 'var(--color-danger)',
+          }}
+        >
+          {error
+            ? 'Не удалось загрузить транзакции. Попробуйте обновить страницу.'
+            : 'Не удалось выполнить операцию. Попробуйте ещё раз.'}
+        </div>
+      )}
 
       {/* Filter */}
       <div
@@ -169,7 +150,7 @@ export function TransactionsPage() {
             <TransactionForm
               onSubmit={handleCreate}
               onCancel={() => setShowForm(false)}
-              isLoading={saving}
+              isLoading={createMutation.isPending}
             />
           </div>
         </div>
@@ -200,14 +181,14 @@ export function TransactionsPage() {
               initialData={editingTransaction}
               onSubmit={handleUpdate}
               onCancel={() => setEditingTransaction(null)}
-              isLoading={saving}
+              isLoading={updateMutation.isPending}
             />
           </div>
         </div>
       )}
 
       {/* Transactions List */}
-      {loading ? (
+      {isLoading ? (
         <div style={{ padding: '2rem', textAlign: 'center' }}>Загрузка...</div>
       ) : transactions.length === 0 ? (
         <div
