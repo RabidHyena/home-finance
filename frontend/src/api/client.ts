@@ -19,11 +19,11 @@ const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 let transactions = [...mockTransactions];
 let nextId = transactions.length + 1;
 
-// API base URL (for future real backend connection)
-const API_BASE = import.meta.env.VITE_API_URL || 'http://localhost:8000';
+// API base URL (proxied through Vite dev server / Nginx in production)
+const API_BASE = import.meta.env.VITE_API_URL || '';
 
-// Flag to use mock data
-const USE_MOCK = true;
+// Flag to use mock data (default: false — use real backend)
+const USE_MOCK = import.meta.env.VITE_USE_MOCK === 'true';
 
 export const api = {
   // Transactions

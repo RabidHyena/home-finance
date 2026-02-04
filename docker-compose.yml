@@ -23,7 +23,7 @@ services:
     container_name: home-finance-backend
     environment:
       DATABASE_URL: postgresql://postgres:postgres@db:5432/home_finance
-      ANTHROPIC_API_KEY: ${ANTHROPIC_API_KEY:-}
+      OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
       DEBUG: "true"
     volumes:
       - ./uploads:/app/uploads

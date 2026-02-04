@@ -8,8 +8,8 @@ class Settings(BaseSettings):
     # Database
     database_url: str = "postgresql://postgres:postgres@db:5432/home_finance"
 
-    # Anthropic API
-    anthropic_api_key: str = ""
+    # OpenRouter API
+    openrouter_api_key: str = ""
 
     # Upload settings
     upload_dir: str = "/app/uploads"
