@@ -1,6 +1,6 @@
 import { Link } from 'react-router-dom';
 import { TrendingDown, ArrowRight, Plus } from 'lucide-react';
-import { TransactionCard } from '../components';
+import { TransactionCard, StatCardSkeleton, TransactionCardSkeleton } from '../components';
 import { useTransactions, useMonthlyReports } from '../hooks/useApi';
 
 export function HomePage() {
@@ -15,8 +15,20 @@ export function HomePage() {
 
   if (isLoading) {
     return (
-      <div style={{ padding: '2rem', textAlign: 'center' }}>
-        Загрузка...
+      <div>
+        <h1 style={{ fontSize: '1.5rem', fontWeight: 600, marginBottom: '1.5rem' }}>
+          Главная
+        </h1>
+        <div style={{ marginBottom: '1.5rem' }}>
+          <StatCardSkeleton />
+        </div>
+        <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '1rem', marginBottom: '1.5rem' }}>
+          <StatCardSkeleton />
+          <StatCardSkeleton />
+        </div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+          {[1, 2, 3].map((i) => <TransactionCardSkeleton key={i} />)}
+        </div>
       </div>
     );
   }

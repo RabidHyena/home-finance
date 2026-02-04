@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { CheckCircle } from 'lucide-react';
-import { UploadZone, TransactionForm } from '../components';
+import { UploadZone, TransactionForm, useToast } from '../components';
 import { useUploadAndParse, useCreateTransaction } from '../hooks/useApi';
 import type { TransactionCreate } from '../types';
 
@@ -11,21 +11,32 @@ export function UploadPage() {
   const navigate = useNavigate();
   const [step, setStep] = useState<Step>('upload');
 
+  const toast = useToast();
   const uploadMutation = useUploadAndParse();
   const createMutation = useCreateTransaction();
 
   const error = uploadMutation.error || createMutation.error;
 
   const handleFileSelect = async (file: File) => {
-    const result = await uploadMutation.mutateAsync(file);
-    if (result) {
-      setStep('review');
+    try {
+      const result = await uploadMutation.mutateAsync(file);
+      if (result) {
+        setStep('review');
+        toast.success('Скриншот распознан');
+      }
+    } catch (e) {
+      toast.error(e instanceof Error ? e.message : 'Не удалось распознать скриншот');
     }
   };
 
   const handleSubmit = async (data: TransactionCreate) => {
-    await createMutation.mutateAsync(data);
-    setStep('success');
+    try {
+      await createMutation.mutateAsync(data);
+      setStep('success');
+      toast.success('Транзакция сохранена');
+    } catch {
+      toast.error('Не удалось сохранить транзакцию');
+    }
   };
 
   const handleReset = () => {
@@ -54,7 +65,7 @@ export function UploadPage() {
           }}
         >
           {uploadMutation.error
-            ? 'Не удалось распознать изображение. Попробуйте другой скриншот.'
+            ? `Ошибка распознавания: ${uploadMutation.error.message}`
             : 'Не удалось сохранить транзакцию'}
         </div>
       )}

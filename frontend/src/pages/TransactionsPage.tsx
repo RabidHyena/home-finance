@@ -1,8 +1,8 @@
-import { useState } from 'react';
-import { Plus, Filter } from 'lucide-react';
-import { TransactionCard, TransactionForm } from '../components';
+import { useState, useRef, useCallback } from 'react';
+import { Plus, Filter, Loader2 } from 'lucide-react';
+import { TransactionCard, TransactionForm, ConfirmModal, useToast, TransactionCardSkeleton } from '../components';
 import {
-  useTransactions,
+  useInfiniteTransactions,
   useCreateTransaction,
   useUpdateTransaction,
   useDeleteTransaction,
@@ -11,39 +11,77 @@ import type { Transaction, TransactionCreate, Category } from '../types';
 import { CATEGORIES, CATEGORY_LABELS } from '../types';
 
 export function TransactionsPage() {
-  const [page, setPage] = useState(1);
   const [filter, setFilter] = useState<Category | ''>('');
   const [showForm, setShowForm] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<number | null>(null);
+  const toast = useToast();
 
-  const perPage = 10;
+  const perPage = 15;
 
-  const { data, isLoading, error } = useTransactions(page, perPage, filter || undefined);
+  const {
+    data,
+    isLoading,
+    error,
+    fetchNextPage,
+    hasNextPage,
+    isFetchingNextPage,
+  } = useInfiniteTransactions(perPage, filter || undefined);
   const createMutation = useCreateTransaction();
   const updateMutation = useUpdateTransaction();
   const deleteMutation = useDeleteTransaction();
 
-  const transactions = data?.items ?? [];
-  const total = data?.total ?? 0;
-  const totalPages = Math.ceil(total / perPage);
+  const transactions = data?.pages.flatMap((p) => p.items) ?? [];
+  const total = data?.pages[0]?.total ?? 0;
 
   const mutationError = createMutation.error || updateMutation.error || deleteMutation.error;
 
+  // Infinite scroll observer
+  const observerRef = useRef<IntersectionObserver | null>(null);
+  const sentinelRef = useCallback(
+    (node: HTMLDivElement | null) => {
+      if (observerRef.current) observerRef.current.disconnect();
+      if (!node) return;
+      observerRef.current = new IntersectionObserver((entries) => {
+        if (entries[0].isIntersecting && hasNextPage && !isFetchingNextPage) {
+          fetchNextPage();
+        }
+      });
+      observerRef.current.observe(node);
+    },
+    [hasNextPage, isFetchingNextPage, fetchNextPage]
+  );
+
   const handleCreate = async (formData: TransactionCreate) => {
-    await createMutation.mutateAsync(formData);
-    setShowForm(false);
-    setPage(1);
+    try {
+      await createMutation.mutateAsync(formData);
+      setShowForm(false);
+      toast.success('Транзакция добавлена');
+    } catch {
+      toast.error('Не удалось создать транзакцию');
+    }
   };
 
   const handleUpdate = async (formData: TransactionCreate) => {
     if (!editingTransaction) return;
-    await updateMutation.mutateAsync({ id: editingTransaction.id, data: formData });
-    setEditingTransaction(null);
+    try {
+      await updateMutation.mutateAsync({ id: editingTransaction.id, data: formData });
+      setEditingTransaction(null);
+      toast.success('Транзакция обновлена');
+    } catch {
+      toast.error('Не удалось обновить транзакцию');
+    }
   };
 
-  const handleDelete = async (id: number) => {
-    if (!confirm('Удалить транзакцию?')) return;
-    deleteMutation.mutate(id);
+  const handleDelete = async () => {
+    if (deleteTarget === null) return;
+    try {
+      await deleteMutation.mutateAsync(deleteTarget);
+      setDeleteTarget(null);
+      toast.success('Транзакция удалена');
+    } catch {
+      toast.error('Не удалось удалить транзакцию');
+    }
   };
 
   return (
@@ -60,6 +98,11 @@ export function TransactionsPage() {
       >
         <h1 style={{ margin: 0, fontSize: '1.5rem', fontWeight: 600 }}>
           Транзакции
+          {total > 0 && (
+            <span style={{ fontSize: '1rem', fontWeight: 400, color: 'var(--color-text-secondary)', marginLeft: '0.5rem' }}>
+              ({total})
+            </span>
+          )}
         </h1>
         <button
           className="btn btn-primary"
@@ -101,7 +144,6 @@ export function TransactionsPage() {
           value={filter}
           onChange={(e) => {
             setFilter(e.target.value as Category | '');
-            setPage(1);
           }}
           style={{ width: 'auto', minWidth: '150px' }}
         >
@@ -115,10 +157,7 @@ export function TransactionsPage() {
         {filter && (
           <button
             className="btn btn-secondary"
-            onClick={() => {
-              setFilter('');
-              setPage(1);
-            }}
+            onClick={() => setFilter('')}
             style={{ padding: '0.25rem 0.75rem' }}
           >
             Сбросить
@@ -189,7 +228,9 @@ export function TransactionsPage() {
 
       {/* Transactions List */}
       {isLoading ? (
-        <div style={{ padding: '2rem', textAlign: 'center' }}>Загрузка...</div>
+        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+          {[1, 2, 3, 4, 5].map((i) => <TransactionCardSkeleton key={i} />)}
+        </div>
       ) : transactions.length === 0 ? (
         <div
           className="card"
@@ -205,43 +246,54 @@ export function TransactionsPage() {
                 key={tx.id}
                 transaction={tx}
                 onEdit={setEditingTransaction}
-                onDelete={handleDelete}
+                onDelete={setDeleteTarget}
               />
             ))}
           </div>
 
-          {/* Pagination */}
-          {totalPages > 1 && (
+          {/* Infinite scroll sentinel */}
+          <div ref={sentinelRef} style={{ height: '1px' }} />
+
+          {isFetchingNextPage && (
             <div
               style={{
                 display: 'flex',
                 alignItems: 'center',
                 justifyContent: 'center',
                 gap: '0.5rem',
-                marginTop: '1.5rem',
+                padding: '1.5rem',
+                color: 'var(--color-text-secondary)',
               }}
             >
-              <button
-                className="btn btn-secondary"
-                disabled={page === 1}
-                onClick={() => setPage((p) => p - 1)}
-              >
-                Назад
-              </button>
-              <span style={{ padding: '0 1rem', color: 'var(--color-text-secondary)' }}>
-                {page} / {totalPages}
-              </span>
-              <button
-                className="btn btn-secondary"
-                disabled={page === totalPages}
-                onClick={() => setPage((p) => p + 1)}
-              >
-                Вперёд
-              </button>
+              <Loader2 size={20} className="spin" />
+              Загрузка...
+            </div>
+          )}
+
+          {!hasNextPage && transactions.length > perPage && (
+            <div
+              style={{
+                textAlign: 'center',
+                padding: '1rem',
+                color: 'var(--color-text-secondary)',
+                fontSize: '0.875rem',
+              }}
+            >
+              Все транзакции загружены
             </div>
           )}
         </>
       )}
+
+      {/* Delete Confirmation Modal */}
+      <ConfirmModal
+        isOpen={deleteTarget !== null}
+        title="Удалить транзакцию"
+        message="Вы уверены, что хотите удалить эту транзакцию? Это действие нельзя отменить."
+        onConfirm={handleDelete}
+        onCancel={() => setDeleteTarget(null)}
+        isLoading={deleteMutation.isPending}
+      />
     </div>
   );
 }

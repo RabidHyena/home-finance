@@ -1,4 +1,4 @@
-import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
+import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../api/client';
 import type { TransactionCreate, TransactionUpdate } from '../types';
 
@@ -14,6 +14,18 @@ export function useTransactions(page = 1, perPage = 20, category?: string) {
   return useQuery({
     queryKey: [...keys.transactions, page, perPage, category],
     queryFn: () => api.getTransactions(page, perPage, category),
+  });
+}
+
+export function useInfiniteTransactions(perPage = 20, category?: string) {
+  return useInfiniteQuery({
+    queryKey: [...keys.transactions, 'infinite', perPage, category],
+    queryFn: ({ pageParam = 1 }) => api.getTransactions(pageParam, perPage, category),
+    initialPageParam: 1,
+    getNextPageParam: (lastPage) => {
+      const totalPages = Math.ceil(lastPage.total / lastPage.per_page);
+      return lastPage.page < totalPages ? lastPage.page + 1 : undefined;
+    },
   });
 }
 

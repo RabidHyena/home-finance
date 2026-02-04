@@ -182,7 +182,10 @@ export const api = {
       method: 'POST',
       body: formData,
     });
-    if (!response.ok) throw new Error('Failed to parse image');
+    if (!response.ok) {
+      const err = await response.json().catch(() => null);
+      throw new Error(err?.detail || `Upload failed (${response.status})`);
+    }
     return response.json();
   },
 };

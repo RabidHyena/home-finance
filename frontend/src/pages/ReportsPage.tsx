@@ -1,6 +1,6 @@
 import { useEffect, useState } from 'react';
 import { Calendar } from 'lucide-react';
-import { MonthlyChart, CategoryChart } from '../components';
+import { MonthlyChart, CategoryChart, StatCardSkeleton, ChartSkeleton } from '../components';
 import { useMonthlyReports } from '../hooks/useApi';
 import type { MonthlyReport } from '../types';
 import { CATEGORY_LABELS, type Category } from '../types';
@@ -22,7 +22,27 @@ export function ReportsPage() {
 
   if (isLoading) {
     return (
-      <div style={{ padding: '2rem', textAlign: 'center' }}>Загрузка...</div>
+      <div>
+        <h1 style={{ fontSize: '1.5rem', fontWeight: 600, marginBottom: '1.5rem' }}>
+          Отчёты
+        </h1>
+        <div
+          style={{
+            display: 'grid',
+            gridTemplateColumns: 'repeat(auto-fit, minmax(200px, 1fr))',
+            gap: '1rem',
+            marginBottom: '1.5rem',
+          }}
+        >
+          <StatCardSkeleton />
+          <StatCardSkeleton />
+          <StatCardSkeleton />
+        </div>
+        <ChartSkeleton height="250px" />
+        <div style={{ marginTop: '1.5rem' }}>
+          <ChartSkeleton height="250px" />
+        </div>
+      </div>
     );
   }
 
