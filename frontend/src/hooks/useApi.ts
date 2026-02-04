@@ -17,10 +17,17 @@ export function useTransactions(page = 1, perPage = 20, category?: string) {
   });
 }
 
-export function useInfiniteTransactions(perPage = 20, category?: string) {
+export function useInfiniteTransactions(
+  perPage = 20,
+  category?: string,
+  search?: string,
+  dateFrom?: string,
+  dateTo?: string
+) {
   return useInfiniteQuery({
-    queryKey: [...keys.transactions, 'infinite', perPage, category],
-    queryFn: ({ pageParam = 1 }) => api.getTransactions(pageParam, perPage, category),
+    queryKey: [...keys.transactions, 'infinite', perPage, category, search, dateFrom, dateTo],
+    queryFn: ({ pageParam = 1 }) =>
+      api.getTransactions(pageParam, perPage, category, search, dateFrom, dateTo),
     initialPageParam: 1,
     getNextPageParam: (lastPage) => {
       const totalPages = Math.ceil(lastPage.total / lastPage.per_page);

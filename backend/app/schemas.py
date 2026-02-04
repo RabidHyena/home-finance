@@ -11,6 +11,7 @@ class TransactionBase(BaseModel):
     description: str = Field(..., description="Transaction description", max_length=500)
     category: Optional[str] = Field(None, description="Transaction category", max_length=100)
     date: datetime = Field(..., description="Transaction date")
+    currency: str = Field(default='RUB', max_length=3, pattern='^(RUB|USD|EUR|GBP)$')
 
 
 class TransactionCreate(TransactionBase):
@@ -27,12 +28,14 @@ class TransactionUpdate(BaseModel):
     description: Optional[str] = Field(None, max_length=500)
     category: Optional[str] = Field(None, max_length=100)
     date: Optional[datetime] = None
+    currency: Optional[str] = Field(None, max_length=3, pattern='^(RUB|USD|EUR|GBP)$')
 
 
 class TransactionResponse(TransactionBase):
     """Schema for transaction response."""
 
     id: int
+    currency: str
     image_path: Optional[str] = None
     raw_text: Optional[str] = None
     created_at: datetime
@@ -58,6 +61,7 @@ class ParsedTransaction(BaseModel):
     description: str
     date: datetime
     category: Optional[str] = None
+    currency: str = 'RUB'
     raw_text: str
     confidence: float = Field(..., ge=0, le=1)
 

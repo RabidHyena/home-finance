@@ -1,9 +1,12 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import StreamingResponse
 from sqlalchemy.orm import Session
-from sqlalchemy import func, extract
+from sqlalchemy import func, extract, or_
 from decimal import Decimal
 from datetime import datetime
 from typing import Optional
+import csv
+from io import StringIO
 
 from app.database import get_db
 from app.models import Transaction
@@ -45,6 +48,7 @@ def get_transactions(
     category: Optional[str] = None,
     date_from: Optional[datetime] = None,
     date_to: Optional[datetime] = None,
+    search: Optional[str] = None,
     db: Session = Depends(get_db),
 ):
     """Get paginated list of transactions."""
@@ -56,6 +60,14 @@ def get_transactions(
         query = query.filter(Transaction.date >= date_from)
     if date_to:
         query = query.filter(Transaction.date <= date_to)
+    if search:
+        search_pattern = f"%{search}%"
+        query = query.filter(
+            or_(
+                Transaction.description.ilike(search_pattern),
+                Transaction.raw_text.ilike(search_pattern)
+            )
+        )
 
     total = query.count()
     items = (
@@ -117,6 +129,68 @@ def delete_transaction(
 
     db.delete(transaction)
     db.commit()
+
+
+@router.get("/export")
+def export_transactions(
+    category: Optional[str] = None,
+    date_from: Optional[datetime] = None,
+    date_to: Optional[datetime] = None,
+    search: Optional[str] = None,
+    db: Session = Depends(get_db),
+):
+    """Export transactions as CSV with filters."""
+    # Build query with same filters as get_transactions
+    query = db.query(Transaction).order_by(Transaction.date.desc())
+
+    if category:
+        query = query.filter(Transaction.category == category)
+    if date_from:
+        query = query.filter(Transaction.date >= date_from)
+    if date_to:
+        query = query.filter(Transaction.date <= date_to)
+    if search:
+        search_pattern = f"%{search}%"
+        query = query.filter(
+            or_(
+                Transaction.description.ilike(search_pattern),
+                Transaction.raw_text.ilike(search_pattern)
+            )
+        )
+
+    # Safety limit to prevent memory issues
+    transactions = query.limit(10000).all()
+
+    # Generate CSV
+    output = StringIO()
+    # Add BOM for Excel UTF-8 compatibility
+    output.write('\ufeff')
+    writer = csv.writer(output)
+
+    # Header
+    writer.writerow(['ID', 'Дата', 'Сумма', 'Валюта', 'Описание', 'Категория', 'Создано'])
+
+    # Rows
+    for tx in transactions:
+        writer.writerow([
+            tx.id,
+            tx.date.isoformat(),
+            float(tx.amount),
+            tx.currency,
+            tx.description,
+            tx.category or '',
+            tx.created_at.isoformat(),
+        ])
+
+    output.seek(0)
+
+    return StreamingResponse(
+        iter([output.getvalue()]),
+        media_type="text/csv; charset=utf-8",
+        headers={
+            "Content-Disposition": f"attachment; filename=transactions_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
+        }
+    )
 
 
 @router.get("/reports/monthly", response_model=list[MonthlyReport])

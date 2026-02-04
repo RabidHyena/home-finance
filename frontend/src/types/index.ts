@@ -4,6 +4,7 @@ export interface Transaction {
   description: string;
   category: string | null;
   date: string;
+  currency: string;
   image_path: string | null;
   raw_text: string | null;
   created_at: string;
@@ -15,6 +16,7 @@ export interface TransactionCreate {
   description: string;
   category?: string;
   date: string;
+  currency?: string;
   image_path?: string;
   raw_text?: string;
 }
@@ -24,6 +26,7 @@ export interface TransactionUpdate {
   description?: string;
   category?: string;
   date?: string;
+  currency?: string;
 }
 
 export interface TransactionList {
@@ -38,6 +41,7 @@ export interface ParsedTransaction {
   description: string;
   date: string;
   category: string | null;
+  currency: string;
   raw_text: string;
   confidence: number;
 }
@@ -87,4 +91,21 @@ export const CATEGORY_LABELS: Record<Category, string> = {
   Bills: 'Счета',
   Health: 'Здоровье',
   Other: 'Другое',
+};
+
+export const CURRENCIES = ['RUB', 'USD', 'EUR', 'GBP'] as const;
+export type Currency = typeof CURRENCIES[number];
+
+export const CURRENCY_SYMBOLS: Record<Currency, string> = {
+  RUB: '₽',
+  USD: '$',
+  EUR: '€',
+  GBP: '£',
+};
+
+export const CURRENCY_LABELS: Record<Currency, string> = {
+  RUB: 'Российский рубль',
+  USD: 'Доллар США',
+  EUR: 'Евро',
+  GBP: 'Фунт стерлингов',
 };

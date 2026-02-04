@@ -1,8 +1,8 @@
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import { Trash2, Edit2 } from 'lucide-react';
-import type { Transaction, Category } from '../types';
-import { CATEGORY_COLORS, CATEGORY_LABELS } from '../types';
+import type { Transaction, Category, Currency } from '../types';
+import { CATEGORY_COLORS, CATEGORY_LABELS, CURRENCY_SYMBOLS } from '../types';
 
 interface TransactionCardProps {
   transaction: Transaction;
@@ -89,7 +89,7 @@ export function TransactionCard({
                 color: 'var(--color-danger)',
               }}
             >
-              -{transaction.amount.toLocaleString('ru-RU')} ₽
+              -{transaction.amount.toLocaleString('ru-RU')} {CURRENCY_SYMBOLS[transaction.currency as Currency] || '₽'}
             </p>
           </div>
         </div>

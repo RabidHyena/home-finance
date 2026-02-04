@@ -1,5 +1,5 @@
-import { useState, useRef, useCallback } from 'react';
-import { Plus, Filter, Loader2 } from 'lucide-react';
+import { useState, useRef, useCallback, useEffect } from 'react';
+import { Plus, Filter, Loader2, Download } from 'lucide-react';
 import { TransactionCard, TransactionForm, ConfirmModal, useToast, TransactionCardSkeleton } from '../components';
 import {
   useInfiniteTransactions,
@@ -9,15 +9,28 @@ import {
 } from '../hooks/useApi';
 import type { Transaction, TransactionCreate, Category } from '../types';
 import { CATEGORIES, CATEGORY_LABELS } from '../types';
+import { api } from '../api/client';
 
 export function TransactionsPage() {
   const [filter, setFilter] = useState<Category | ''>('');
+  const [search, setSearch] = useState('');
+  const [debouncedSearch, setDebouncedSearch] = useState('');
+  const [dateFrom, setDateFrom] = useState('');
+  const [dateTo, setDateTo] = useState('');
   const [showForm, setShowForm] = useState(false);
   const [editingTransaction, setEditingTransaction] = useState<Transaction | null>(null);
   const [deleteTarget, setDeleteTarget] = useState<number | null>(null);
   const toast = useToast();
 
   const perPage = 15;
+
+  // Debounce search input
+  useEffect(() => {
+    const timer = setTimeout(() => {
+      setDebouncedSearch(search);
+    }, 300);
+    return () => clearTimeout(timer);
+  }, [search]);
 
   const {
     data,
@@ -26,7 +39,13 @@ export function TransactionsPage() {
     fetchNextPage,
     hasNextPage,
     isFetchingNextPage,
-  } = useInfiniteTransactions(perPage, filter || undefined);
+  } = useInfiniteTransactions(
+    perPage,
+    filter || undefined,
+    debouncedSearch || undefined,
+    dateFrom || undefined,
+    dateTo || undefined
+  );
   const createMutation = useCreateTransaction();
   const updateMutation = useUpdateTransaction();
   const deleteMutation = useDeleteTransaction();
@@ -84,6 +103,30 @@ export function TransactionsPage() {
     }
   };
 
+  const handleExport = async () => {
+    try {
+      const blob = await api.exportTransactions(
+        filter || undefined,
+        dateFrom || undefined,
+        dateTo || undefined,
+        debouncedSearch || undefined
+      );
+
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `transactions_${new Date().toISOString().split('T')[0]}.csv`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+
+      toast.success('Экспорт завершён');
+    } catch {
+      toast.error('Ошибка экспорта');
+    }
+  };
+
   return (
     <div>
       <div
@@ -104,12 +147,21 @@ export function TransactionsPage() {
             </span>
           )}
         </h1>
-        <button
-          className="btn btn-primary"
-          onClick={() => setShowForm(true)}
-        >
-          <Plus size={18} /> Добавить
-        </button>
+        <div style={{ display: 'flex', gap: '0.5rem' }}>
+          <button
+            className="btn btn-secondary"
+            onClick={handleExport}
+            disabled={total === 0}
+          >
+            <Download size={18} /> Экспорт
+          </button>
+          <button
+            className="btn btn-primary"
+            onClick={() => setShowForm(true)}
+          >
+            <Plus size={18} /> Добавить
+          </button>
+        </div>
       </div>
 
       {(error || mutationError) && (
@@ -129,7 +181,81 @@ export function TransactionsPage() {
         </div>
       )}
 
-      {/* Filter */}
+      {/* Search */}
+      <div style={{ marginBottom: '1rem' }}>
+        <input
+          type="text"
+          className="input"
+          placeholder="Поиск по описанию..."
+          value={search}
+          onChange={(e) => setSearch(e.target.value)}
+        />
+      </div>
+
+      {/* Date Range Filter */}
+      <div
+        style={{
+          display: 'flex',
+          gap: '0.75rem',
+          marginBottom: '1rem',
+          flexWrap: 'wrap',
+        }}
+      >
+        <div style={{ flex: '1 1 200px' }}>
+          <label className="label" style={{ marginBottom: '0.25rem', display: 'block' }}>
+            От
+          </label>
+          <input
+            type="date"
+            className="input"
+            value={dateFrom}
+            onChange={(e) => setDateFrom(e.target.value)}
+          />
+        </div>
+        <div style={{ flex: '1 1 200px' }}>
+          <label className="label" style={{ marginBottom: '0.25rem', display: 'block' }}>
+            До
+          </label>
+          <input
+            type="date"
+            className="input"
+            value={dateTo}
+            onChange={(e) => setDateTo(e.target.value)}
+          />
+        </div>
+        {(dateFrom || dateTo) && (
+          <div style={{ display: 'flex', alignItems: 'flex-end' }}>
+            <button
+              className="btn btn-secondary"
+              onClick={() => {
+                setDateFrom('');
+                setDateTo('');
+              }}
+            >
+              Сбросить даты
+            </button>
+          </div>
+        )}
+      </div>
+
+      {/* Date validation warning */}
+      {dateFrom && dateTo && new Date(dateFrom) > new Date(dateTo) && (
+        <div
+          style={{
+            marginBottom: '1rem',
+            padding: '0.75rem',
+            borderRadius: '0.5rem',
+            backgroundColor: 'rgba(245, 158, 11, 0.1)',
+            border: '1px solid var(--color-warning)',
+            color: 'var(--color-warning)',
+            fontSize: '0.875rem',
+          }}
+        >
+          Дата "От" не может быть позже даты "До"
+        </div>
+      )}
+
+      {/* Category Filter */}
       <div
         style={{
           display: 'flex',

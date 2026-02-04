@@ -30,13 +30,34 @@ export const api = {
   async getTransactions(
     page = 1,
     perPage = 20,
-    category?: string
+    category?: string,
+    search?: string,
+    dateFrom?: string,
+    dateTo?: string
   ): Promise<TransactionList> {
     if (USE_MOCK) {
       await delay(300);
       let filtered = [...transactions];
       if (category) {
         filtered = filtered.filter((t) => t.category === category);
+      }
+      if (search) {
+        const searchLower = search.toLowerCase();
+        filtered = filtered.filter(
+          (t) =>
+            t.description.toLowerCase().includes(searchLower) ||
+            (t.raw_text && t.raw_text.toLowerCase().includes(searchLower))
+        );
+      }
+      if (dateFrom) {
+        filtered = filtered.filter(
+          (t) => new Date(t.date) >= new Date(dateFrom)
+        );
+      }
+      if (dateTo) {
+        filtered = filtered.filter(
+          (t) => new Date(t.date) <= new Date(dateTo)
+        );
       }
       filtered.sort(
         (a, b) => new Date(b.date).getTime() - new Date(a.date).getTime()
@@ -56,6 +77,9 @@ export const api = {
       per_page: String(perPage),
     });
     if (category) params.append('category', category);
+    if (search) params.append('search', search);
+    if (dateFrom) params.append('date_from', dateFrom);
+    if (dateTo) params.append('date_to', dateTo);
 
     const response = await fetch(`${API_BASE}/api/transactions?${params}`);
     if (!response.ok) throw new Error('Failed to fetch transactions');
@@ -187,5 +211,42 @@ export const api = {
       throw new Error(err?.detail || `Upload failed (${response.status})`);
     }
     return response.json();
+  },
+
+  // Export to CSV
+  async exportTransactions(
+    category?: string,
+    dateFrom?: string,
+    dateTo?: string,
+    search?: string
+  ): Promise<Blob> {
+    if (USE_MOCK) {
+      await delay(500);
+      // Filter mock transactions
+      const filtered = mockTransactions.filter(t => {
+        if (category && t.category !== category) return false;
+        if (search && !t.description.toLowerCase().includes(search.toLowerCase())) return false;
+        if (dateFrom && new Date(t.date) < new Date(dateFrom)) return false;
+        if (dateTo && new Date(t.date) > new Date(dateTo)) return false;
+        return true;
+      });
+
+      // Generate CSV
+      const csv = '\ufeffID,Дата,Сумма,Валюта,Описание,Категория\n' +
+        filtered.map(t =>
+          `${t.id},${t.date},${t.amount},${t.currency},"${t.description}",${t.category || ''}`
+        ).join('\n');
+      return new Blob([csv], { type: 'text/csv; charset=utf-8' });
+    }
+
+    const params = new URLSearchParams();
+    if (category) params.append('category', category);
+    if (dateFrom) params.append('date_from', dateFrom);
+    if (dateTo) params.append('date_to', dateTo);
+    if (search) params.append('search', search);
+
+    const response = await fetch(`${API_BASE}/api/transactions/export?${params}`);
+    if (!response.ok) throw new Error('Failed to export');
+    return response.blob();
   },
 };

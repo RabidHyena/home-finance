@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { format } from 'date-fns';
-import type { Transaction, TransactionCreate, ParsedTransaction, Category } from '../types';
-import { CATEGORIES, CATEGORY_LABELS } from '../types';
+import type { Transaction, TransactionCreate, ParsedTransaction, Category, Currency } from '../types';
+import { CATEGORIES, CATEGORY_LABELS, CURRENCIES, CURRENCY_SYMBOLS, CURRENCY_LABELS } from '../types';
 
 interface TransactionFormProps {
   initialData?: Partial<TransactionCreate> | ParsedTransaction | Transaction;
@@ -22,12 +22,14 @@ export function TransactionForm({
   const [description, setDescription] = useState('');
   const [category, setCategory] = useState<Category | ''>('');
   const [date, setDate] = useState('');
+  const [currency, setCurrency] = useState<Currency>('RUB');
 
   useEffect(() => {
     if (initialData) {
       setAmount(String(initialData.amount || ''));
       setDescription(initialData.description || '');
       setCategory((initialData.category as Category) || '');
+      setCurrency(((initialData as any).currency as Currency) || 'RUB');
 
       if (initialData.date) {
         const d = new Date(initialData.date);
@@ -46,6 +48,7 @@ export function TransactionForm({
       description,
       category: category || undefined,
       date: new Date(date).toISOString(),
+      currency,
     };
 
     if ('raw_text' in (initialData || {})) {
@@ -132,6 +135,24 @@ export function TransactionForm({
           {CATEGORIES.map((cat) => (
             <option key={cat} value={cat}>
               {CATEGORY_LABELS[cat]}
+            </option>
+          ))}
+        </select>
+      </div>
+
+      <div style={{ marginBottom: '1rem' }}>
+        <label className="label" htmlFor="currency">
+          Валюта
+        </label>
+        <select
+          id="currency"
+          className="select"
+          value={currency}
+          onChange={(e) => setCurrency(e.target.value as Currency)}
+        >
+          {CURRENCIES.map((curr) => (
+            <option key={curr} value={curr}>
+              {CURRENCY_SYMBOLS[curr]} - {CURRENCY_LABELS[curr]}
             </option>
           ))}
         </select>

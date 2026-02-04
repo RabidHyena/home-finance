@@ -13,6 +13,7 @@ class Transaction(Base):
     description = Column(String(500), nullable=False)
     category = Column(String(100), nullable=True)
     date = Column(DateTime, nullable=False)
+    currency = Column(String(3), nullable=False, default='RUB')
     image_path = Column(String(500), nullable=True)
     raw_text = Column(Text, nullable=True)
     created_at = Column(DateTime, server_default=func.now())
