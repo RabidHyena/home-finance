@@ -137,7 +137,7 @@ home-finance/
 │   │   │   └── upload.py        # File upload endpoints
 │   │   └── services/
 │   │       ├── __init__.py
-│   │       └── ocr_service.py   # Claude Vision integration
+│   │       └── ocr_service.py   # Gemini Vision via OpenRouter
 │   ├── tests/
 │   │   ├── __init__.py
 │   │   └── test_transactions.py

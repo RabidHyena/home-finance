@@ -25,7 +25,7 @@
 - [x] CRUD API для транзакций
 - [x] Пагинация и фильтрация
 - [x] Месячные отчёты по категориям
-- [x] Сервис OCR (Claude Vision API)
+- [x] Сервис OCR (Gemini Vision через OpenRouter)
 - [x] Загрузка скриншотов
 - [x] Docker и docker-compose
 - [x] Базовые тесты
@@ -207,7 +207,7 @@ docker-compose down
 - [FastAPI Docs](https://fastapi.tiangolo.com/)
 - [Recharts](https://recharts.org/)
 - [TailwindCSS](https://tailwindcss.com/)
-- [Anthropic API](https://docs.anthropic.com/)
+- [OpenRouter API](https://openrouter.ai/docs)
 
 ---
 
