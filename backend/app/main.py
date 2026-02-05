@@ -14,8 +14,7 @@ from app.schemas import HealthResponse
 @asynccontextmanager
 async def lifespan(app: FastAPI):
     """Application lifespan handler."""
-    # Startup: create database tables
-    Base.metadata.create_all(bind=engine)
+    # Tables are managed by Alembic migrations (alembic upgrade head)
     yield
     # Shutdown: cleanup if needed
 
