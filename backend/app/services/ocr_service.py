@@ -16,7 +16,7 @@ VALID_CATEGORIES = {"Food", "Transport", "Entertainment", "Shopping", "Bills", "
 
 
 class OCRService:
-    """Service for parsing bank screenshots using Gemini 3 Flash via OpenRouter."""
+    """Service for parsing bank screenshots using Gemini 3 Flash Preview via OpenRouter."""
 
     SYSTEM_PROMPT = """You are a financial data extraction assistant.
 Your task is to extract ALL financial information from bank app screenshots, including transactions AND charts/diagrams.
@@ -95,7 +95,7 @@ If you cannot extract some information, make reasonable assumptions and lower th
     def _call_vision_api(self, image_data_b64: str, media_type: str) -> str:
         """Call the vision API and return raw response text."""
         response = self.client.chat.completions.create(
-            model="google/gemini-2.5-flash",
+            model="google/gemini-3-flash-preview",
             max_tokens=4096,  # Increased for multiple transactions
             messages=[
                 {"role": "system", "content": self.SYSTEM_PROMPT},

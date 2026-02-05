@@ -43,7 +43,7 @@
 │  │                     Services                              │  │
 │  │  ┌────────────────────────────────────────────────────┐  │  │
 │  │  │                  OCR Service                        │  │  │
-│  │  │            (Claude Vision API)                      │  │  │
+│  │  │     (Gemini 3 Flash via OpenRouter)                │  │  │
 │  │  └────────────────────────────────────────────────────┘  │  │
 │  └──────────────────────────────────────────────────────────┘  │
 │                          │                                      │
@@ -71,10 +71,10 @@
                                 │ API Call
                                 ▼
 ┌─────────────────────────────────────────────────────────────────┐
-│                 EXTERNAL: Anthropic Claude API                  │
+│              EXTERNAL: OpenRouter API (Google Gemini)           │
 │                                                                 │
-│  • Claude Vision для распознавания изображений                  │
-│  • Модель: claude-sonnet-4-20250514                              │
+│  • Gemini 3 Flash Preview для распознавания изображений         │
+│  • Модель: google/gemini-3-flash-preview                        │
 └─────────────────────────────────────────────────────────────────┘
 ```
 
@@ -106,7 +106,7 @@
 | Pydantic | 2.9.x | Валидация данных |
 | Uvicorn | 0.30.x | ASGI сервер |
 | httpx | 0.27.x | HTTP клиент |
-| Anthropic SDK | 0.34.x | Claude API |
+| OpenAI SDK | 1.x | OpenRouter API (совместимый клиент) |
 
 ### 2.3 Infrastructure
 
@@ -198,8 +198,8 @@ home-finance/
 
 ```
 ┌──────────┐    ┌──────────┐    ┌──────────┐    ┌──────────┐
-│  User    │    │ Frontend │    │ Backend  │    │ Claude   │
-│          │    │          │    │          │    │ API      │
+│  User    │    │ Frontend │    │ Backend  │    │OpenRouter│
+│          │    │          │    │          │    │ (Gemini) │
 └────┬─────┘    └────┬─────┘    └────┬─────┘    └────┬─────┘
      │               │               │               │
      │ Drop image    │               │               │
@@ -209,7 +209,7 @@ home-finance/
      │               │ (multipart/form-data)         │
      │               │──────────────>│               │
      │               │               │               │
-     │               │               │ POST /messages│
+     │               │               │ POST /v1/chat │
      │               │               │ (image+prompt)│
      │               │               │──────────────>│
      │               │               │               │
