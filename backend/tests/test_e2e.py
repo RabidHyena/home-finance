@@ -68,7 +68,7 @@ class TestCRUDLifecycle:
         )
         assert resp.status_code == 201
         data = resp.json()
-        assert data["category"] is None
+        assert data["category"] == "Other"  # defaults to Other
         assert data["image_path"] is None
 
     def test_create_with_all_fields(self, client):

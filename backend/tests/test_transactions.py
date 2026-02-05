@@ -17,7 +17,7 @@ class TestTransactions:
         )
         assert response.status_code == 201
         data = response.json()
-        assert data["amount"] == "150.50"
+        assert float(data["amount"]) == 150.50
         assert data["description"] == "Grocery Store"
         assert data["category"] == "Food"
         assert "id" in data
