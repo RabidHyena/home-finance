@@ -9,7 +9,7 @@ import csv
 from io import StringIO
 
 from app.database import get_db
-from app.models import Transaction
+from app.models import Transaction, MerchantCategoryMapping
 from app.schemas import (
     TransactionCreate,
     TransactionUpdate,
@@ -17,6 +17,7 @@ from app.schemas import (
     TransactionList,
     MonthlyReport,
 )
+from app.services.learning_service import log_correction
 
 router = APIRouter(prefix="/api/transactions", tags=["transactions"])
 
@@ -30,13 +31,20 @@ def create_transaction(
     db_transaction = Transaction(
         amount=transaction.amount,
         description=transaction.description,
-        category=transaction.category,
+        category=transaction.category or "Other",
         date=transaction.date,
         currency=transaction.currency,
         image_path=transaction.image_path,
         raw_text=transaction.raw_text,
+        ai_category=transaction.ai_category,
+        ai_confidence=transaction.ai_confidence,
     )
     db.add(db_transaction)
+    db.flush()  # Get ID before logging
+
+    # Log correction if category was changed
+    log_correction(db, db_transaction)
+
     db.commit()
     db.refresh(db_transaction)
     return db_transaction
@@ -250,3 +258,22 @@ def delete_transaction(
 
     db.delete(transaction)
     db.commit()
+
+
+@router.get("/analytics/ai-accuracy")
+def get_ai_accuracy(db: Session = Depends(get_db)):
+    """Get AI categorization accuracy metrics."""
+    total = db.query(Transaction).filter(Transaction.ai_category.isnot(None)).count()
+    correct = db.query(Transaction).filter(
+        Transaction.ai_category.isnot(None),
+        Transaction.ai_category == Transaction.category
+    ).count()
+
+    accuracy = (correct / total * 100) if total > 0 else 0
+
+    return {
+        "total_predictions": total,
+        "correct_predictions": correct,
+        "accuracy_percentage": round(accuracy, 2),
+        "learned_merchants": db.query(MerchantCategoryMapping).count()
+    }

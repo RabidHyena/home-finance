@@ -19,6 +19,8 @@ class TransactionCreate(TransactionBase):
 
     image_path: Optional[str] = None
     raw_text: Optional[str] = None
+    ai_category: Optional[str] = None
+    ai_confidence: Optional[Decimal] = Field(None, ge=0, le=1)
 
 
 class TransactionUpdate(BaseModel):
@@ -38,10 +40,17 @@ class TransactionResponse(TransactionBase):
     currency: str
     image_path: Optional[str] = None
     raw_text: Optional[str] = None
+    ai_category: Optional[str] = None
+    ai_confidence: Optional[Decimal] = None
     created_at: datetime
     updated_at: datetime
 
-    model_config = ConfigDict(from_attributes=True)
+    model_config = ConfigDict(
+        from_attributes=True,
+        json_encoders={
+            Decimal: lambda v: float(v)
+        }
+    )
 
 
 class TransactionList(BaseModel):
@@ -64,6 +73,57 @@ class ParsedTransaction(BaseModel):
     raw_text: str
     confidence: float = Field(..., ge=0, le=1)
 
+    model_config = ConfigDict(
+        json_encoders={
+            Decimal: lambda v: float(v)
+        }
+    )
+
+
+class ChartDataItem(BaseModel):
+    """Schema for a single chart data item."""
+
+    name: str
+    value: Decimal
+    percentage: Optional[float] = None
+
+    model_config = ConfigDict(
+        json_encoders={
+            Decimal: lambda v: float(v)
+        }
+    )
+
+
+class ParsedChart(BaseModel):
+    """Schema for AI-parsed chart data."""
+
+    type: str  # 'pie', 'bar', 'line', etc.
+    categories: list[ChartDataItem]
+    total: Decimal
+    period: Optional[str] = None
+    confidence: float = Field(..., ge=0, le=1)
+
+    model_config = ConfigDict(
+        json_encoders={
+            Decimal: lambda v: float(v)
+        }
+    )
+
+
+class ParsedTransactions(BaseModel):
+    """Schema for multiple AI-parsed transactions and charts."""
+
+    transactions: list[ParsedTransaction]
+    total_amount: Decimal
+    chart: Optional[ParsedChart] = None
+    raw_text: str
+
+    model_config = ConfigDict(
+        json_encoders={
+            Decimal: lambda v: float(v)
+        }
+    )
+
 
 class MonthlyReport(BaseModel):
     """Schema for monthly spending report."""
@@ -74,6 +134,12 @@ class MonthlyReport(BaseModel):
     transaction_count: int
     by_category: dict[str, Decimal]
 
+    model_config = ConfigDict(
+        json_encoders={
+            Decimal: lambda v: float(v)
+        }
+    )
+
 
 class HealthResponse(BaseModel):
     """Schema for health check response."""
@@ -81,3 +147,21 @@ class HealthResponse(BaseModel):
     status: str
     database: str
     version: str
+
+
+class BatchUploadResult(BaseModel):
+    """Schema for a single batch upload result."""
+
+    filename: str
+    status: str  # 'success' or 'error'
+    data: Optional[ParsedTransactions] = None
+    error: Optional[str] = None
+
+
+class BatchUploadResponse(BaseModel):
+    """Schema for batch upload response."""
+
+    results: list[BatchUploadResult]
+    total_files: int
+    successful: int
+    failed: int

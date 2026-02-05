@@ -2,39 +2,52 @@ import { useState, useCallback } from 'react';
 import { Upload, Image, X, Loader2 } from 'lucide-react';
 
 interface UploadZoneProps {
-  onFileSelect: (file: File) => void;
+  onFileSelect: (files: File[]) => void;
   isLoading?: boolean;
   accept?: string;
+  multiple?: boolean;
 }
 
 export function UploadZone({
   onFileSelect,
   isLoading,
   accept = 'image/*',
+  multiple = false,
 }: UploadZoneProps) {
   const [isDragging, setIsDragging] = useState(false);
   const [preview, setPreview] = useState<string | null>(null);
   const [fileName, setFileName] = useState<string | null>(null);
+  const [previews, setPreviews] = useState<{ file: File; url: string }[]>([]);
 
-  const handleFile = useCallback(
-    (file: File) => {
-      if (!file.type.startsWith('image/')) {
-        alert('Пожалуйста, выберите изображение');
+  const handleFiles = useCallback(
+    (fileList: File[]) => {
+      const validFiles = fileList.filter(f => f.type.startsWith('image/'));
+
+      if (validFiles.length === 0) {
+        alert('Пожалуйста, выберите изображения');
         return;
       }
 
-      setFileName(file.name);
+      if (multiple) {
+        const newPreviews = validFiles.map(file => ({
+          file,
+          url: URL.createObjectURL(file)
+        }));
+        setPreviews(newPreviews);
+      } else {
+        // Single file mode (backwards compatibility)
+        const file = validFiles[0];
+        setFileName(file.name);
+        const reader = new FileReader();
+        reader.onload = (e) => {
+          setPreview(e.target?.result as string);
+        };
+        reader.readAsDataURL(file);
+      }
 
-      // Create preview
-      const reader = new FileReader();
-      reader.onload = (e) => {
-        setPreview(e.target?.result as string);
-      };
-      reader.readAsDataURL(file);
-
-      onFileSelect(file);
+      onFileSelect(validFiles);
     },
-    [onFileSelect]
+    [onFileSelect, multiple]
   );
 
   const handleDrop = useCallback(
@@ -42,12 +55,12 @@ export function UploadZone({
       e.preventDefault();
       setIsDragging(false);
 
-      const file = e.dataTransfer.files[0];
-      if (file) {
-        handleFile(file);
+      const files = Array.from(e.dataTransfer.files);
+      if (files.length > 0) {
+        handleFiles(files);
       }
     },
-    [handleFile]
+    [handleFiles]
   );
 
   const handleDragOver = useCallback((e: React.DragEvent) => {
@@ -62,17 +75,18 @@ export function UploadZone({
 
   const handleInputChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
-      const file = e.target.files?.[0];
-      if (file) {
-        handleFile(file);
+      const files = e.target.files ? Array.from(e.target.files) : [];
+      if (files.length > 0) {
+        handleFiles(files);
       }
     },
-    [handleFile]
+    [handleFiles]
   );
 
   const clearPreview = useCallback(() => {
     setPreview(null);
     setFileName(null);
+    setPreviews([]);
   }, []);
 
   if (isLoading) {
@@ -102,6 +116,51 @@ export function UploadZone({
             to { transform: rotate(360deg); }
           }
         `}</style>
+      </div>
+    );
+  }
+
+  // Multiple file preview
+  if (previews.length > 0 && multiple) {
+    return (
+      <div>
+        <div style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fill, minmax(150px, 1fr))',
+          gap: '1rem',
+          marginBottom: '1rem',
+        }}>
+          {previews.map((preview, i) => (
+            <div key={i} style={{
+              border: '2px solid var(--color-border)',
+              borderRadius: '0.5rem',
+              padding: '0.5rem',
+              backgroundColor: 'var(--color-surface)',
+            }}>
+              <img
+                src={preview.url}
+                alt={preview.file.name}
+                style={{ width: '100%', height: '100px', objectFit: 'cover', borderRadius: '0.25rem' }}
+              />
+              <p style={{
+                fontSize: '0.75rem',
+                marginTop: '0.5rem',
+                overflow: 'hidden',
+                textOverflow: 'ellipsis',
+                whiteSpace: 'nowrap'
+              }}>
+                {preview.file.name}
+              </p>
+            </div>
+          ))}
+        </div>
+        <button
+          onClick={clearPreview}
+          className="btn btn-secondary"
+          style={{ width: '100%' }}
+        >
+          Выбрать другие файлы
+        </button>
       </div>
     );
   }
@@ -176,6 +235,7 @@ export function UploadZone({
       <input
         type="file"
         accept={accept}
+        multiple={multiple}
         onChange={handleInputChange}
         style={{ display: 'none' }}
       />
@@ -193,7 +253,7 @@ export function UploadZone({
           color: 'var(--color-text)',
         }}
       >
-        Перетащите скриншот сюда
+        {multiple ? 'Перетащите несколько скриншотов сюда' : 'Перетащите скриншот сюда'}
       </p>
       <p
         style={{
@@ -202,7 +262,7 @@ export function UploadZone({
           color: 'var(--color-text-secondary)',
         }}
       >
-        или нажмите для выбора файла
+        {multiple ? 'или нажмите для выбора файлов' : 'или нажмите для выбора файла'}
       </p>
       <p
         style={{

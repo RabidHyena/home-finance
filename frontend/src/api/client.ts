@@ -3,13 +3,13 @@ import type {
   TransactionCreate,
   TransactionUpdate,
   TransactionList,
-  ParsedTransaction,
+  ParsedTransactions,
   MonthlyReport,
 } from '../types';
 import {
   mockTransactions,
   mockMonthlyReports,
-  mockParsedTransaction,
+  mockParsedTransactions,
 } from './mockData';
 
 // Simulate network delay
@@ -109,8 +109,11 @@ export const api = {
         description: data.description,
         category: data.category || null,
         date: data.date,
+        currency: data.currency || 'RUB',
         image_path: data.image_path || null,
         raw_text: data.raw_text || null,
+        ai_category: data.ai_category || null,
+        ai_confidence: data.ai_confidence || null,
         created_at: now,
         updated_at: now,
       };
@@ -187,16 +190,11 @@ export const api = {
   },
 
   // Upload and parse
-  async uploadAndParse(file: File): Promise<ParsedTransaction> {
+  async uploadAndParse(file: File): Promise<ParsedTransactions> {
     if (USE_MOCK) {
       await delay(1500); // Simulate AI processing time
       // Return mock data with some randomization
-      return {
-        ...mockParsedTransaction,
-        amount: Math.round(Math.random() * 5000 + 100),
-        date: new Date().toISOString(),
-        confidence: 0.85 + Math.random() * 0.15,
-      };
+      return mockParsedTransactions;
     }
 
     const formData = new FormData();

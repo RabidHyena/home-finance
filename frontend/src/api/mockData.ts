@@ -1,4 +1,4 @@
-import type { Transaction, MonthlyReport, ParsedTransaction } from '../types';
+import type { Transaction, MonthlyReport, ParsedTransaction, ParsedTransactions, ParsedChart } from '../types';
 
 // Mock transactions data
 export const mockTransactions: Transaction[] = [
@@ -11,6 +11,8 @@ export const mockTransactions: Transaction[] = [
     currency: 'RUB',
     image_path: null,
     raw_text: null,
+    ai_category: null,
+    ai_confidence: null,
     created_at: '2024-01-28T14:35:00',
     updated_at: '2024-01-28T14:35:00',
   },
@@ -23,6 +25,8 @@ export const mockTransactions: Transaction[] = [
     currency: 'RUB',
     image_path: null,
     raw_text: null,
+    ai_category: null,
+    ai_confidence: null,
     created_at: '2024-01-28T09:20:00',
     updated_at: '2024-01-28T09:20:00',
   },
@@ -35,6 +39,8 @@ export const mockTransactions: Transaction[] = [
     currency: 'RUB',
     image_path: null,
     raw_text: null,
+    ai_category: null,
+    ai_confidence: null,
     created_at: '2024-01-27T12:05:00',
     updated_at: '2024-01-27T12:05:00',
   },
@@ -47,6 +53,8 @@ export const mockTransactions: Transaction[] = [
     currency: 'RUB',
     image_path: null,
     raw_text: null,
+    ai_category: null,
+    ai_confidence: null,
     created_at: '2024-01-26T18:50:00',
     updated_at: '2024-01-26T18:50:00',
   },
@@ -59,6 +67,8 @@ export const mockTransactions: Transaction[] = [
     currency: 'RUB',
     image_path: null,
     raw_text: null,
+    ai_category: null,
+    ai_confidence: null,
     created_at: '2024-01-26T11:25:00',
     updated_at: '2024-01-26T11:25:00',
   },
@@ -71,6 +81,8 @@ export const mockTransactions: Transaction[] = [
     currency: 'RUB',
     image_path: null,
     raw_text: null,
+    ai_category: null,
+    ai_confidence: null,
     created_at: '2024-01-25T10:05:00',
     updated_at: '2024-01-25T10:05:00',
   },
@@ -83,6 +95,8 @@ export const mockTransactions: Transaction[] = [
     currency: 'RUB',
     image_path: null,
     raw_text: null,
+    ai_category: null,
+    ai_confidence: null,
     created_at: '2024-01-24T16:35:00',
     updated_at: '2024-01-24T16:35:00',
   },
@@ -95,6 +109,8 @@ export const mockTransactions: Transaction[] = [
     currency: 'RUB',
     image_path: null,
     raw_text: null,
+    ai_category: null,
+    ai_confidence: null,
     created_at: '2024-01-24T08:50:00',
     updated_at: '2024-01-24T08:50:00',
   },
@@ -107,6 +123,8 @@ export const mockTransactions: Transaction[] = [
     currency: 'RUB',
     image_path: null,
     raw_text: null,
+    ai_category: null,
+    ai_confidence: null,
     created_at: '2024-01-23T15:05:00',
     updated_at: '2024-01-23T15:05:00',
   },
@@ -119,6 +137,8 @@ export const mockTransactions: Transaction[] = [
     currency: 'RUB',
     image_path: null,
     raw_text: null,
+    ai_category: null,
+    ai_confidence: null,
     created_at: '2024-01-23T07:35:00',
     updated_at: '2024-01-23T07:35:00',
   },
@@ -179,4 +199,54 @@ export const mockParsedTransaction: ParsedTransaction = {
   currency: 'RUB',
   raw_text: 'Распознано: Лента, 1599.00 руб',
   confidence: 0.92,
+};
+
+// Mock parsed chart (chart data from screenshot)
+export const mockParsedChart: ParsedChart = {
+  type: 'pie',
+  categories: [
+    { name: 'Еда', value: 12500.50, percentage: 45.2 },
+    { name: 'Транспорт', value: 5400.00, percentage: 19.5 },
+    { name: 'Покупки', value: 7800.00, percentage: 28.2 },
+    { name: 'Развлечения', value: 1950.00, percentage: 7.1 },
+  ],
+  total: 27650.50,
+  period: 'Январь 2024',
+  confidence: 0.88,
+};
+
+// Mock parsed transactions (multiple transactions from one screenshot)
+export const mockParsedTransactions: ParsedTransactions = {
+  transactions: [
+    {
+      amount: 1250.50,
+      description: 'Пятёрочка',
+      date: new Date().toISOString(),
+      category: 'Food',
+      currency: 'RUB',
+      raw_text: 'Распознано с скриншота',
+      confidence: 0.95,
+    },
+    {
+      amount: 450.00,
+      description: 'Яндекс.Такси',
+      date: new Date(Date.now() - 86400000).toISOString(),
+      category: 'Transport',
+      currency: 'RUB',
+      raw_text: 'Распознано с скриншота',
+      confidence: 0.88,
+    },
+    {
+      amount: 2300.00,
+      description: 'Wildberries',
+      date: new Date(Date.now() - 172800000).toISOString(),
+      category: 'Shopping',
+      currency: 'RUB',
+      raw_text: 'Распознано с скриншота',
+      confidence: 0.92,
+    },
+  ],
+  total_amount: 4000.50,
+  chart: Math.random() > 0.5 ? mockParsedChart : null,  // Randomly include chart in mock
+  raw_text: 'Распознано 3 транзакции с общей суммой 4000.50 руб',
 };

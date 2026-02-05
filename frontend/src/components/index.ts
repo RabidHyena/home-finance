@@ -1,9 +1,13 @@
 export { Layout } from './Layout';
 export { TransactionCard } from './TransactionCard';
 export { TransactionForm } from './TransactionForm';
+export { MultipleTransactionsForm } from './MultipleTransactionsForm';
+export { RecognizedChartDisplay } from './RecognizedChartDisplay';
 export { UploadZone } from './UploadZone';
 export { MonthlyChart } from './MonthlyChart';
 export { CategoryChart } from './CategoryChart';
+export { CategorySelector } from './CategorySelector';
 export { ConfirmModal } from './ConfirmModal';
 export { ToastProvider, useToast } from './Toast';
 export { Skeleton, TransactionCardSkeleton, StatCardSkeleton, ChartSkeleton } from './Skeleton';
+export { ErrorBoundary } from './ErrorBoundary';

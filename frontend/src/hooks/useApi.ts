@@ -1,6 +1,6 @@
 import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../api/client';
-import type { TransactionCreate, TransactionUpdate } from '../types';
+import type { TransactionCreate, TransactionUpdate, BatchUploadResponse } from '../types';
 
 // Query keys
 const keys = {
@@ -89,5 +89,25 @@ export function useDeleteTransaction() {
 export function useUploadAndParse() {
   return useMutation({
     mutationFn: (file: File) => api.uploadAndParse(file),
+  });
+}
+
+export function useBatchUploadAndParse() {
+  return useMutation({
+    mutationFn: async (files: File[]): Promise<BatchUploadResponse> => {
+      const formData = new FormData();
+      files.forEach(file => formData.append('files', file));
+
+      const response = await fetch(`${import.meta.env.VITE_API_BASE_URL || 'http://localhost:8000'}/api/upload/batch`, {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        throw new Error('Batch upload failed');
+      }
+
+      return response.json();
+    },
   });
 }

@@ -7,6 +7,8 @@ export interface Transaction {
   currency: string;
   image_path: string | null;
   raw_text: string | null;
+  ai_category: string | null;
+  ai_confidence: number | null;
   created_at: string;
   updated_at: string;
 }
@@ -19,6 +21,8 @@ export interface TransactionCreate {
   currency?: string;
   image_path?: string;
   raw_text?: string;
+  ai_category?: string;
+  ai_confidence?: number;
 }
 
 export interface TransactionUpdate {
@@ -44,6 +48,27 @@ export interface ParsedTransaction {
   currency: string;
   raw_text: string;
   confidence: number;
+}
+
+export interface ChartDataItem {
+  name: string;
+  value: number;
+  percentage?: number;
+}
+
+export interface ParsedChart {
+  type: string;
+  categories: ChartDataItem[];
+  total: number;
+  period?: string;
+  confidence: number;
+}
+
+export interface ParsedTransactions {
+  transactions: ParsedTransaction[];
+  total_amount: number;
+  chart?: ParsedChart | null;
+  raw_text: string;
 }
 
 export interface MonthlyReport {
@@ -109,3 +134,17 @@ export const CURRENCY_LABELS: Record<Currency, string> = {
   EUR: 'Евро',
   GBP: 'Фунт стерлингов',
 };
+
+export interface BatchUploadResult {
+  filename: string;
+  status: 'success' | 'error';
+  data?: ParsedTransactions;
+  error?: string;
+}
+
+export interface BatchUploadResponse {
+  results: BatchUploadResult[];
+  total_files: number;
+  successful: number;
+  failed: number;
+}
