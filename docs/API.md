@@ -43,7 +43,10 @@ Create a new transaction.
   "amount": 1500.00,
   "description": "Пятёрочка",
   "category": "Food",
-  "date": "2024-01-15T14:30:00",
+  "date": "2026-01-15T14:30:00",
+  "currency": "RUB",
+  "ai_category": "Food",
+  "ai_confidence": 0.95,
   "image_path": null,
   "raw_text": null
 }
@@ -53,14 +56,17 @@ Create a new transaction.
 ```json
 {
   "id": 1,
-  "amount": "1500.00",
+  "amount": 1500.00,
   "description": "Пятёрочка",
   "category": "Food",
-  "date": "2024-01-15T14:30:00",
+  "currency": "RUB",
+  "ai_category": "Food",
+  "ai_confidence": 0.95,
+  "date": "2026-01-15T14:30:00",
   "image_path": null,
   "raw_text": null,
-  "created_at": "2024-01-15T14:35:00",
-  "updated_at": "2024-01-15T14:35:00"
+  "created_at": "2026-01-15T14:35:00",
+  "updated_at": "2026-01-15T14:35:00"
 }
 ```
 
@@ -76,12 +82,13 @@ Get a paginated list of transactions.
 | page | integer | 1 | Page number (1-based) |
 | per_page | integer | 20 | Items per page (1-100) |
 | category | string | null | Filter by category |
+| search | string | null | Search in description and raw_text (case-insensitive) |
 | date_from | datetime | null | Filter by start date |
 | date_to | datetime | null | Filter by end date |
 
 **Example:**
 ```
-GET /api/transactions?page=1&per_page=10&category=Food
+GET /api/transactions?page=1&per_page=10&category=Food&search=пятёрочка
 ```
 
 **Response:** `200 OK`
@@ -90,14 +97,15 @@ GET /api/transactions?page=1&per_page=10&category=Food
   "items": [
     {
       "id": 1,
-      "amount": "1500.00",
+      "amount": 1500.00,
       "description": "Пятёрочка",
       "category": "Food",
-      "date": "2024-01-15T14:30:00",
+      "currency": "RUB",
+      "date": "2026-01-15T14:30:00",
       "image_path": null,
       "raw_text": null,
-      "created_at": "2024-01-15T14:35:00",
-      "updated_at": "2024-01-15T14:35:00"
+      "created_at": "2026-01-15T14:35:00",
+      "updated_at": "2026-01-15T14:35:00"
     }
   ],
   "total": 1,
@@ -112,68 +120,25 @@ GET /api/transactions?page=1&per_page=10&category=Food
 
 Get a single transaction by ID.
 
-**Path Parameters:**
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| id | integer | Transaction ID |
-
-**Response:** `200 OK`
-```json
-{
-  "id": 1,
-  "amount": "1500.00",
-  "description": "Пятёрочка",
-  "category": "Food",
-  "date": "2024-01-15T14:30:00",
-  "image_path": null,
-  "raw_text": null,
-  "created_at": "2024-01-15T14:35:00",
-  "updated_at": "2024-01-15T14:35:00"
-}
-```
-
-**Error Response:** `404 Not Found`
-```json
-{
-  "detail": "Transaction not found"
-}
-```
+**Response:** `200 OK` / `404 Not Found`
 
 ---
 
 #### PUT /api/transactions/{id}
 
-Update an existing transaction.
+Update an existing transaction. All fields are optional.
 
-**Path Parameters:**
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| id | integer | Transaction ID |
-
-**Request Body:** (all fields optional)
+**Request Body:**
 ```json
 {
   "amount": 1600.00,
   "description": "Магнит",
   "category": "Food",
-  "date": "2024-01-15T15:00:00"
+  "currency": "USD"
 }
 ```
 
-**Response:** `200 OK`
-```json
-{
-  "id": 1,
-  "amount": "1600.00",
-  "description": "Магнит",
-  "category": "Food",
-  "date": "2024-01-15T15:00:00",
-  "image_path": null,
-  "raw_text": null,
-  "created_at": "2024-01-15T14:35:00",
-  "updated_at": "2024-01-15T15:05:00"
-}
-```
+**Response:** `200 OK` / `404 Not Found`
 
 ---
 
@@ -181,12 +146,7 @@ Update an existing transaction.
 
 Delete a transaction.
 
-**Path Parameters:**
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| id | integer | Transaction ID |
-
-**Response:** `204 No Content`
+**Response:** `204 No Content` / `404 Not Found`
 
 ---
 
@@ -203,20 +163,145 @@ Get monthly spending reports with category breakdown.
 ```json
 [
   {
-    "year": 2024,
+    "year": 2026,
     "month": 1,
-    "total_amount": "30420.00",
+    "total_amount": 30420.00,
     "transaction_count": 10,
     "by_category": {
-      "Food": "2790.00",
-      "Transport": "630.00",
-      "Entertainment": "2500.00",
-      "Shopping": "19500.00",
-      "Bills": "3200.00",
-      "Health": "1800.00"
+      "Food": 2790.00,
+      "Transport": 630.00,
+      "Shopping": 19500.00
     }
   }
 ]
+```
+
+---
+
+#### GET /api/transactions/export
+
+Export transactions to CSV. Supports the same filters as GET /api/transactions.
+
+**Query Parameters:**
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| category | string | Filter by category |
+| search | string | Search in description |
+| date_from | datetime | Start date |
+| date_to | datetime | End date |
+
+**Response:** `200 OK`
+- Content-Type: `text/csv; charset=utf-8`
+- Content-Disposition: `attachment; filename=transactions_YYYY-MM-DD.csv`
+- Includes UTF-8 BOM for Excel compatibility
+
+---
+
+### Analytics
+
+#### GET /api/transactions/analytics/comparison
+
+Compare spending between two consecutive months.
+
+**Query Parameters (required):**
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| year | integer | Year of the target month |
+| month | integer | Target month (1-12) |
+
+**Response:** `200 OK`
+```json
+{
+  "current_month": {"year": 2026, "month": 1},
+  "previous_month": {"year": 2025, "month": 12},
+  "current": {
+    "total": 10000,
+    "count": 3,
+    "by_category": {"Food": 7000, "Transport": 2000, "Shopping": 1000}
+  },
+  "previous": {
+    "total": 8000,
+    "count": 2,
+    "by_category": {"Food": 5000, "Transport": 3000}
+  },
+  "changes": {
+    "total_percent": 25.0
+  }
+}
+```
+
+---
+
+#### GET /api/transactions/analytics/trends
+
+Get spending trends over time with linear regression.
+
+**Query Parameters:**
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| months | integer | 6 | Number of months to analyze |
+
+**Response:** `200 OK`
+```json
+{
+  "period": "6 months",
+  "data": [...],
+  "trend_line": [...],
+  "statistics": {
+    "average": 5500,
+    "std_deviation": 1000,
+    "min": 4000,
+    "max": 7000
+  }
+}
+```
+
+---
+
+#### GET /api/transactions/analytics/forecast
+
+Forecast future spending based on historical data.
+
+**Query Parameters:**
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| history_months | integer | 6 | Months of history to use |
+| forecast_months | integer | 3 | Months to forecast |
+
+**Response:** `200 OK`
+```json
+{
+  "historical": [...],
+  "forecast": [
+    {
+      "year": 2026, "month": 2,
+      "amount": 5500,
+      "is_forecast": true,
+      "confidence_min": 4500,
+      "confidence_max": 6500
+    }
+  ],
+  "statistics": {
+    "average": 5500,
+    "confidence_interval": {"min": 4500, "max": 6500}
+  }
+}
+```
+
+---
+
+#### GET /api/transactions/analytics/ai-accuracy
+
+Get AI categorization accuracy statistics.
+
+**Response:** `200 OK`
+```json
+{
+  "total_predictions": 50,
+  "correct_predictions": 42,
+  "accuracy_percentage": 84.0,
+  "learned_merchants": 5
+}
 ```
 
 ---
@@ -235,28 +320,15 @@ Upload a bank screenshot and parse transaction data using AI.
 
 **Max file size:** 10 MB
 
-**Example (curl):**
-```bash
-curl -X POST http://localhost:8000/api/upload \
-  -F "file=@screenshot.png"
-```
-
 **Response:** `200 OK`
 ```json
 {
   "amount": 1599.00,
   "description": "Лента",
-  "date": "2024-01-15T14:30:00",
+  "date": "2026-01-15T14:30:00",
   "category": "Food",
   "raw_text": "Распознано: Лента, 1599.00 руб",
   "confidence": 0.92
-}
-```
-
-**Error Response:** `400 Bad Request`
-```json
-{
-  "detail": "Invalid file type. Allowed: image/jpeg, image/png, image/gif, image/webp"
 }
 ```
 
@@ -264,9 +336,140 @@ curl -X POST http://localhost:8000/api/upload \
 
 #### POST /api/upload/parse-only
 
-Parse a bank screenshot without saving the file.
+Parse a bank screenshot without saving the file. Same format as `/api/upload`.
 
-Same request/response format as `/api/upload`.
+---
+
+#### POST /api/upload/batch
+
+Upload multiple screenshots at once (up to 10).
+
+**Request:**
+- Content-Type: `multipart/form-data`
+- Body: `files` (multiple image files)
+
+**Response:** `200 OK`
+```json
+{
+  "transactions": [...],
+  "total_amount": 5000.00,
+  "chart": {
+    "type": "pie",
+    "categories": [
+      {"name": "Food", "value": 3000, "percentage": 60},
+      {"name": "Transport", "value": 2000, "percentage": 40}
+    ]
+  }
+}
+```
+
+---
+
+### Budgets
+
+#### POST /api/budgets
+
+Create a budget for a category.
+
+**Request Body:**
+```json
+{
+  "category": "Food",
+  "limit_amount": 15000,
+  "period": "monthly"
+}
+```
+
+**Response:** `201 Created`
+```json
+{
+  "id": 1,
+  "category": "Food",
+  "limit_amount": 15000,
+  "period": "monthly",
+  "created_at": "2026-01-15T10:00:00",
+  "updated_at": "2026-01-15T10:00:00"
+}
+```
+
+**Error:** `400 Bad Request` if budget for category already exists.
+
+---
+
+#### GET /api/budgets
+
+Get all budgets.
+
+**Response:** `200 OK`
+```json
+[
+  {
+    "id": 1,
+    "category": "Food",
+    "limit_amount": 15000,
+    "period": "monthly"
+  }
+]
+```
+
+---
+
+#### GET /api/budgets/{id}
+
+Get a budget by ID.
+
+**Response:** `200 OK` / `404 Not Found`
+
+---
+
+#### PUT /api/budgets/{id}
+
+Update a budget. All fields are optional.
+
+**Request Body:**
+```json
+{
+  "limit_amount": 20000
+}
+```
+
+**Response:** `200 OK` / `404 Not Found`
+
+---
+
+#### DELETE /api/budgets/{id}
+
+Delete a budget.
+
+**Response:** `204 No Content` / `404 Not Found`
+
+---
+
+#### GET /api/budgets/status
+
+Get budget status with current spending for a given month.
+
+**Query Parameters (required):**
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| year | integer | Year |
+| month | integer | Month (1-12) |
+
+**Response:** `200 OK`
+```json
+[
+  {
+    "id": 1,
+    "category": "Food",
+    "limit_amount": 15000,
+    "period": "monthly",
+    "spent": 8500,
+    "remaining": 6500,
+    "percentage": 56.7,
+    "exceeded": false
+  }
+]
+```
 
 ---
 
@@ -279,10 +482,24 @@ Same request/response format as `/api/upload`.
 | id | integer | No | Unique identifier |
 | amount | decimal | No | Transaction amount |
 | description | string | No | Merchant name or description |
-| category | string | Yes | Category (Food, Transport, etc.) |
+| category | string | No | Category (default: "Other") |
+| currency | string | No | Currency code: RUB, USD, EUR, GBP (default: "RUB") |
 | date | datetime | No | Transaction date and time |
+| ai_category | string | Yes | AI-suggested category |
+| ai_confidence | float | Yes | AI confidence (0.0-1.0) |
 | image_path | string | Yes | Path to saved screenshot |
 | raw_text | string | Yes | Raw AI response text |
+| created_at | datetime | No | Record creation time |
+| updated_at | datetime | No | Last update time |
+
+### Budget
+
+| Field | Type | Nullable | Description |
+|-------|------|----------|-------------|
+| id | integer | No | Unique identifier |
+| category | string | No | Category (unique) |
+| limit_amount | decimal | No | Spending limit |
+| period | string | No | "monthly" or "weekly" |
 | created_at | datetime | No | Record creation time |
 | updated_at | datetime | No | Last update time |
 
@@ -297,16 +514,6 @@ Same request/response format as `/api/upload`.
 | raw_text | string | Raw AI response |
 | confidence | float | Recognition confidence (0-1) |
 
-### MonthlyReport
-
-| Field | Type | Description |
-|-------|------|-------------|
-| year | integer | Report year |
-| month | integer | Report month (1-12) |
-| total_amount | decimal | Total spending |
-| transaction_count | integer | Number of transactions |
-| by_category | object | Spending by category |
-
 ### Category
 
 Valid category values:
@@ -317,6 +524,14 @@ Valid category values:
 - `Bills` - Счета
 - `Health` - Здоровье
 - `Other` - Другое
+
+### Currency
+
+Valid currency codes:
+- `RUB` - Российский рубль (default)
+- `USD` - Доллар США
+- `EUR` - Евро
+- `GBP` - Фунт стерлингов
 
 ---
 
@@ -337,7 +552,7 @@ All errors follow this format:
 | 200 | Success |
 | 201 | Created |
 | 204 | No Content (successful delete) |
-| 400 | Bad Request (validation error) |
+| 400 | Bad Request (business logic error) |
 | 404 | Not Found |
 | 422 | Unprocessable Entity (validation error) |
 | 500 | Internal Server Error |
@@ -362,13 +577,14 @@ curl -X POST http://localhost:8000/api/transactions \
     "amount": 1500.00,
     "description": "Пятёрочка",
     "category": "Food",
-    "date": "2024-01-15T14:30:00"
+    "currency": "RUB",
+    "date": "2026-01-15T14:30:00"
   }'
 ```
 
-**Get transactions:**
+**Search transactions:**
 ```bash
-curl "http://localhost:8000/api/transactions?page=1&per_page=10"
+curl "http://localhost:8000/api/transactions?search=пятёрочка&category=Food&page=1&per_page=10"
 ```
 
 **Upload screenshot:**
@@ -377,65 +593,46 @@ curl -X POST http://localhost:8000/api/upload \
   -F "file=@screenshot.png"
 ```
 
-### JavaScript/TypeScript
-
-```typescript
-// Get transactions
-const response = await fetch('http://localhost:8000/api/transactions');
-const data = await response.json();
-console.log(data.items);
-
-// Create transaction
-const newTransaction = await fetch('http://localhost:8000/api/transactions', {
-  method: 'POST',
-  headers: { 'Content-Type': 'application/json' },
-  body: JSON.stringify({
-    amount: 1500,
-    description: 'Пятёрочка',
-    category: 'Food',
-    date: new Date().toISOString(),
-  }),
-});
-
-// Upload file
-const formData = new FormData();
-formData.append('file', fileInput.files[0]);
-
-const parsed = await fetch('http://localhost:8000/api/upload', {
-  method: 'POST',
-  body: formData,
-});
+**Batch upload:**
+```bash
+curl -X POST http://localhost:8000/api/upload/batch \
+  -F "files=@screen1.png" \
+  -F "files=@screen2.png"
 ```
 
-### Python
+**Export CSV:**
+```bash
+curl -o transactions.csv "http://localhost:8000/api/transactions/export?category=Food"
+```
 
-```python
-import httpx
+**Create budget:**
+```bash
+curl -X POST http://localhost:8000/api/budgets \
+  -H "Content-Type: application/json" \
+  -d '{"category": "Food", "limit_amount": 15000, "period": "monthly"}'
+```
 
-# Get transactions
-response = httpx.get('http://localhost:8000/api/transactions')
-transactions = response.json()
+**Get budget status:**
+```bash
+curl "http://localhost:8000/api/budgets/status?year=2026&month=1"
+```
 
-# Create transaction
-response = httpx.post(
-    'http://localhost:8000/api/transactions',
-    json={
-        'amount': 1500.00,
-        'description': 'Пятёрочка',
-        'category': 'Food',
-        'date': '2024-01-15T14:30:00',
-    }
-)
+**Analytics - comparison:**
+```bash
+curl "http://localhost:8000/api/transactions/analytics/comparison?year=2026&month=1"
+```
 
-# Upload file
-with open('screenshot.png', 'rb') as f:
-    response = httpx.post(
-        'http://localhost:8000/api/upload',
-        files={'file': f}
-    )
+**Analytics - trends:**
+```bash
+curl "http://localhost:8000/api/transactions/analytics/trends?months=6"
+```
+
+**Analytics - forecast:**
+```bash
+curl "http://localhost:8000/api/transactions/analytics/forecast?history_months=6&forecast_months=3"
 ```
 
 ---
 
-*Version: 1.0*
-*Date: February 2026*
+*Version: 2.0*
+*Date: 5 February 2026*

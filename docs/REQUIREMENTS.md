@@ -117,12 +117,33 @@
 | id | Integer | Да (auto) | Уникальный идентификатор |
 | amount | Decimal(12,2) | Да | Сумма транзакции |
 | description | String(500) | Да | Описание (название магазина) |
-| category | String(100) | Нет | Категория из списка |
+| category | String(100) | Нет | Категория из списка (по умолчанию "Other") |
 | date | DateTime | Да | Дата и время транзакции |
+| currency | String(3) | Нет | Код валюты: RUB, USD, EUR, GBP (по умолчанию "RUB") |
+| ai_category | String(100) | Нет | Категория, предложенная AI |
+| ai_confidence | Float | Нет | Уверенность AI (0.0-1.0) |
 | image_path | String(500) | Нет | Путь к сохранённому скриншоту |
 | raw_text | Text | Нет | Сырой текст от AI (для отладки) |
 | created_at | DateTime | Да (auto) | Дата создания записи |
 | updated_at | DateTime | Да (auto) | Дата последнего обновления |
+
+### 5.2 Бюджет (Budget)
+
+| Поле | Тип | Обязательное | Описание |
+|------|-----|--------------|----------|
+| id | Integer | Да (auto) | Уникальный идентификатор |
+| category | String(100) | Да | Категория (уникальная) |
+| limit_amount | Decimal(12,2) | Да | Лимит расходов |
+| period | String(20) | Да | Период: "monthly" или "weekly" |
+| created_at | DateTime | Да (auto) | Дата создания |
+| updated_at | DateTime | Да (auto) | Дата обновления |
+
+### 5.3 Обучение AI
+
+| Таблица | Описание |
+|---------|----------|
+| category_corrections | Журнал исправлений AI-категоризации |
+| merchant_category_mappings | Выученные связи «продавец → категория» |
 
 ---
 
@@ -133,20 +154,42 @@
 | Метод | Endpoint | Описание |
 |-------|----------|----------|
 | POST | /api/transactions | Создать транзакцию |
-| GET | /api/transactions | Список транзакций (пагинация, фильтры) |
+| GET | /api/transactions | Список (пагинация, поиск, фильтры по категории/датам) |
 | GET | /api/transactions/{id} | Получить транзакцию по ID |
 | PUT | /api/transactions/{id} | Обновить транзакцию |
 | DELETE | /api/transactions/{id} | Удалить транзакцию |
-| GET | /api/transactions/reports/monthly | Месячные отчёты |
+| GET | /api/transactions/reports/monthly | Месячные отчёты по категориям |
+| GET | /api/transactions/export | Экспорт в CSV (с учётом фильтров) |
 
-### 6.2 Загрузка
+### 6.2 Аналитика
+
+| Метод | Endpoint | Описание |
+|-------|----------|----------|
+| GET | /api/transactions/analytics/comparison | Сравнение месяцев |
+| GET | /api/transactions/analytics/trends | Тренды расходов |
+| GET | /api/transactions/analytics/forecast | Прогноз расходов |
+| GET | /api/transactions/analytics/ai-accuracy | Точность AI |
+
+### 6.3 Загрузка
 
 | Метод | Endpoint | Описание |
 |-------|----------|----------|
 | POST | /api/upload | Загрузить и распознать скриншот |
 | POST | /api/upload/parse-only | Только распознать (без сохранения) |
+| POST | /api/upload/batch | Пакетная загрузка (до 10 файлов) |
 
-### 6.3 Системные
+### 6.4 Бюджеты
+
+| Метод | Endpoint | Описание |
+|-------|----------|----------|
+| POST | /api/budgets | Создать бюджет |
+| GET | /api/budgets | Список бюджетов |
+| GET | /api/budgets/{id} | Получить бюджет по ID |
+| PUT | /api/budgets/{id} | Обновить бюджет |
+| DELETE | /api/budgets/{id} | Удалить бюджет |
+| GET | /api/budgets/status | Статус бюджетов (траты vs лимиты) |
+
+### 6.5 Системные
 
 | Метод | Endpoint | Описание |
 |-------|----------|----------|
@@ -213,5 +256,5 @@
 
 ---
 
-*Версия документа: 1.0*
-*Дата: Февраль 2026*
+*Версия документа: 2.0*
+*Дата: 5 февраля 2026*

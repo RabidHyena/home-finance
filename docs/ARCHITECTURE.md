@@ -33,18 +33,19 @@
 │                                                                 │
 │  ┌──────────────────────────────────────────────────────────┐  │
 │  │                      Routers                              │  │
-│  │  ┌────────────────┐  ┌────────────────┐                  │  │
-│  │  │  transactions  │  │     upload     │                  │  │
-│  │  │    router      │  │     router     │                  │  │
-│  │  └────────────────┘  └────────────────┘                  │  │
+│  │  ┌──────────────┐ ┌──────────┐ ┌──────────────┐         │  │
+│  │  │ transactions │ │  upload  │ │   budgets    │         │  │
+│  │  │    router    │ │  router  │ │    router    │         │  │
+│  │  └──────────────┘ └──────────┘ └──────────────┘         │  │
 │  └──────────────────────────────────────────────────────────┘  │
 │                          │                                      │
 │  ┌──────────────────────────────────────────────────────────┐  │
 │  │                     Services                              │  │
-│  │  ┌────────────────────────────────────────────────────┐  │  │
-│  │  │                  OCR Service                        │  │  │
-│  │  │     (Gemini 3 Flash via OpenRouter)                │  │  │
-│  │  └────────────────────────────────────────────────────┘  │  │
+│  │  ┌────────────────┐ ┌────────────────┐ ┌──────────────┐ │  │
+│  │  │  OCR Service   │ │   Learning    │ │  Merchant    │ │  │
+│  │  │ (Gemini 3 via  │ │   Service    │ │ Normalization│ │  │
+│  │  │  OpenRouter)   │ │              │ │              │ │  │
+│  │  └────────────────┘ └────────────────┘ └──────────────┘ │  │
 │  └──────────────────────────────────────────────────────────┘  │
 │                          │                                      │
 │  ┌──────────────────────────────────────────────────────────┐  │
@@ -63,8 +64,12 @@
 │                         localhost:5432                          │
 │                                                                 │
 │  ┌──────────────────────────────────────────────────────────┐  │
-│  │                    transactions                           │  │
-│  │  id | amount | description | category | date | ...        │  │
+│  │  transactions (amount, description, category, date,      │  │
+│  │    currency, ai_category, ai_confidence, image_path...)  │  │
+│  ├──────────────────────────────────────────────────────────┤  │
+│  │  budgets (category, limit_amount, period)                │  │
+│  ├──────────────────────────────────────────────────────────┤  │
+│  │  category_corrections / merchant_category_mappings       │  │
 │  └──────────────────────────────────────────────────────────┘  │
 └─────────────────────────────────────────────────────────────────┘
                                 │
@@ -125,69 +130,57 @@
 home-finance/
 ├── backend/
 │   ├── app/
-│   │   ├── __init__.py
-│   │   ├── main.py              # FastAPI application entry point
-│   │   ├── config.py            # Settings (env variables)
-│   │   ├── database.py          # Database connection
-│   │   ├── models.py            # SQLAlchemy ORM models
-│   │   ├── schemas.py           # Pydantic validation schemas
+│   │   ├── main.py              # FastAPI приложение
+│   │   ├── config.py            # Настройки (env)
+│   │   ├── database.py          # Подключение к БД
+│   │   ├── models.py            # SQLAlchemy модели
+│   │   ├── schemas.py           # Pydantic схемы
 │   │   ├── routers/
-│   │   │   ├── __init__.py
-│   │   │   ├── transactions.py  # CRUD endpoints
-│   │   │   └── upload.py        # File upload endpoints
+│   │   │   ├── transactions.py  # CRUD + аналитика + экспорт
+│   │   │   ├── upload.py        # Загрузка скриншотов
+│   │   │   └── budgets.py       # Бюджеты
 │   │   └── services/
-│   │       ├── __init__.py
-│   │       └── ocr_service.py   # Gemini Vision via OpenRouter
+│   │       ├── ocr_service.py   # Gemini Vision через OpenRouter
+│   │       ├── learning_service.py  # Обучение категоризации
+│   │       └── merchant_normalization.py  # Нормализация названий
+│   ├── alembic/                 # Миграции БД
 │   ├── tests/
-│   │   ├── __init__.py
-│   │   └── test_transactions.py
+│   │   ├── conftest.py          # Фикстуры pytest
+│   │   ├── test_transactions.py # Тесты CRUD, поиск, фильтры, валюта, экспорт
+│   │   ├── test_e2e.py          # E2E тесты (lifecycle, pagination, validation)
+│   │   ├── test_analytics.py    # Тесты AI accuracy, сравнение, тренды, прогноз
+│   │   ├── test_budgets.py      # Тесты бюджетов CRUD + статус
+│   │   └── test_services.py     # Тесты OCR, merchant normalization, learning
 │   ├── Dockerfile
-│   ├── requirements.txt
-│   └── pytest.ini
+│   └── requirements.txt
 │
 ├── frontend/
 │   ├── src/
-│   │   ├── api/
-│   │   │   ├── client.ts        # API client (mock/real switch)
-│   │   │   └── mockData.ts      # Mock data for development
-│   │   ├── components/
-│   │   │   ├── Layout.tsx       # App shell with navigation
-│   │   │   ├── TransactionCard.tsx
-│   │   │   ├── TransactionForm.tsx
-│   │   │   ├── UploadZone.tsx   # Drag-n-drop upload
-│   │   │   ├── MonthlyChart.tsx
-│   │   │   ├── CategoryChart.tsx
-│   │   │   └── index.ts
-│   │   ├── pages/
-│   │   │   ├── HomePage.tsx     # Dashboard
-│   │   │   ├── UploadPage.tsx   # Screenshot upload flow
-│   │   │   ├── TransactionsPage.tsx
-│   │   │   ├── ReportsPage.tsx
-│   │   │   └── index.ts
-│   │   ├── types/
-│   │   │   └── index.ts         # TypeScript interfaces
-│   │   ├── App.tsx              # Router setup
-│   │   ├── main.tsx             # Entry point
-│   │   └── index.css            # Global styles
+│   │   ├── api/                 # API клиент и моки
+│   │   ├── components/          # React компоненты
+│   │   ├── hooks/               # React Query хуки
+│   │   ├── pages/               # Страницы
+│   │   ├── types/               # TypeScript типы
+│   │   ├── registerSW.ts        # PWA Service Worker
+│   │   ├── App.tsx
+│   │   └── main.tsx
+│   ├── public/
+│   │   ├── icons/               # PWA иконки
+│   │   └── offline.html         # Офлайн-страница
 │   ├── Dockerfile
 │   ├── nginx.conf
-│   ├── package.json
-│   ├── tsconfig.json
 │   └── vite.config.ts
 │
 ├── docs/
-│   ├── REQUIREMENTS.md          # Functional requirements
-│   ├── ARCHITECTURE.md          # This file
-│   └── API.md                   # API documentation
+│   ├── REQUIREMENTS.md          # Функциональные требования
+│   ├── ARCHITECTURE.md          # Архитектура (этот файл)
+│   ├── API.md                   # REST API документация
+│   └── PHASE_4.5_PLAN.md       # План PWA (завершён)
 │
-├── uploads/                     # Uploaded screenshots storage
-│   └── .gitkeep
-│
-├── docker-compose.yml           # Container orchestration
-├── .env.example                 # Environment template
-├── .gitignore
-├── README.md                    # Quick start guide
-└── ROADMAP.md                   # Development roadmap
+├── docker-compose.yml           # Оркестрация контейнеров
+├── .env.example                 # Шаблон переменных окружения
+├── README.md                    # Быстрый старт
+└── ROADMAP.md                   # План развития
 ```
 
 ---
@@ -389,5 +382,5 @@ home-finance/
 
 ---
 
-*Версия документа: 1.0*
-*Дата: Февраль 2026*
+*Версия документа: 2.0*
+*Дата: 5 февраля 2026*

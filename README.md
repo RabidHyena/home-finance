@@ -92,7 +92,7 @@ npm run dev
 ### Тесты
 
 ```bash
-# Backend
+# Backend (111 тестов: CRUD, аналитика, бюджеты, OCR, обучение, валидация)
 cd backend
 DATABASE_URL="sqlite:///:memory:" pytest -v
 
@@ -165,7 +165,7 @@ home-finance/
 | GET | `/api/transactions/analytics/trends` | Тренды расходов |
 | GET | `/api/transactions/analytics/forecast` | Прогноз |
 | GET | `/api/transactions/analytics/ai-accuracy` | Точность AI |
-| GET | `/api/transactions/export/csv` | Экспорт в CSV |
+| GET | `/api/transactions/export` | Экспорт в CSV |
 
 ### Загрузка
 
