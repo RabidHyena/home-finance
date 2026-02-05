@@ -6,8 +6,8 @@ from sqlalchemy import text
 
 from app.config import get_settings
 from app.database import engine, Base
-from app.models import Transaction  # noqa: F401 - needed for table creation
-from app.routers import transactions, upload
+from app.models import Transaction, Budget  # noqa: F401 - needed for table creation
+from app.routers import transactions, upload, budgets
 from app.schemas import HealthResponse
 
 
@@ -39,6 +39,7 @@ app.add_middleware(
 # Include routers
 app.include_router(transactions.router)
 app.include_router(upload.router)
+app.include_router(budgets.router)
 
 
 @app.get("/", tags=["root"])

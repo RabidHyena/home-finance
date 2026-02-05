@@ -1,6 +1,6 @@
 import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../api/client';
-import type { TransactionCreate, TransactionUpdate, BatchUploadResponse } from '../types';
+import type { TransactionCreate, TransactionUpdate, BatchUploadResponse, BudgetCreate, BudgetUpdate } from '../types';
 
 // Query keys
 const keys = {
@@ -47,6 +47,79 @@ export function useMonthlyReports(year?: number) {
   return useQuery({
     queryKey: [...keys.reports, year],
     queryFn: () => api.getMonthlyReports(year),
+  });
+}
+
+export function useMonthComparison(year: number, month: number) {
+  return useQuery({
+    queryKey: ['month-comparison', year, month],
+    queryFn: () => api.getMonthComparison(year, month),
+  });
+}
+
+export function useSpendingTrends(months = 6) {
+  return useQuery({
+    queryKey: ['spending-trends', months],
+    queryFn: () => api.getSpendingTrends(months),
+  });
+}
+
+// --- Budgets ---
+
+export function useBudgets() {
+  return useQuery({
+    queryKey: ['budgets'],
+    queryFn: () => api.getBudgets(),
+  });
+}
+
+export function useBudgetsStatus(year?: number, month?: number) {
+  return useQuery({
+    queryKey: ['budgets-status', year, month],
+    queryFn: () => api.getBudgetsStatus(year, month),
+  });
+}
+
+export function useCreateBudget() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: BudgetCreate) => api.createBudget(data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['budgets'] });
+      qc.invalidateQueries({ queryKey: ['budgets-status'] });
+    },
+  });
+}
+
+export function useUpdateBudget() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: ({ id, data }: { id: number; data: BudgetUpdate }) =>
+      api.updateBudget(id, data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['budgets'] });
+      qc.invalidateQueries({ queryKey: ['budgets-status'] });
+    },
+  });
+}
+
+export function useDeleteBudget() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (id: number) => api.deleteBudget(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: ['budgets'] });
+      qc.invalidateQueries({ queryKey: ['budgets-status'] });
+    },
+  });
+}
+
+// --- Forecast ---
+
+export function useForecast(historyMonths = 6, forecastMonths = 3) {
+  return useQuery({
+    queryKey: ['forecast', historyMonths, forecastMonths],
+    queryFn: () => api.getForecast(historyMonths, forecastMonths),
   });
 }
 

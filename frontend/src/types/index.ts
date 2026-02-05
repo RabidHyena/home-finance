@@ -148,3 +148,95 @@ export interface BatchUploadResponse {
   successful: number;
   failed: number;
 }
+
+export interface MonthComparisonData {
+  current_month: { year: number; month: number };
+  previous_month: { year: number; month: number };
+  current: {
+    total: number;
+    count: number;
+    by_category: Record<string, number>;
+  };
+  previous: {
+    total: number;
+    count: number;
+    by_category: Record<string, number>;
+  };
+  changes: {
+    total_percent: number;
+    count_percent: number;
+    by_category: Array<{
+      category: string;
+      current: number;
+      previous: number;
+      change_percent: number;
+    }>;
+  };
+}
+
+export interface TrendsData {
+  period: string;
+  data: Array<{
+    year: number;
+    month: number;
+    total: number;
+    count: number;
+  }>;
+  trend_line: number[];
+  statistics: {
+    average: number;
+    std_deviation: number;
+    min: number;
+    max: number;
+  };
+}
+
+export interface Budget {
+  id: number;
+  category: string;
+  limit_amount: number;
+  period: 'monthly' | 'weekly';
+  created_at: string;
+  updated_at: string;
+}
+
+export interface BudgetCreate {
+  category: string;
+  limit_amount: number;
+  period: 'monthly' | 'weekly';
+}
+
+export interface BudgetUpdate {
+  limit_amount?: number;
+  period?: 'monthly' | 'weekly';
+}
+
+export interface BudgetStatus {
+  budget: Budget;
+  spent: number;
+  remaining: number;
+  percentage: number;
+  exceeded: boolean;
+}
+
+export interface ForecastDataPoint {
+  year: number;
+  month: number;
+  amount: number;
+  is_forecast: boolean;
+  confidence_min?: number;
+  confidence_max?: number;
+}
+
+export interface ForecastData {
+  historical: ForecastDataPoint[];
+  forecast: ForecastDataPoint[];
+  statistics: {
+    average: number;
+    std_deviation: number;
+    confidence_interval: {
+      min: number;
+      max: number;
+    };
+  };
+}

@@ -48,3 +48,15 @@ class MerchantCategoryMapping(Base):
     correction_count = Column(Integer, default=1)  # How many times corrected
     confidence = Column(Numeric(3, 2), nullable=False)  # Agreement rate
     last_updated = Column(DateTime, server_default=func.now(), onupdate=func.now())
+
+
+class Budget(Base):
+    """Budget limits for categories."""
+    __tablename__ = "budgets"
+
+    id = Column(Integer, primary_key=True, index=True)
+    category = Column(String(100), nullable=False, unique=True)
+    limit_amount = Column(Numeric(12, 2), nullable=False)
+    period = Column(String(20), default='monthly')  # monthly, weekly
+    created_at = Column(DateTime, server_default=func.now())
+    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())

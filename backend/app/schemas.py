@@ -165,3 +165,54 @@ class BatchUploadResponse(BaseModel):
     total_files: int
     successful: int
     failed: int
+
+
+class BudgetBase(BaseModel):
+    """Base schema for budget data."""
+
+    category: str = Field(..., max_length=100)
+    limit_amount: Decimal = Field(..., ge=0)
+    period: str = Field(default='monthly', pattern='^(monthly|weekly)$')
+
+
+class BudgetCreate(BudgetBase):
+    """Schema for creating a budget."""
+    pass
+
+
+class BudgetUpdate(BaseModel):
+    """Schema for updating a budget."""
+
+    limit_amount: Optional[Decimal] = Field(None, ge=0)
+    period: Optional[str] = Field(None, pattern='^(monthly|weekly)$')
+
+
+class BudgetResponse(BudgetBase):
+    """Schema for budget response."""
+
+    id: int
+    created_at: datetime
+    updated_at: datetime
+
+    model_config = ConfigDict(
+        from_attributes=True,
+        json_encoders={
+            Decimal: lambda v: float(v)
+        }
+    )
+
+
+class BudgetStatus(BaseModel):
+    """Schema for budget status with current spending."""
+
+    budget: BudgetResponse
+    spent: Decimal
+    remaining: Decimal
+    percentage: float
+    exceeded: bool
+
+    model_config = ConfigDict(
+        json_encoders={
+            Decimal: lambda v: float(v)
+        }
+    )

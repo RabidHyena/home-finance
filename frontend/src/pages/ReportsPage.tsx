@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Calendar } from 'lucide-react';
-import { MonthlyChart, CategoryChart, StatCardSkeleton, ChartSkeleton } from '../components';
-import { useMonthlyReports } from '../hooks/useApi';
+import { MonthlyChart, CategoryChart, MonthComparison, TrendsChart, ForecastChart, StatCardSkeleton, ChartSkeleton } from '../components';
+import { useMonthlyReports, useMonthComparison, useSpendingTrends, useForecast } from '../hooks/useApi';
 import type { MonthlyReport } from '../types';
 import { CATEGORY_LABELS, type Category } from '../types';
 
@@ -13,6 +13,17 @@ const MONTH_NAMES = [
 export function ReportsPage() {
   const { data: reports = [], isLoading, error } = useMonthlyReports();
   const [selectedReport, setSelectedReport] = useState<MonthlyReport | null>(null);
+
+  // Get current month for comparison
+  const currentYear = new Date().getFullYear();
+  const currentMonth = new Date().getMonth() + 1;
+  const comparisonQuery = useMonthComparison(currentYear, currentMonth);
+
+  // Get spending trends for last 6 months
+  const trendsQuery = useSpendingTrends(6);
+
+  // Get forecast for next 3 months based on last 6 months
+  const forecastQuery = useForecast(6, 3);
 
   useEffect(() => {
     if (reports.length > 0 && !selectedReport) {
@@ -186,6 +197,27 @@ export function ReportsPage() {
                   ₽
                 </p>
               </div>
+            </div>
+          )}
+
+          {/* Month Comparison */}
+          {comparisonQuery.data && (
+            <div style={{ marginBottom: '1.5rem' }}>
+              <MonthComparison data={comparisonQuery.data} />
+            </div>
+          )}
+
+          {/* Spending Trends */}
+          {trendsQuery.data && (
+            <div style={{ marginBottom: '1.5rem' }}>
+              <TrendsChart data={trendsQuery.data} />
+            </div>
+          )}
+
+          {/* Forecast */}
+          {forecastQuery.data && (
+            <div style={{ marginBottom: '1.5rem' }}>
+              <ForecastChart data={forecastQuery.data} />
             </div>
           )}
 

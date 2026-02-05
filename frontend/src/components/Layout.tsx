@@ -1,5 +1,5 @@
 import { Link, useLocation } from 'react-router-dom';
-import { Home, Upload, List, BarChart3, Wallet } from 'lucide-react';
+import { Home, Upload, List, BarChart3, Wallet, PiggyBank } from 'lucide-react';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -10,6 +10,7 @@ const navItems = [
   { path: '/upload', icon: Upload, label: 'Загрузить' },
   { path: '/transactions', icon: List, label: 'Транзакции' },
   { path: '/reports', icon: BarChart3, label: 'Отчёты' },
+  { path: '/budgets', icon: PiggyBank, label: 'Бюджеты' },
 ];
 
 export function Layout({ children }: LayoutProps) {

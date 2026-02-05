@@ -5,6 +5,13 @@ import type {
   TransactionList,
   ParsedTransactions,
   MonthlyReport,
+  MonthComparisonData,
+  TrendsData,
+  Budget,
+  BudgetCreate,
+  BudgetUpdate,
+  BudgetStatus,
+  ForecastData,
 } from '../types';
 import {
   mockTransactions,
@@ -246,5 +253,280 @@ export const api = {
     const response = await fetch(`${API_BASE}/api/transactions/export?${params}`);
     if (!response.ok) throw new Error('Failed to export');
     return response.blob();
+  },
+
+  // Month comparison
+  async getMonthComparison(year: number, month: number): Promise<MonthComparisonData> {
+    if (USE_MOCK) {
+      await delay(300);
+      // Mock comparison data
+      return {
+        current_month: { year, month },
+        previous_month: { year: month === 1 ? year - 1 : year, month: month === 1 ? 12 : month - 1 },
+        current: {
+          total: 45230.50,
+          count: 42,
+          by_category: {
+            Food: 15000,
+            Transport: 8500,
+            Shopping: 12000,
+            Bills: 7230.50,
+            Entertainment: 2500,
+          },
+        },
+        previous: {
+          total: 38120.30,
+          count: 38,
+          by_category: {
+            Food: 12000,
+            Transport: 9000,
+            Shopping: 10000,
+            Bills: 5620.30,
+            Entertainment: 1500,
+          },
+        },
+        changes: {
+          total_percent: 18.7,
+          count_percent: 10.5,
+          by_category: [
+            { category: 'Food', current: 15000, previous: 12000, change_percent: 25.0 },
+            { category: 'Bills', current: 7230.50, previous: 5620.30, change_percent: 28.7 },
+            { category: 'Shopping', current: 12000, previous: 10000, change_percent: 20.0 },
+            { category: 'Entertainment', current: 2500, previous: 1500, change_percent: 66.7 },
+            { category: 'Transport', current: 8500, previous: 9000, change_percent: -5.6 },
+          ],
+        },
+      };
+    }
+
+    const response = await fetch(
+      `${API_BASE}/api/transactions/analytics/comparison?year=${year}&month=${month}`
+    );
+    if (!response.ok) throw new Error('Failed to fetch comparison');
+    return response.json();
+  },
+
+  // Spending trends
+  async getSpendingTrends(months = 6): Promise<TrendsData> {
+    if (USE_MOCK) {
+      await delay(300);
+      // Mock trends data
+      const data = [];
+      const trendLine = [];
+      const now = new Date();
+
+      for (let i = months - 1; i >= 0; i--) {
+        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        const total = 30000 + Math.random() * 20000 + i * 1000; // Increasing trend
+        data.push({
+          year: d.getFullYear(),
+          month: d.getMonth() + 1,
+          total,
+          count: Math.floor(30 + Math.random() * 20),
+        });
+        trendLine.push(30000 + i * 1500); // Linear trend
+      }
+
+      return {
+        period: `${months} months`,
+        data,
+        trend_line: trendLine,
+        statistics: {
+          average: 38500,
+          std_deviation: 5200,
+          min: 28000,
+          max: 48000,
+        },
+      };
+    }
+
+    const response = await fetch(
+      `${API_BASE}/api/transactions/analytics/trends?months=${months}`
+    );
+    if (!response.ok) throw new Error('Failed to fetch trends');
+    return response.json();
+  },
+
+  // Budgets
+  async getBudgets(): Promise<Budget[]> {
+    if (USE_MOCK) {
+      await delay(300);
+      return [
+        {
+          id: 1,
+          category: 'Food',
+          limit_amount: 50000,
+          period: 'monthly',
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        },
+        {
+          id: 2,
+          category: 'Transport',
+          limit_amount: 15000,
+          period: 'monthly',
+          created_at: new Date().toISOString(),
+          updated_at: new Date().toISOString(),
+        },
+      ];
+    }
+
+    const response = await fetch(`${API_BASE}/api/budgets`);
+    if (!response.ok) throw new Error('Failed to fetch budgets');
+    return response.json();
+  },
+
+  async getBudgetsStatus(year?: number, month?: number): Promise<BudgetStatus[]> {
+    if (USE_MOCK) {
+      await delay(300);
+      return [
+        {
+          budget: {
+            id: 1,
+            category: 'Food',
+            limit_amount: 50000,
+            period: 'monthly',
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          },
+          spent: 35000,
+          remaining: 15000,
+          percentage: 70,
+          exceeded: false,
+        },
+        {
+          budget: {
+            id: 2,
+            category: 'Transport',
+            limit_amount: 15000,
+            period: 'monthly',
+            created_at: new Date().toISOString(),
+            updated_at: new Date().toISOString(),
+          },
+          spent: 18000,
+          remaining: -3000,
+          percentage: 120,
+          exceeded: true,
+        },
+      ];
+    }
+
+    const params = new URLSearchParams();
+    if (year) params.append('year', String(year));
+    if (month) params.append('month', String(month));
+
+    const response = await fetch(`${API_BASE}/api/budgets/status?${params}`);
+    if (!response.ok) throw new Error('Failed to fetch budget status');
+    return response.json();
+  },
+
+  async createBudget(data: BudgetCreate): Promise<Budget> {
+    if (USE_MOCK) {
+      await delay(300);
+      return {
+        id: Math.floor(Math.random() * 1000),
+        ...data,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+    }
+
+    const response = await fetch(`${API_BASE}/api/budgets`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    if (!response.ok) throw new Error('Failed to create budget');
+    return response.json();
+  },
+
+  async updateBudget(id: number, data: BudgetUpdate): Promise<Budget> {
+    if (USE_MOCK) {
+      await delay(300);
+      const existing = {
+        id,
+        category: 'Food',
+        limit_amount: 50000,
+        period: 'monthly' as const,
+        created_at: new Date().toISOString(),
+        updated_at: new Date().toISOString(),
+      };
+      return { ...existing, ...data, updated_at: new Date().toISOString() };
+    }
+
+    const response = await fetch(`${API_BASE}/api/budgets/${id}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+    });
+    if (!response.ok) throw new Error('Failed to update budget');
+    return response.json();
+  },
+
+  async deleteBudget(id: number): Promise<void> {
+    if (USE_MOCK) {
+      await delay(200);
+      return;
+    }
+
+    const response = await fetch(`${API_BASE}/api/budgets/${id}`, {
+      method: 'DELETE',
+    });
+    if (!response.ok) throw new Error('Failed to delete budget');
+  },
+
+  // Forecast
+  async getForecast(historyMonths = 6, forecastMonths = 3): Promise<ForecastData> {
+    if (USE_MOCK) {
+      await delay(300);
+      const now = new Date();
+      const historical = [];
+      const forecast = [];
+
+      // Generate mock historical data
+      for (let i = historyMonths - 1; i >= 0; i--) {
+        const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+        historical.push({
+          year: d.getFullYear(),
+          month: d.getMonth() + 1,
+          amount: 30000 + Math.random() * 15000,
+          is_forecast: false,
+        });
+      }
+
+      // Generate mock forecast
+      const avg = 37500;
+      const std = 5000;
+      for (let i = 1; i <= forecastMonths; i++) {
+        const d = new Date(now.getFullYear(), now.getMonth() + i, 1);
+        forecast.push({
+          year: d.getFullYear(),
+          month: d.getMonth() + 1,
+          amount: avg,
+          is_forecast: true,
+          confidence_min: avg - std,
+          confidence_max: avg + std,
+        });
+      }
+
+      return {
+        historical,
+        forecast,
+        statistics: {
+          average: avg,
+          std_deviation: std,
+          confidence_interval: {
+            min: avg - std,
+            max: avg + std,
+          },
+        },
+      };
+    }
+
+    const response = await fetch(
+      `${API_BASE}/api/transactions/analytics/forecast?history_months=${historyMonths}&forecast_months=${forecastMonths}`
+    );
+    if (!response.ok) throw new Error('Failed to fetch forecast');
+    return response.json();
   },
 };
