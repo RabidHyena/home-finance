@@ -10,6 +10,7 @@ class Settings(BaseSettings):
 
     # OpenRouter API
     openrouter_api_key: str = ""
+    openrouter_model: str = "google/gemini-3-flash-preview"
 
     # Upload settings
     upload_dir: str = "/app/uploads"

@@ -85,6 +85,7 @@ If you cannot extract some information, make reasonable assumptions and lower th
             base_url="https://openrouter.ai/api/v1",
             api_key=settings.openrouter_api_key,
         )
+        self.model = settings.openrouter_model
         self.db = db
 
     def _get_media_type(self, filename: str) -> str:
@@ -95,7 +96,7 @@ If you cannot extract some information, make reasonable assumptions and lower th
     def _call_vision_api(self, image_data_b64: str, media_type: str) -> str:
         """Call the vision API and return raw response text."""
         response = self.client.chat.completions.create(
-            model="google/gemini-3-flash-preview",
+            model=self.model,
             max_tokens=4096,  # Increased for multiple transactions
             messages=[
                 {"role": "system", "content": self.SYSTEM_PROMPT},
