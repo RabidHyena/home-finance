@@ -10,6 +10,7 @@ export { CategorySelector } from './CategorySelector';
 export { MonthComparison } from './MonthComparison';
 export { TrendsChart } from './TrendsChart';
 export { ForecastChart } from './ForecastChart';
+export { OfflineIndicator } from './OfflineIndicator';
 export { ConfirmModal } from './ConfirmModal';
 export { ToastProvider, useToast } from './Toast';
 export { Skeleton, TransactionCardSkeleton, StatCardSkeleton, ChartSkeleton } from './Skeleton';

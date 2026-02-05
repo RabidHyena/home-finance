@@ -1,5 +1,6 @@
 import { Link, useLocation } from 'react-router-dom';
 import { Home, Upload, List, BarChart3, Wallet, PiggyBank } from 'lucide-react';
+import { OfflineIndicator } from './OfflineIndicator';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -148,6 +149,9 @@ export function Layout({ children }: LayoutProps) {
 
       {/* Spacer for mobile nav */}
       <div style={{ height: '80px' }} className="mobile-nav-spacer" />
+
+      {/* Offline Indicator */}
+      <OfflineIndicator />
 
       <style>{`
         @media (min-width: 768px) {
