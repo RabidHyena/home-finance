@@ -2,7 +2,7 @@ from fastapi import APIRouter, Depends, HTTPException
 from sqlalchemy.orm import Session
 from sqlalchemy import func, extract
 from decimal import Decimal
-from datetime import datetime
+from datetime import datetime, timedelta
 from typing import Optional
 
 from app.database import get_db
@@ -88,10 +88,12 @@ def get_budgets_status(
                 extract('month', Transaction.date) == month,
             )
         else:  # weekly
-            # For simplicity, use current month for weekly too
+            today = datetime.now()
+            week_start = today - timedelta(days=today.weekday())
+            week_end = week_start + timedelta(days=6)
             query = query.filter(
-                extract('year', Transaction.date) == year,
-                extract('month', Transaction.date) == month,
+                Transaction.date >= week_start.replace(hour=0, minute=0, second=0),
+                Transaction.date <= week_end.replace(hour=23, minute=59, second=59),
             )
 
         spent = query.scalar() or Decimal('0')

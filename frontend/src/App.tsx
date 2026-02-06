@@ -1,10 +1,10 @@
 import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
-import { Layout, ToastProvider, ProtectedRoute } from './components';
+import { Layout, ToastProvider, ProtectedRoute, ErrorBoundary } from './components';
 import { AuthProvider } from './contexts/AuthContext';
 import { HomePage, UploadPage, TransactionsPage, ReportsPage, BudgetsPage, LoginPage, RegisterPage } from './pages';
 
-const queryClient = new QueryClient({
+export const queryClient = new QueryClient({
   defaultOptions: {
     queries: {
       staleTime: 1000 * 60 * 5, // 5 minutes
@@ -15,6 +15,7 @@ const queryClient = new QueryClient({
 
 function App() {
   return (
+    <ErrorBoundary>
     <QueryClientProvider client={queryClient}>
       <ToastProvider>
         <AuthProvider>
@@ -72,11 +73,22 @@ function App() {
                   </ProtectedRoute>
                 }
               />
+              <Route path="*" element={
+                <ProtectedRoute>
+                  <Layout>
+                    <div style={{ textAlign: 'center', padding: '3rem' }}>
+                      <h1 style={{ fontSize: '1.5rem', marginBottom: '1rem' }}>404 — Страница не найдена</h1>
+                      <a href="/" className="btn btn-primary">На главную</a>
+                    </div>
+                  </Layout>
+                </ProtectedRoute>
+              } />
             </Routes>
           </BrowserRouter>
         </AuthProvider>
       </ToastProvider>
     </QueryClientProvider>
+    </ErrorBoundary>
   );
 }
 

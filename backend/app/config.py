@@ -1,3 +1,5 @@
+import warnings
+
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from functools import lru_cache
 
@@ -35,4 +37,15 @@ class Settings(BaseSettings):
 
 @lru_cache
 def get_settings() -> Settings:
-    return Settings()
+    settings = Settings()
+    if settings.secret_key == "change-me-in-production" and not settings.debug:
+        raise RuntimeError(
+            "SECRET_KEY must be set to a secure random value in production. "
+            "Set the SECRET_KEY environment variable or enable DEBUG mode."
+        )
+    if settings.secret_key == "change-me-in-production" and settings.debug:
+        warnings.warn(
+            "Using default SECRET_KEY — not safe for production!",
+            stacklevel=2,
+        )
+    return settings

@@ -7,7 +7,7 @@ from typing import Optional
 class TransactionBase(BaseModel):
     """Base schema for transaction data."""
 
-    amount: Decimal = Field(..., description="Transaction amount", ge=0)
+    amount: Decimal = Field(..., description="Transaction amount", gt=0)
     description: str = Field(..., description="Transaction description", max_length=500)
     category: Optional[str] = Field(None, description="Transaction category", max_length=100)
     date: datetime = Field(..., description="Transaction date")
@@ -26,7 +26,7 @@ class TransactionCreate(TransactionBase):
 class TransactionUpdate(BaseModel):
     """Schema for updating a transaction."""
 
-    amount: Optional[Decimal] = Field(None, ge=0)
+    amount: Optional[Decimal] = Field(None, gt=0)
     description: Optional[str] = Field(None, max_length=500)
     category: Optional[str] = Field(None, max_length=100)
     date: Optional[datetime] = None
@@ -171,7 +171,7 @@ class BudgetBase(BaseModel):
     """Base schema for budget data."""
 
     category: str = Field(..., max_length=100)
-    limit_amount: Decimal = Field(..., ge=0)
+    limit_amount: Decimal = Field(..., gt=0)
     period: str = Field(default='monthly', pattern='^(monthly|weekly)$')
 
 
@@ -183,7 +183,7 @@ class BudgetCreate(BudgetBase):
 class BudgetUpdate(BaseModel):
     """Schema for updating a budget."""
 
-    limit_amount: Optional[Decimal] = Field(None, ge=0)
+    limit_amount: Optional[Decimal] = Field(None, gt=0)
     period: Optional[str] = Field(None, pattern='^(monthly|weekly)$')
 
 

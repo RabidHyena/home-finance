@@ -7,7 +7,7 @@ from alembic import context
 
 # Import app models and database
 from app.database import Base
-from app.models import Transaction, User  # noqa: F401 - needed for metadata
+from app.models import Transaction, User, Budget, CategoryCorrection, MerchantCategoryMapping  # noqa: F401 - needed for metadata
 from app.config import get_settings
 
 # this is the Alembic Config object, which provides

@@ -15,6 +15,7 @@ import type {
   User,
   LoginRequest,
   RegisterRequest,
+  BatchUploadResponse,
 } from '../types';
 import {
   mockTransactions,
@@ -233,7 +234,10 @@ export const api = {
       window.dispatchEvent(new CustomEvent('auth:unauthorized'));
       throw new Error('Unauthorized');
     }
-    if (!response.ok) throw new Error('Failed to delete transaction');
+    if (!response.ok) {
+      const err = await response.json().catch(() => null);
+      throw new Error(err?.detail || 'Failed to delete transaction');
+    }
   },
 
   // Reports
@@ -291,10 +295,14 @@ export const api = {
         return true;
       });
 
-      // Generate CSV
+      // Generate CSV (sanitize fields to prevent formula injection)
+      const sanitize = (v: string) => {
+        if (v && /^[=+\-@\t\r]/.test(v)) v = `'${v}`;
+        return `"${v.replace(/"/g, '""')}"`;
+      };
       const csv = '\ufeffID,Дата,Сумма,Валюта,Описание,Категория\n' +
         filtered.map(t =>
-          `${t.id},${t.date},${t.amount},${t.currency},"${t.description}",${t.category || ''}`
+          `${t.id},${t.date},${t.amount},${t.currency},${sanitize(t.description)},${sanitize(t.category || '')}`
         ).join('\n');
       return new Blob([csv], { type: 'text/csv; charset=utf-8' });
     }
@@ -312,7 +320,10 @@ export const api = {
       window.dispatchEvent(new CustomEvent('auth:unauthorized'));
       throw new Error('Unauthorized');
     }
-    if (!response.ok) throw new Error('Failed to export');
+    if (!response.ok) {
+      const err = await response.json().catch(() => null);
+      throw new Error(err?.detail || 'Failed to export');
+    }
     return response.blob();
   },
 
@@ -540,7 +551,28 @@ export const api = {
       window.dispatchEvent(new CustomEvent('auth:unauthorized'));
       throw new Error('Unauthorized');
     }
-    if (!response.ok) throw new Error('Failed to delete budget');
+    if (!response.ok) {
+      const err = await response.json().catch(() => null);
+      throw new Error(err?.detail || 'Failed to delete budget');
+    }
+  },
+
+  // Batch upload
+  async batchUpload(files: File[]): Promise<BatchUploadResponse> {
+    if (USE_MOCK) {
+      await delay(1500);
+      return { results: [], total_files: files.length, successful: files.length, failed: 0 };
+    }
+
+    const formData = new FormData();
+    files.forEach(file => formData.append('files', file));
+
+    const response = await fetch(`${API_BASE}/api/upload/batch`, {
+      method: 'POST',
+      body: formData,
+      credentials: 'include',
+    });
+    return handleResponse<BatchUploadResponse>(response);
   },
 
   // Forecast

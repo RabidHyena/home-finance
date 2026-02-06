@@ -47,7 +47,10 @@ async def upload_and_parse(
     upload_dir = Path(settings.upload_dir)
     upload_dir.mkdir(parents=True, exist_ok=True)
 
-    file_ext = Path(file.filename or "image.jpg").suffix
+    allowed_extensions = {".jpg", ".jpeg", ".png", ".gif", ".webp"}
+    file_ext = Path(file.filename or "image.jpg").suffix.lower()
+    if file_ext not in allowed_extensions:
+        file_ext = ".jpg"
     unique_filename = f"{uuid.uuid4()}{file_ext}"
     file_path = upload_dir / unique_filename
 
@@ -67,7 +70,7 @@ async def upload_and_parse(
         file_path.unlink(missing_ok=True)
         raise HTTPException(
             status_code=500,
-            detail=f"Failed to parse image: {str(e)}",
+            detail="Failed to parse image. Please try again.",
         )
 
 
@@ -102,10 +105,10 @@ async def parse_without_save(
     try:
         result = ocr_service.parse_image_bytes(content, file.filename or "image.jpg")
         return result
-    except Exception as e:
+    except Exception:
         raise HTTPException(
             status_code=500,
-            detail=f"Failed to parse image: {str(e)}",
+            detail="Failed to parse image. Please try again.",
         )
 
 
@@ -145,7 +148,10 @@ async def upload_and_parse_batch(
             # Save file
             upload_dir = Path(settings.upload_dir)
             upload_dir.mkdir(parents=True, exist_ok=True)
-            file_ext = Path(file.filename or "image.jpg").suffix
+            allowed_extensions = {".jpg", ".jpeg", ".png", ".gif", ".webp"}
+            file_ext = Path(file.filename or "image.jpg").suffix.lower()
+            if file_ext not in allowed_extensions:
+                file_ext = ".jpg"
             unique_filename = f"{uuid.uuid4()}{file_ext}"
             file_path = upload_dir / unique_filename
 
@@ -166,10 +172,13 @@ async def upload_and_parse_batch(
             successful += 1
 
         except Exception as e:
+            # Clean up saved file on error
+            if 'file_path' in dir() and file_path.exists():
+                file_path.unlink(missing_ok=True)
             results.append(BatchUploadResult(
                 filename=file.filename or "unknown",
                 status="error",
-                error=str(e)
+                error="Failed to parse image",
             ))
             failed += 1
 

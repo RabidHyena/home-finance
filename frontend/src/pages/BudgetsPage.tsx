@@ -6,7 +6,7 @@ import {
   useUpdateBudget,
   useDeleteBudget,
 } from '../hooks/useApi';
-import { useToast } from '../components';
+import { useToast, ConfirmModal } from '../components';
 import { CATEGORIES, CATEGORY_LABELS, type Category } from '../types';
 import type { BudgetStatus } from '../types';
 
@@ -22,6 +22,7 @@ export function BudgetsPage() {
 
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
+  const [deleteId, setDeleteId] = useState<number | null>(null);
   const [formData, setFormData] = useState({
     category: 'Food' as Category,
     limit_amount: '',
@@ -74,13 +75,13 @@ export function BudgetsPage() {
   };
 
   const handleDelete = async (id: number) => {
-    if (!confirm('Удалить этот бюджет?')) return;
-
     try {
       await deleteMutation.mutateAsync(id);
       toast.success('Бюджет удален');
     } catch (err) {
       toast.error('Не удалось удалить бюджет');
+    } finally {
+      setDeleteId(null);
     }
   };
 
@@ -91,7 +92,12 @@ export function BudgetsPage() {
   };
 
   const usedCategories = new Set(budgetStatuses.map(s => s.budget.category));
-  const availableCategories = CATEGORIES.filter(cat => !usedCategories.has(cat) || editingId);
+  const editingCategory = editingId
+    ? budgetStatuses.find(s => s.budget.id === editingId)?.budget.category
+    : null;
+  const availableCategories = CATEGORIES.filter(
+    cat => !usedCategories.has(cat) || cat === editingCategory
+  );
 
   if (isLoading) {
     return <div>Загрузка...</div>;
@@ -233,7 +239,7 @@ export function BudgetsPage() {
                     <Edit2 size={16} />
                   </button>
                   <button
-                    onClick={() => handleDelete(status.budget.id)}
+                    onClick={() => setDeleteId(status.budget.id)}
                     className="btn btn-secondary"
                     style={{ padding: '0.5rem', color: 'var(--color-danger)' }}
                     title="Удалить"
@@ -302,6 +308,15 @@ export function BudgetsPage() {
           ))}
         </div>
       )}
+
+      <ConfirmModal
+        isOpen={deleteId !== null}
+        title="Удалить бюджет"
+        message="Вы уверены, что хотите удалить этот бюджет?"
+        onConfirm={() => deleteId && handleDelete(deleteId)}
+        onCancel={() => setDeleteId(null)}
+        isLoading={deleteMutation.isPending}
+      />
     </div>
   );
 }

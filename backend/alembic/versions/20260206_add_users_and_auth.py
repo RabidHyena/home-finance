@@ -39,16 +39,21 @@ def upgrade() -> None:
         op.create_index(op.f('ix_users_email'), 'users', ['email'], unique=True)
         op.create_index(op.f('ix_users_username'), 'users', ['username'], unique=True)
 
-    # 2. Seed default user for data migration
+    # 2. Seed default user for data migration (only if not exists)
     import bcrypt
-    hashed = bcrypt.hashpw(b"changeme", bcrypt.gensalt()).decode('utf-8')
-
-    conn.execute(
-        sa.text("INSERT INTO users (email, username, hashed_password) VALUES (:email, :username, :pw)"),
-        {"email": "admin@example.com", "username": "admin", "pw": hashed}
-    )
+    import os
     result = conn.execute(sa.text("SELECT id FROM users WHERE email = 'admin@example.com'"))
     default_user_id = result.scalar()
+
+    if default_user_id is None:
+        seed_password = os.environ.get("SEED_ADMIN_PASSWORD", "changeme")
+        hashed = bcrypt.hashpw(seed_password.encode(), bcrypt.gensalt()).decode('utf-8')
+        conn.execute(
+            sa.text("INSERT INTO users (email, username, hashed_password) VALUES (:email, :username, :pw)"),
+            {"email": "admin@example.com", "username": "admin", "pw": hashed}
+        )
+        result = conn.execute(sa.text("SELECT id FROM users WHERE email = 'admin@example.com'"))
+        default_user_id = result.scalar()
 
     # 3. Add user_id columns as nullable first
     tables_to_update = ['transactions', 'category_corrections', 'merchant_category_mappings', 'budgets']

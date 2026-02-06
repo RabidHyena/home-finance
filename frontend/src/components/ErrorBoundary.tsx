@@ -64,7 +64,7 @@ export class ErrorBoundary extends Component<Props, State> {
                 color: 'var(--color-text-secondary)',
               }}
             >
-              {this.state.error?.message || 'Неизвестная ошибка'}
+              Что-то пошло не так. Попробуйте перезагрузить страницу.
             </p>
             <button
               className="btn btn-primary"

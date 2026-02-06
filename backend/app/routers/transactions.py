@@ -74,7 +74,8 @@ def get_transactions(
     if date_to:
         query = query.filter(Transaction.date <= date_to)
     if search:
-        search_pattern = f"%{search}%"
+        escaped_search = search.replace('\\', '\\\\').replace('%', '\\%').replace('_', '\\_')
+        search_pattern = f"%{escaped_search}%"
         query = query.filter(
             or_(
                 Transaction.description.ilike(search_pattern),
@@ -120,7 +121,8 @@ def export_transactions(
     if date_to:
         query = query.filter(Transaction.date <= date_to)
     if search:
-        search_pattern = f"%{search}%"
+        escaped_search = search.replace('\\', '\\\\').replace('%', '\\%').replace('_', '\\_')
+        search_pattern = f"%{escaped_search}%"
         query = query.filter(
             or_(
                 Transaction.description.ilike(search_pattern),
@@ -141,14 +143,20 @@ def export_transactions(
     writer.writerow(['ID', 'Дата', 'Сумма', 'Валюта', 'Описание', 'Категория', 'Создано'])
 
     # Rows
+    def sanitize_csv_field(value: str) -> str:
+        """Prevent CSV formula injection by prefixing dangerous characters."""
+        if value and value[0] in ('=', '+', '-', '@', '\t', '\r'):
+            return f"'{value}"
+        return value
+
     for tx in transactions:
         writer.writerow([
             tx.id,
             tx.date.isoformat(),
             float(tx.amount),
             tx.currency,
-            tx.description,
-            tx.category or '',
+            sanitize_csv_field(tx.description),
+            sanitize_csv_field(tx.category or ''),
             tx.created_at.isoformat(),
         ])
 
@@ -259,6 +267,9 @@ def update_transaction(
     update_dict = update_data.model_dump(exclude_unset=True)
     for field, value in update_dict.items():
         setattr(transaction, field, value)
+
+    # Log correction if category was changed (for AI learning)
+    log_correction(db, transaction, current_user.id)
 
     db.commit()
     db.refresh(transaction)

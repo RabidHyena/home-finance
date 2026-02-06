@@ -302,7 +302,7 @@ class TestInputValidation:
         )
         assert resp.status_code == 422
 
-    def test_zero_amount_allowed(self, auth_client):
+    def test_zero_amount_rejected(self, auth_client):
         resp = auth_client.post(
             "/api/transactions",
             json={
@@ -311,7 +311,7 @@ class TestInputValidation:
                 "date": "2026-01-15T10:00:00",
             },
         )
-        assert resp.status_code == 201
+        assert resp.status_code == 422
 
     def test_invalid_date_format(self, auth_client):
         resp = auth_client.post(

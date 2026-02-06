@@ -29,6 +29,8 @@ export function UploadZone({
       }
 
       if (multiple) {
+        // Revoke old object URLs to prevent memory leaks
+        previews.forEach(p => URL.revokeObjectURL(p.url));
         const newPreviews = validFiles.map(file => ({
           file,
           url: URL.createObjectURL(file)
@@ -86,8 +88,9 @@ export function UploadZone({
   const clearPreview = useCallback(() => {
     setPreview(null);
     setFileName(null);
+    previews.forEach(p => URL.revokeObjectURL(p.url));
     setPreviews([]);
-  }, []);
+  }, [previews]);
 
   if (isLoading) {
     return (

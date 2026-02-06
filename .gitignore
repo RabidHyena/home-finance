@@ -8,6 +8,8 @@ venv/
 .venv/
 env/
 .env
+.env.*
+!.env.example
 *.egg-info/
 dist/
 build/
@@ -26,6 +28,10 @@ yarn-error.log*
 
 # Docker
 .docker/
+postgres_data/
+
+# Build output
+frontend/dist/
 
 # Uploads
 uploads/*

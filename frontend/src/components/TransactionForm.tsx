@@ -29,13 +29,17 @@ export function TransactionForm({
       setAmount(String(initialData.amount || ''));
       setDescription(initialData.description || '');
       setCategory((initialData.category as Category) || '');
-      setCurrency(((initialData as any).currency as Currency) || 'RUB');
+      setCurrency(('currency' in initialData ? (initialData.currency as Currency) : undefined) || 'RUB');
 
       if (initialData.date) {
         const d = new Date(initialData.date);
         setDate(format(d, "yyyy-MM-dd'T'HH:mm"));
       }
     } else {
+      setAmount('');
+      setDescription('');
+      setCategory('');
+      setCurrency('RUB');
       setDate(format(new Date(), "yyyy-MM-dd'T'HH:mm"));
     }
   }, [initialData]);
@@ -97,7 +101,7 @@ export function TransactionForm({
           id="amount"
           type="number"
           step="0.01"
-          min="0"
+          min="0.01"
           className="input"
           value={amount}
           onChange={(e) => setAmount(e.target.value)}

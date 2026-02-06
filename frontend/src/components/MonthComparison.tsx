@@ -47,7 +47,7 @@ export function MonthComparison({ data }: MonthComparisonProps) {
           {changes.total_percent > 0 ? '+' : ''}{changes.total_percent}%
         </span>
         <span className="text-gray-600">
-          {changes.total_percent > 0 ? 'больше' : 'меньше'} чем в прошлом месяце
+          {changes.total_percent > 0 ? 'больше' : changes.total_percent < 0 ? 'меньше' : 'без изменений'} чем в прошлом месяце
         </span>
       </div>
 
@@ -60,7 +60,7 @@ export function MonthComparison({ data }: MonthComparisonProps) {
               <div>
                 <p className="font-medium">{CATEGORY_LABELS[cat.category as keyof typeof CATEGORY_LABELS] || cat.category}</p>
                 <p className="text-sm text-gray-500">
-                  {cat.current.toFixed(0)} ₽ → {cat.previous.toFixed(0)} ₽
+                  {cat.previous.toFixed(0)} ₽ → {cat.current.toFixed(0)} ₽
                 </p>
               </div>
               <span className={`font-semibold ${getChangeColor(cat.change_percent)}`}>

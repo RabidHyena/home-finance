@@ -191,9 +191,9 @@ export function ReportsPage() {
                     fontWeight: 700,
                   }}
                 >
-                  {Math.round(
-                    selectedReport.total_amount / selectedReport.transaction_count
-                  ).toLocaleString('ru-RU')}{' '}
+                  {selectedReport.transaction_count > 0
+                    ? Math.round(selectedReport.total_amount / selectedReport.transaction_count).toLocaleString('ru-RU')
+                    : 0}{' '}
                   ₽
                 </p>
               </div>
@@ -332,7 +332,9 @@ export function ReportsPage() {
                             color: 'var(--color-text-secondary)',
                           }}
                         >
-                          {((amount / selectedReport.total_amount) * 100).toFixed(1)}%
+                          {selectedReport.total_amount > 0
+                            ? ((amount / selectedReport.total_amount) * 100).toFixed(1)
+                            : '0.0'}%
                         </td>
                       </tr>
                     ))}

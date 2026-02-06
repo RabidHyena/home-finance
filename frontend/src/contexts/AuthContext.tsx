@@ -1,5 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react';
 import { api } from '../api/client';
+import { queryClient } from '../App';
 import type { User, LoginRequest, RegisterRequest } from '../types';
 
 interface AuthContextType {
@@ -35,25 +36,31 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     const handleUnauthorized = () => {
       setUser(null);
+      queryClient.clear();
     };
     window.addEventListener('auth:unauthorized', handleUnauthorized);
     return () => window.removeEventListener('auth:unauthorized', handleUnauthorized);
   }, []);
 
-  const login = async (data: LoginRequest) => {
+  const login = useCallback(async (data: LoginRequest) => {
     const loggedInUser = await api.login(data);
     setUser(loggedInUser);
-  };
+  }, []);
 
-  const register = async (data: RegisterRequest) => {
+  const register = useCallback(async (data: RegisterRequest) => {
     const newUser = await api.register(data);
     setUser(newUser);
-  };
+  }, []);
 
-  const logout = async () => {
-    await api.logout();
+  const logout = useCallback(async () => {
+    try {
+      await api.logout();
+    } catch {
+      // Logout failed on server, but still clear local state
+    }
     setUser(null);
-  };
+    queryClient.clear();
+  }, []);
 
   return (
     <AuthContext.Provider
