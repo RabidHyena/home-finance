@@ -6,7 +6,8 @@ from datetime import datetime
 from typing import Optional
 
 from app.database import get_db
-from app.models import Budget, Transaction
+from app.dependencies import get_current_user
+from app.models import Budget, Transaction, User
 from app.schemas import (
     BudgetCreate,
     BudgetUpdate,
@@ -21,10 +22,14 @@ router = APIRouter(prefix="/api/budgets", tags=["budgets"])
 def create_budget(
     budget: BudgetCreate,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """Create a new budget for a category."""
-    # Check if budget already exists for this category
-    existing = db.query(Budget).filter(Budget.category == budget.category).first()
+    # Check if budget already exists for this category and user
+    existing = db.query(Budget).filter(
+        Budget.user_id == current_user.id,
+        Budget.category == budget.category,
+    ).first()
     if existing:
         raise HTTPException(
             status_code=400,
@@ -32,6 +37,7 @@ def create_budget(
         )
 
     db_budget = Budget(
+        user_id=current_user.id,
         category=budget.category,
         limit_amount=budget.limit_amount,
         period=budget.period,
@@ -43,9 +49,12 @@ def create_budget(
 
 
 @router.get("", response_model=list[BudgetResponse])
-def get_budgets(db: Session = Depends(get_db)):
+def get_budgets(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
     """Get all budgets."""
-    budgets = db.query(Budget).all()
+    budgets = db.query(Budget).filter(Budget.user_id == current_user.id).all()
     return budgets
 
 
@@ -54,6 +63,7 @@ def get_budgets_status(
     year: Optional[int] = None,
     month: Optional[int] = None,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """Get budget status with current spending."""
     # Default to current month
@@ -62,12 +72,13 @@ def get_budgets_status(
         year = now.year
         month = now.month
 
-    budgets = db.query(Budget).all()
+    budgets = db.query(Budget).filter(Budget.user_id == current_user.id).all()
     statuses = []
 
     for budget in budgets:
         # Calculate spent amount for the period
         query = db.query(func.sum(Transaction.amount)).filter(
+            Transaction.user_id == current_user.id,
             Transaction.category == budget.category
         )
 
@@ -103,9 +114,13 @@ def get_budgets_status(
 def get_budget(
     budget_id: int,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """Get a single budget by ID."""
-    budget = db.query(Budget).filter(Budget.id == budget_id).first()
+    budget = db.query(Budget).filter(
+        Budget.id == budget_id,
+        Budget.user_id == current_user.id,
+    ).first()
     if not budget:
         raise HTTPException(status_code=404, detail="Budget not found")
     return budget
@@ -116,9 +131,13 @@ def update_budget(
     budget_id: int,
     update_data: BudgetUpdate,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """Update an existing budget."""
-    budget = db.query(Budget).filter(Budget.id == budget_id).first()
+    budget = db.query(Budget).filter(
+        Budget.id == budget_id,
+        Budget.user_id == current_user.id,
+    ).first()
     if not budget:
         raise HTTPException(status_code=404, detail="Budget not found")
 
@@ -135,9 +154,13 @@ def update_budget(
 def delete_budget(
     budget_id: int,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """Delete a budget."""
-    budget = db.query(Budget).filter(Budget.id == budget_id).first()
+    budget = db.query(Budget).filter(
+        Budget.id == budget_id,
+        Budget.user_id == current_user.id,
+    ).first()
     if not budget:
         raise HTTPException(status_code=404, detail="Budget not found")
 

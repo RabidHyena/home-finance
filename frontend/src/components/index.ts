@@ -15,3 +15,4 @@ export { ConfirmModal } from './ConfirmModal';
 export { ToastProvider, useToast } from './Toast';
 export { Skeleton, TransactionCardSkeleton, StatCardSkeleton, ChartSkeleton } from './Skeleton';
 export { ErrorBoundary } from './ErrorBoundary';
+export { ProtectedRoute } from './ProtectedRoute';

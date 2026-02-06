@@ -6,6 +6,10 @@ from sqlalchemy.pool import StaticPool
 
 from app.main import app
 from app.database import Base, get_db
+from app.models import User
+from app.services.auth_service import create_access_token
+import bcrypt
+from app.config import get_settings
 
 # Shared in-memory SQLite for all tests
 engine = create_engine(
@@ -37,5 +41,57 @@ def setup_database():
 
 @pytest.fixture
 def client():
-    """Test client fixture."""
+    """Unauthenticated test client fixture."""
     return TestClient(app)
+
+
+@pytest.fixture
+def test_user():
+    """Create a test user in the database."""
+    db = TestingSessionLocal()
+    user = User(
+        email="test@example.com",
+        username="testuser",
+        hashed_password=bcrypt.hashpw(b"password123", bcrypt.gensalt()).decode('utf-8'),
+    )
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    db.close()
+    return user
+
+
+@pytest.fixture
+def auth_client(test_user):
+    """Test client with JWT cookie set for authentication."""
+    settings = get_settings()
+    token = create_access_token(test_user.id)
+    client = TestClient(app)
+    client.cookies.set(settings.cookie_name, token)
+    return client
+
+
+@pytest.fixture
+def second_user():
+    """Create a second test user for data isolation tests."""
+    db = TestingSessionLocal()
+    user = User(
+        email="second@example.com",
+        username="seconduser",
+        hashed_password=bcrypt.hashpw(b"password456", bcrypt.gensalt()).decode('utf-8'),
+    )
+    db.add(user)
+    db.commit()
+    db.refresh(user)
+    db.close()
+    return user
+
+
+@pytest.fixture
+def second_auth_client(second_user):
+    """Test client authenticated as second user."""
+    settings = get_settings()
+    token = create_access_token(second_user.id)
+    client = TestClient(app)
+    client.cookies.set(settings.cookie_name, token)
+    return client

@@ -9,7 +9,8 @@ import csv
 from io import StringIO
 
 from app.database import get_db
-from app.models import Transaction, MerchantCategoryMapping
+from app.dependencies import get_current_user
+from app.models import Transaction, MerchantCategoryMapping, User
 from app.schemas import (
     TransactionCreate,
     TransactionUpdate,
@@ -26,9 +27,11 @@ router = APIRouter(prefix="/api/transactions", tags=["transactions"])
 def create_transaction(
     transaction: TransactionCreate,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """Create a new transaction."""
     db_transaction = Transaction(
+        user_id=current_user.id,
         amount=transaction.amount,
         description=transaction.description,
         category=transaction.category or "Other",
@@ -43,7 +46,7 @@ def create_transaction(
     db.flush()  # Get ID before logging
 
     # Log correction if category was changed
-    log_correction(db, db_transaction)
+    log_correction(db, db_transaction, current_user.id)
 
     db.commit()
     db.refresh(db_transaction)
@@ -59,9 +62,10 @@ def get_transactions(
     date_to: Optional[datetime] = None,
     search: Optional[str] = None,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """Get paginated list of transactions."""
-    query = db.query(Transaction)
+    query = db.query(Transaction).filter(Transaction.user_id == current_user.id)
 
     if category:
         query = query.filter(Transaction.category == category)
@@ -101,10 +105,13 @@ def export_transactions(
     date_to: Optional[datetime] = None,
     search: Optional[str] = None,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """Export transactions as CSV with filters."""
     # Build query with same filters as get_transactions
-    query = db.query(Transaction).order_by(Transaction.date.desc())
+    query = db.query(Transaction).filter(
+        Transaction.user_id == current_user.id
+    ).order_by(Transaction.date.desc())
 
     if category:
         query = query.filter(Transaction.category == category)
@@ -160,6 +167,7 @@ def export_transactions(
 def get_monthly_reports(
     year: Optional[int] = None,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """Get monthly spending reports."""
     query = db.query(
@@ -167,6 +175,8 @@ def get_monthly_reports(
         extract("month", Transaction.date).label("month"),
         func.sum(Transaction.amount).label("total"),
         func.count(Transaction.id).label("count"),
+    ).filter(
+        Transaction.user_id == current_user.id
     ).group_by(
         extract("year", Transaction.date),
         extract("month", Transaction.date),
@@ -189,6 +199,7 @@ def get_monthly_reports(
                 func.sum(Transaction.amount).label("total"),
             )
             .filter(
+                Transaction.user_id == current_user.id,
                 extract("year", Transaction.date) == int(row.year),
                 extract("month", Transaction.date) == int(row.month),
             )
@@ -218,9 +229,13 @@ def get_monthly_reports(
 def get_transaction(
     transaction_id: int,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """Get a single transaction by ID."""
-    transaction = db.query(Transaction).filter(Transaction.id == transaction_id).first()
+    transaction = db.query(Transaction).filter(
+        Transaction.id == transaction_id,
+        Transaction.user_id == current_user.id,
+    ).first()
     if not transaction:
         raise HTTPException(status_code=404, detail="Transaction not found")
     return transaction
@@ -231,9 +246,13 @@ def update_transaction(
     transaction_id: int,
     update_data: TransactionUpdate,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """Update an existing transaction."""
-    transaction = db.query(Transaction).filter(Transaction.id == transaction_id).first()
+    transaction = db.query(Transaction).filter(
+        Transaction.id == transaction_id,
+        Transaction.user_id == current_user.id,
+    ).first()
     if not transaction:
         raise HTTPException(status_code=404, detail="Transaction not found")
 
@@ -250,9 +269,13 @@ def update_transaction(
 def delete_transaction(
     transaction_id: int,
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """Delete a transaction."""
-    transaction = db.query(Transaction).filter(Transaction.id == transaction_id).first()
+    transaction = db.query(Transaction).filter(
+        Transaction.id == transaction_id,
+        Transaction.user_id == current_user.id,
+    ).first()
     if not transaction:
         raise HTTPException(status_code=404, detail="Transaction not found")
 
@@ -261,10 +284,17 @@ def delete_transaction(
 
 
 @router.get("/analytics/ai-accuracy")
-def get_ai_accuracy(db: Session = Depends(get_db)):
+def get_ai_accuracy(
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
     """Get AI categorization accuracy metrics."""
-    total = db.query(Transaction).filter(Transaction.ai_category.isnot(None)).count()
+    total = db.query(Transaction).filter(
+        Transaction.user_id == current_user.id,
+        Transaction.ai_category.isnot(None),
+    ).count()
     correct = db.query(Transaction).filter(
+        Transaction.user_id == current_user.id,
         Transaction.ai_category.isnot(None),
         Transaction.ai_category == Transaction.category
     ).count()
@@ -275,7 +305,9 @@ def get_ai_accuracy(db: Session = Depends(get_db)):
         "total_predictions": total,
         "correct_predictions": correct,
         "accuracy_percentage": round(accuracy, 2),
-        "learned_merchants": db.query(MerchantCategoryMapping).count()
+        "learned_merchants": db.query(MerchantCategoryMapping).filter(
+            MerchantCategoryMapping.user_id == current_user.id
+        ).count()
     }
 
 
@@ -284,6 +316,7 @@ def get_spending_forecast(
     history_months: int = Query(6, ge=3, le=12),
     forecast_months: int = Query(3, ge=1, le=6),
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """Forecast future spending based on historical data."""
     from dateutil.relativedelta import relativedelta
@@ -294,6 +327,7 @@ def get_spending_forecast(
     start_date = end_date - relativedelta(months=history_months)
 
     transactions = db.query(Transaction).filter(
+        Transaction.user_id == current_user.id,
         Transaction.date >= start_date,
         Transaction.date <= end_date
     ).all()
@@ -376,6 +410,7 @@ def get_spending_forecast(
 def get_spending_trends(
     months: int = Query(6, ge=3, le=24),
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """Get spending trends for last N months."""
     from dateutil.relativedelta import relativedelta
@@ -387,6 +422,7 @@ def get_spending_trends(
 
     # Get transactions
     transactions = db.query(Transaction).filter(
+        Transaction.user_id == current_user.id,
         Transaction.date >= start_date,
         Transaction.date <= end_date
     ).all()
@@ -454,6 +490,7 @@ def get_month_comparison(
     year: int = Query(..., ge=2000, le=2100),
     month: int = Query(..., ge=1, le=12),
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """Compare current month with previous month."""
     from dateutil.relativedelta import relativedelta
@@ -471,12 +508,14 @@ def get_month_comparison(
 
     # Query current month
     current_txs = db.query(Transaction).filter(
+        Transaction.user_id == current_user.id,
         Transaction.date >= current_start,
         Transaction.date <= current_end
     ).all()
 
     # Query previous month
     prev_txs = db.query(Transaction).filter(
+        Transaction.user_id == current_user.id,
         Transaction.date >= prev_start,
         Transaction.date <= prev_end
     ).all()

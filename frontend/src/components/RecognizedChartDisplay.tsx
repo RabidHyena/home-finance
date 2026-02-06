@@ -1,6 +1,41 @@
 import { useState } from 'react';
+import { format } from 'date-fns';
 import type { ParsedChart, TransactionCreate, Category } from '../types';
 import { CATEGORY_COLORS } from '../types';
+
+const RUSSIAN_MONTHS: Record<string, number> = {
+  'январь': 0, 'января': 0, 'янв': 0,
+  'февраль': 1, 'февраля': 1, 'фев': 1,
+  'март': 2, 'марта': 2, 'мар': 2,
+  'апрель': 3, 'апреля': 3, 'апр': 3,
+  'май': 4, 'мая': 4,
+  'июнь': 5, 'июня': 5, 'июн': 5,
+  'июль': 6, 'июля': 6, 'июл': 6,
+  'август': 7, 'августа': 7, 'авг': 7,
+  'сентябрь': 8, 'сентября': 8, 'сен': 8,
+  'октябрь': 9, 'октября': 9, 'окт': 9,
+  'ноябрь': 10, 'ноября': 10, 'ноя': 10,
+  'декабрь': 11, 'декабря': 11, 'дек': 11,
+};
+
+function parsePeriodToDate(period: string | undefined): Date {
+  if (!period) return new Date();
+
+  const parts = period.trim().toLowerCase().split(/\s+/);
+  for (const part of parts) {
+    if (part in RUSSIAN_MONTHS) {
+      const monthIndex = RUSSIAN_MONTHS[part];
+      const yearPart = parts.find(p => /^\d{4}$/.test(p));
+      const year = yearPart ? parseInt(yearPart, 10) : new Date().getFullYear();
+      return new Date(year, monthIndex, 1);
+    }
+  }
+
+  const fallback = new Date(period);
+  if (!isNaN(fallback.getTime())) return fallback;
+
+  return new Date();
+}
 
 interface RecognizedChartDisplayProps {
   chart: ParsedChart;
@@ -15,6 +50,10 @@ export function RecognizedChartDisplay({
 }: RecognizedChartDisplayProps) {
   const [selectedCategories, setSelectedCategories] = useState<Set<number>>(
     new Set(chart.categories.map((_, i) => i))
+  );
+
+  const [selectedDate, setSelectedDate] = useState<string>(
+    format(parsePeriodToDate(chart.period), "yyyy-MM-dd'T'HH:mm")
   );
 
   const toggleCategory = (index: number) => {
@@ -57,7 +96,7 @@ export function RecognizedChartDisplay({
           amount: Number(category.value),
           description: `${category.name}${chart.period ? ` - ${chart.period}` : ''}`,
           category: mappedCategory,
-          date: new Date().toISOString(),
+          date: new Date(selectedDate).toISOString(),
           currency: 'RUB',
           raw_text: `Создано из диаграммы: ${chart.type}`,
         };
@@ -153,6 +192,35 @@ export function RecognizedChartDisplay({
             {Number(chart.total).toFixed(2)} ₽
           </span>
         </div>
+
+        {onCreateTransactions && (
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.75rem',
+              padding: '0.75rem',
+              borderRadius: '0.375rem',
+              backgroundColor: 'var(--color-background)',
+              marginBottom: '0.75rem',
+            }}
+          >
+            <span style={{ fontSize: '0.875rem', fontWeight: 600 }}>Дата:</span>
+            <input
+              type="datetime-local"
+              value={selectedDate}
+              onChange={(e) => setSelectedDate(e.target.value)}
+              style={{
+                fontSize: '0.875rem',
+                color: 'var(--color-text-secondary)',
+                background: 'transparent',
+                border: '1px solid var(--color-border)',
+                borderRadius: '0.25rem',
+                padding: '0.25rem 0.5rem',
+              }}
+            />
+          </div>
+        )}
 
         {onCreateTransactions && (
           <div style={{ marginBottom: '0.75rem' }}>

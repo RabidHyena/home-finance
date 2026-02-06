@@ -1,3 +1,22 @@
+// Auth types
+export interface User {
+  id: number;
+  email: string;
+  username: string;
+  created_at: string;
+}
+
+export interface LoginRequest {
+  login: string;
+  password: string;
+}
+
+export interface RegisterRequest {
+  email: string;
+  username: string;
+  password: string;
+}
+
 export interface Transaction {
   id: number;
   amount: number;

@@ -1,6 +1,7 @@
-import { Link, useLocation } from 'react-router-dom';
-import { Home, Upload, List, BarChart3, Wallet, PiggyBank } from 'lucide-react';
+import { Link, useLocation, useNavigate } from 'react-router-dom';
+import { Home, Upload, List, BarChart3, Wallet, PiggyBank, LogOut } from 'lucide-react';
 import { OfflineIndicator } from './OfflineIndicator';
+import { useAuth } from '../contexts/AuthContext';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -16,6 +17,13 @@ const navItems = [
 
 export function Layout({ children }: LayoutProps) {
   const location = useLocation();
+  const navigate = useNavigate();
+  const { user, logout } = useAuth();
+
+  const handleLogout = async () => {
+    await logout();
+    navigate('/login');
+  };
 
   return (
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
@@ -60,6 +68,7 @@ export function Layout({ children }: LayoutProps) {
             style={{
               display: 'flex',
               gap: '0.5rem',
+              alignItems: 'center',
             }}
             className="desktop-nav"
           >
@@ -88,6 +97,41 @@ export function Layout({ children }: LayoutProps) {
                 </Link>
               );
             })}
+
+            {/* User info and logout */}
+            <div style={{
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.75rem',
+              marginLeft: '1rem',
+              paddingLeft: '1rem',
+              borderLeft: '1px solid var(--color-border)',
+            }}>
+              <span style={{
+                fontSize: '0.875rem',
+                color: 'var(--color-text-secondary)',
+              }}>
+                {user?.username}
+              </span>
+              <button
+                onClick={handleLogout}
+                style={{
+                  display: 'flex',
+                  alignItems: 'center',
+                  gap: '0.25rem',
+                  padding: '0.5rem 0.75rem',
+                  borderRadius: '0.5rem',
+                  border: 'none',
+                  backgroundColor: 'transparent',
+                  color: 'var(--color-text-secondary)',
+                  cursor: 'pointer',
+                  transition: 'all 0.2s',
+                }}
+                title="Выйти"
+              >
+                <LogOut size={18} />
+              </button>
+            </div>
           </nav>
         </div>
       </header>
@@ -145,6 +189,24 @@ export function Layout({ children }: LayoutProps) {
             </Link>
           );
         })}
+        <button
+          onClick={handleLogout}
+          style={{
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            gap: '0.25rem',
+            padding: '0.5rem',
+            border: 'none',
+            backgroundColor: 'transparent',
+            color: 'var(--color-text-secondary)',
+            fontSize: '0.75rem',
+            cursor: 'pointer',
+          }}
+        >
+          <LogOut size={24} />
+          <span>Выйти</span>
+        </button>
       </nav>
 
       {/* Spacer for mobile nav */}

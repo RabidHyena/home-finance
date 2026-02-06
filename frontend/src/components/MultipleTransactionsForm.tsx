@@ -35,6 +35,15 @@ export function MultipleTransactionsForm({
     });
   };
 
+  const updateDate = (index: number, date: string) => {
+    setEditedTransactions(prev => {
+      const newMap = new Map(prev);
+      const current = newMap.get(index) || {};
+      newMap.set(index, { ...current, date });
+      return newMap;
+    });
+  };
+
   // Handle empty transactions
   if (!transactions || transactions.length === 0) {
     return (
@@ -76,14 +85,16 @@ export function MultipleTransactionsForm({
     e.preventDefault();
 
     const selectedTransactions: TransactionCreate[] = transactions
-      .filter((_, i) => selectedIds.has(i))
-      .map((tx, i) => {
+      .map((tx, i) => ({ tx, i }))
+      .filter(({ i }) => selectedIds.has(i))
+      .map(({ tx, i }) => {
         const edited = editedTransactions.get(i);
+        const date = edited?.date || tx.date;
         return {
           amount: Number(tx.amount),
           description: tx.description,
           category: edited?.category || tx.category || undefined,
-          date: new Date(tx.date).toISOString(),
+          date: new Date(date).toISOString(),
           currency: tx.currency as Currency,
           raw_text: tx.raw_text,
           confidence: tx.confidence,
@@ -181,9 +192,21 @@ export function MultipleTransactionsForm({
                     <div style={{ fontSize: '1rem', fontWeight: 600, marginBottom: '0.25rem' }}>
                       {tx.description}
                     </div>
-                    <div style={{ fontSize: '0.875rem', color: 'var(--color-text-secondary)' }}>
-                      {format(new Date(tx.date), 'dd.MM.yyyy HH:mm')}
-                    </div>
+                    <input
+                      type="datetime-local"
+                      value={format(new Date(editedTransactions.get(index)?.date || tx.date), "yyyy-MM-dd'T'HH:mm")}
+                      onChange={(e) => updateDate(index, e.target.value)}
+                      onClick={(e) => e.stopPropagation()}
+                      style={{
+                        fontSize: '0.875rem',
+                        color: 'var(--color-text-secondary)',
+                        background: 'transparent',
+                        border: '1px solid var(--color-border)',
+                        borderRadius: '0.25rem',
+                        padding: '0.125rem 0.25rem',
+                        cursor: 'text',
+                      }}
+                    />
                   </div>
                   <div style={{ fontSize: '1.125rem', fontWeight: 700, color: 'var(--color-text)', textAlign: 'right' }}>
                     {Number(tx.amount).toFixed(2)} {CURRENCY_SYMBOLS[tx.currency as Currency]}

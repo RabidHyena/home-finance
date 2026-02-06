@@ -33,19 +33,19 @@
 │                                                                 │
 │  ┌──────────────────────────────────────────────────────────┐  │
 │  │                      Routers                              │  │
-│  │  ┌──────────────┐ ┌──────────┐ ┌──────────────┐         │  │
-│  │  │ transactions │ │  upload  │ │   budgets    │         │  │
-│  │  │    router    │ │  router  │ │    router    │         │  │
-│  │  └──────────────┘ └──────────┘ └──────────────┘         │  │
+│  │  ┌────────┐ ┌──────────────┐ ┌──────────┐ ┌──────────┐  │  │
+│  │  │  auth  │ │ transactions │ │  upload  │ │ budgets  │  │  │
+│  │  │ router │ │    router    │ │  router  │ │  router  │  │  │
+│  │  └────────┘ └──────────────┘ └──────────┘ └──────────┘  │  │
 │  └──────────────────────────────────────────────────────────┘  │
 │                          │                                      │
 │  ┌──────────────────────────────────────────────────────────┐  │
 │  │                     Services                              │  │
-│  │  ┌────────────────┐ ┌────────────────┐ ┌──────────────┐ │  │
-│  │  │  OCR Service   │ │   Learning    │ │  Merchant    │ │  │
-│  │  │ (Gemini 3 via  │ │   Service    │ │ Normalization│ │  │
-│  │  │  OpenRouter)   │ │              │ │              │ │  │
-│  │  └────────────────┘ └────────────────┘ └──────────────┘ │  │
+│  │  ┌──────────┐ ┌────────────────┐ ┌────────────────┐      │  │
+│  │  │   Auth   │ │  OCR Service   │ │   Learning    │      │  │
+│  │  │ Service  │ │ (Gemini 3 via  │ │   Service    │      │  │
+│  │  │ (JWT/bcrypt)│  OpenRouter)   │ │              │      │  │
+│  │  └──────────┘ └────────────────┘ └────────────────┘      │  │
 │  └──────────────────────────────────────────────────────────┘  │
 │                          │                                      │
 │  ┌──────────────────────────────────────────────────────────┐  │
@@ -64,12 +64,14 @@
 │                         localhost:5432                          │
 │                                                                 │
 │  ┌──────────────────────────────────────────────────────────┐  │
-│  │  transactions (amount, description, category, date,      │  │
-│  │    currency, ai_category, ai_confidence, image_path...)  │  │
+│  │  users (email, username, hashed_password, ...)           │  │
 │  ├──────────────────────────────────────────────────────────┤  │
-│  │  budgets (category, limit_amount, period)                │  │
+│  │  transactions (user_id FK, amount, description, ...)     │  │
+│  ├──────────────────────────────────────────────────────────┤  │
+│  │  budgets (user_id FK, category, limit_amount, period)    │  │
 │  ├──────────────────────────────────────────────────────────┤  │
 │  │  category_corrections / merchant_category_mappings       │  │
+│  │  (user_id FK for data isolation)                         │  │
 │  └──────────────────────────────────────────────────────────┘  │
 └─────────────────────────────────────────────────────────────────┘
                                 │
@@ -136,10 +138,14 @@ home-finance/
 │   │   ├── models.py            # SQLAlchemy модели
 │   │   ├── schemas.py           # Pydantic схемы
 │   │   ├── routers/
+│   │   │   ├── auth.py          # Регистрация, вход, выход
 │   │   │   ├── transactions.py  # CRUD + аналитика + экспорт
 │   │   │   ├── upload.py        # Загрузка скриншотов
 │   │   │   └── budgets.py       # Бюджеты
+│   │   ├── dependencies.py      # get_current_user
+│   │   ├── schemas_auth.py      # Auth Pydantic схемы
 │   │   └── services/
+│   │       ├── auth_service.py  # JWT, bcrypt, user CRUD
 │   │       ├── ocr_service.py   # Gemini Vision через OpenRouter
 │   │       ├── learning_service.py  # Обучение категоризации
 │   │       └── merchant_normalization.py  # Нормализация названий
@@ -308,9 +314,12 @@ home-finance/
 
 | Мера | Реализация |
 |------|------------|
+| Authentication | JWT в httpOnly cookies (bcrypt, python-jose) |
+| Data Isolation | user_id FK на всех моделях, фильтрация в запросах |
 | SQL Injection | SQLAlchemy ORM (параметризованные запросы) |
 | XSS | React автоматически экранирует |
-| CORS | Настроен в FastAPI |
+| CORS | Настроен в FastAPI с credentials |
+| CSRF | SameSite=Lax cookies |
 | Валидация | Pydantic schemas |
 | File Upload | Проверка MIME type, ограничение размера |
 
@@ -319,7 +328,6 @@ home-finance/
 | Мера | Статус |
 |------|--------|
 | HTTPS | Планируется для production |
-| JWT Authentication | Планируется |
 | Rate Limiting | Планируется |
 | Input Sanitization | Планируется |
 
@@ -382,5 +390,5 @@ home-finance/
 
 ---
 
-*Версия документа: 2.0*
-*Дата: 5 февраля 2026*
+*Версия документа: 3.0*
+*Дата: 6 февраля 2026*

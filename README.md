@@ -4,6 +4,8 @@
 
 ## Возможности
 
+- **Аутентификация**: регистрация, вход, JWT-токены в httpOnly cookies
+- **Мультипользовательность**: изоляция данных между пользователями
 - Загрузка скриншотов банковских приложений (одиночная и пакетная до 10 штук)
 - AI-распознавание суммы, описания, даты и категории (Gemini 3 Flash через OpenRouter)
 - Авто-категоризация с обучением на исправлениях пользователя
@@ -57,6 +59,7 @@ docker-compose up --build
 | `OPENROUTER_API_KEY` | да | — | API ключ OpenRouter для AI-распознавания |
 | `OPENROUTER_MODEL` | нет | `google/gemini-3-flash-preview` | Модель для OCR |
 | `DATABASE_URL` | нет | `postgresql://postgres:postgres@db:5432/home_finance` | URL базы данных |
+| `SECRET_KEY` | да (prod) | `change-me-in-production` | Секретный ключ для JWT |
 | `DEBUG` | нет | `false` | Режим отладки |
 
 ## Разработка
@@ -92,7 +95,7 @@ npm run dev
 ### Тесты
 
 ```bash
-# Backend (111 тестов: CRUD, аналитика, бюджеты, OCR, обучение, валидация)
+# Backend (131 тест: auth, CRUD, аналитика, бюджеты, OCR, обучение, валидация)
 cd backend
 DATABASE_URL="sqlite:///:memory:" pytest -v
 
@@ -113,10 +116,14 @@ home-finance/
 │   │   ├── models.py            # SQLAlchemy модели
 │   │   ├── schemas.py           # Pydantic схемы
 │   │   ├── routers/
+│   │   │   ├── auth.py          # Регистрация, вход, выход
 │   │   │   ├── transactions.py  # CRUD + аналитика
 │   │   │   ├── upload.py        # Загрузка скриншотов
 │   │   │   └── budgets.py       # Бюджеты
+│   │   ├── dependencies.py      # get_current_user
+│   │   ├── schemas_auth.py      # Auth схемы
 │   │   └── services/
+│   │       ├── auth_service.py  # JWT, bcrypt
 │   │       ├── ocr_service.py   # Gemini Vision через OpenRouter
 │   │       ├── learning_service.py  # Обучение категоризации
 │   │       └── merchant_normalization.py
@@ -128,8 +135,9 @@ home-finance/
 │   ├── src/
 │   │   ├── api/                 # API клиент и моки
 │   │   ├── components/          # React компоненты
+│   │   ├── contexts/            # AuthContext
 │   │   ├── hooks/               # React Query хуки
-│   │   ├── pages/               # Страницы
+│   │   ├── pages/               # Страницы (Login, Register, ...)
 │   │   ├── types/               # TypeScript типы
 │   │   ├── registerSW.ts        # PWA Service Worker
 │   │   ├── App.tsx
@@ -150,6 +158,15 @@ home-finance/
 ```
 
 ## API
+
+### Аутентификация
+
+| Метод | URL | Описание |
+|-------|-----|----------|
+| POST | `/api/auth/register` | Регистрация (email, username, password) |
+| POST | `/api/auth/login` | Вход (login, password) |
+| POST | `/api/auth/logout` | Выход (очистка cookie) |
+| GET | `/api/auth/me` | Текущий пользователь |
 
 ### Транзакции
 

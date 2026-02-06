@@ -7,6 +7,8 @@ from sqlalchemy.orm import Session
 
 from app.config import get_settings
 from app.database import get_db
+from app.dependencies import get_current_user
+from app.models import User
 from app.schemas import ParsedTransaction, ParsedTransactions, BatchUploadResult, BatchUploadResponse
 from app.services.ocr_service import OCRService, get_ocr_service
 
@@ -18,6 +20,7 @@ async def upload_and_parse(
     file: UploadFile = File(...),
     ocr_service: OCRService = Depends(get_ocr_service),
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """Upload a bank screenshot and parse ALL transaction data."""
     settings = get_settings()
@@ -51,8 +54,9 @@ async def upload_and_parse(
     with open(file_path, "wb") as f:
         f.write(content)
 
-    # Pass DB to OCR service for learned categories
+    # Pass DB and user_id to OCR service for learned categories
     ocr_service.db = db
+    ocr_service.user_id = current_user.id
 
     # Parse with AI
     try:
@@ -71,6 +75,7 @@ async def upload_and_parse(
 async def parse_without_save(
     file: UploadFile = File(...),
     ocr_service: OCRService = Depends(get_ocr_service),
+    current_user: User = Depends(get_current_user),
 ):
     """Parse a bank screenshot without saving it."""
     settings = get_settings()
@@ -109,6 +114,7 @@ async def upload_and_parse_batch(
     files: List[UploadFile] = File(...),
     ocr_service: OCRService = Depends(get_ocr_service),
     db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
 ):
     """Upload and parse multiple bank screenshots."""
     settings = get_settings()
@@ -122,6 +128,7 @@ async def upload_and_parse_batch(
     failed = 0
 
     ocr_service.db = db  # Inject DB for learning
+    ocr_service.user_id = current_user.id
 
     for file in files:
         try:

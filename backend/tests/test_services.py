@@ -63,7 +63,7 @@ class TestOCRResponseParsing:
     """Tests for OCR service response parsing (without API calls)."""
 
     def _make_service(self):
-        """Create OCR service with mocked API client."""
+        """Create OCR service with mocked API auth_client."""
         with patch("app.services.ocr_service.get_settings") as mock_settings:
             mock_settings.return_value = MagicMock(
                 openrouter_api_key="test-key",
@@ -261,9 +261,9 @@ class TestOCRResponseParsing:
 class TestLearningService:
     """Tests for learning service using real DB (via conftest fixtures)."""
 
-    def test_no_correction_when_categories_match(self, client):
+    def test_no_correction_when_categories_match(self, auth_client):
         """No correction logged if ai_category == category."""
-        client.post("/api/transactions", json={
+        auth_client.post("/api/transactions", json={
             "amount": 100,
             "description": "Starbucks",
             "category": "Food",
@@ -272,14 +272,14 @@ class TestLearningService:
             "date": "2026-01-15T10:00:00",
         })
         # Check AI accuracy — should be 1 correct prediction
-        resp = client.get("/api/transactions/analytics/ai-accuracy")
+        resp = auth_client.get("/api/transactions/analytics/ai-accuracy")
         data = resp.json()
         assert data["total_predictions"] == 1
         assert data["correct_predictions"] == 1
 
-    def test_correction_logged_when_categories_differ(self, client):
+    def test_correction_logged_when_categories_differ(self, auth_client):
         """Correction logged if ai_category != category."""
-        client.post("/api/transactions", json={
+        auth_client.post("/api/transactions", json={
             "amount": 100,
             "description": "Starbucks",
             "category": "Food",
@@ -287,15 +287,15 @@ class TestLearningService:
             "ai_confidence": 0.6,
             "date": "2026-01-15T10:00:00",
         })
-        resp = client.get("/api/transactions/analytics/ai-accuracy")
+        resp = auth_client.get("/api/transactions/analytics/ai-accuracy")
         data = resp.json()
         assert data["total_predictions"] == 1
         assert data["correct_predictions"] == 0
 
-    def test_learning_threshold_not_met(self, client):
+    def test_learning_threshold_not_met(self, auth_client):
         """Merchant mapping NOT created with < 3 corrections."""
         for i in range(2):
-            client.post("/api/transactions", json={
+            auth_client.post("/api/transactions", json={
                 "amount": 100,
                 "description": "Starbucks Coffee",
                 "category": "Food",
@@ -303,13 +303,13 @@ class TestLearningService:
                 "ai_confidence": 0.5,
                 "date": f"2026-01-{10+i}T10:00:00",
             })
-        resp = client.get("/api/transactions/analytics/ai-accuracy")
+        resp = auth_client.get("/api/transactions/analytics/ai-accuracy")
         assert resp.json()["learned_merchants"] == 0
 
-    def test_learning_threshold_met(self, client):
+    def test_learning_threshold_met(self, auth_client):
         """Merchant mapping created after 3+ corrections with 70%+ agreement."""
         for i in range(3):
-            client.post("/api/transactions", json={
+            auth_client.post("/api/transactions", json={
                 "amount": 100,
                 "description": "Starbucks Coffee",
                 "category": "Food",
@@ -317,5 +317,5 @@ class TestLearningService:
                 "ai_confidence": 0.5,
                 "date": f"2026-01-{10+i}T10:00:00",
             })
-        resp = client.get("/api/transactions/analytics/ai-accuracy")
+        resp = auth_client.get("/api/transactions/analytics/ai-accuracy")
         assert resp.json()["learned_merchants"] == 1

@@ -9,7 +9,7 @@ def normalize_merchant(description: str) -> str:
     return normalize_merchant_name(description)
 
 
-def log_correction(db: Session, transaction: Transaction):
+def log_correction(db: Session, transaction: Transaction, user_id: int):
     """Log category correction for learning."""
     if not transaction.ai_category or transaction.ai_category == transaction.category:
         return  # No correction to log
@@ -18,6 +18,7 @@ def log_correction(db: Session, transaction: Transaction):
 
     # Create correction log
     correction = CategoryCorrection(
+        user_id=user_id,
         transaction_id=transaction.id,
         original_category=transaction.ai_category,
         corrected_category=transaction.category,
@@ -28,18 +29,20 @@ def log_correction(db: Session, transaction: Transaction):
     db.flush()
 
     # Update merchant mapping
-    _update_merchant_mapping(db, merchant, transaction.category)
+    _update_merchant_mapping(db, merchant, transaction.category, user_id)
 
 
-def _update_merchant_mapping(db: Session, merchant: str, category: str):
+def _update_merchant_mapping(db: Session, merchant: str, category: str, user_id: int):
     """Update or create merchant-category mapping if threshold met."""
     # Count corrections for this merchant → category
     category_count = db.query(CategoryCorrection).filter_by(
+        user_id=user_id,
         merchant_normalized=merchant,
         corrected_category=category
     ).count()
 
     total_count = db.query(CategoryCorrection).filter_by(
+        user_id=user_id,
         merchant_normalized=merchant
     ).count()
 
@@ -48,6 +51,7 @@ def _update_merchant_mapping(db: Session, merchant: str, category: str):
         confidence = Decimal(str(min(0.95, category_count / total_count)))
 
         mapping = db.query(MerchantCategoryMapping).filter_by(
+            user_id=user_id,
             merchant_normalized=merchant
         ).first()
 
@@ -57,6 +61,7 @@ def _update_merchant_mapping(db: Session, merchant: str, category: str):
             mapping.confidence = confidence
         else:
             mapping = MerchantCategoryMapping(
+                user_id=user_id,
                 merchant_normalized=merchant,
                 learned_category=category,
                 correction_count=category_count,
@@ -65,10 +70,11 @@ def _update_merchant_mapping(db: Session, merchant: str, category: str):
             db.add(mapping)
 
 
-def get_learned_category(db: Session, description: str) -> tuple[str, Decimal] | None:
+def get_learned_category(db: Session, description: str, user_id: int) -> tuple[str, Decimal] | None:
     """Get learned category for merchant if available."""
     merchant = normalize_merchant(description)
     mapping = db.query(MerchantCategoryMapping).filter_by(
+        user_id=user_id,
         merchant_normalized=merchant
     ).first()
 

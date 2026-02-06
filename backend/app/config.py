@@ -16,6 +16,17 @@ class Settings(BaseSettings):
     upload_dir: str = "/app/uploads"
     max_upload_size: int = 10 * 1024 * 1024  # 10MB
 
+    # Auth / JWT
+    secret_key: str = "change-me-in-production"
+    jwt_algorithm: str = "HS256"
+    access_token_expire_minutes: int = 1440  # 24h
+    cookie_name: str = "access_token"
+    cookie_samesite: str = "lax"
+    cookie_secure: bool = False
+
+    # CORS
+    cors_origins: list[str] = ["http://localhost:3000"]
+
     # App settings
     debug: bool = False
 

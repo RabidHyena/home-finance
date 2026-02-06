@@ -6,8 +6,8 @@ from sqlalchemy import text
 
 from app.config import get_settings
 from app.database import engine, Base
-from app.models import Transaction, Budget  # noqa: F401 - needed for table creation
-from app.routers import transactions, upload, budgets
+from app.models import Transaction, Budget, User  # noqa: F401 - needed for table creation
+from app.routers import transactions, upload, budgets, auth
 from app.schemas import HealthResponse
 
 
@@ -19,6 +19,8 @@ async def lifespan(app: FastAPI):
     # Shutdown: cleanup if needed
 
 
+settings = get_settings()
+
 app = FastAPI(
     title="Home Finance API",
     description="API for personal finance tracking with AI-powered receipt parsing",
@@ -29,13 +31,14 @@ app = FastAPI(
 # CORS middleware
 app.add_middleware(
     CORSMiddleware,
-    allow_origins=["*"],  # In production, specify actual origins
+    allow_origins=settings.cors_origins,
     allow_credentials=True,
     allow_methods=["*"],
     allow_headers=["*"],
 )
 
 # Include routers
+app.include_router(auth.router)
 app.include_router(transactions.router)
 app.include_router(upload.router)
 app.include_router(budgets.router)

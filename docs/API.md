@@ -8,7 +8,104 @@ Swagger UI: `http://localhost:8000/docs`
 
 ## Authentication
 
-Currently, the API does not require authentication. JWT authentication is planned for future releases.
+The API uses JWT authentication with httpOnly cookies. All endpoints except `/api/auth/*` require authentication.
+
+### How it works
+
+1. Register or login via `/api/auth/register` or `/api/auth/login`
+2. Server sets `access_token` cookie (httpOnly, secure in production)
+3. Cookie is automatically sent with all subsequent requests
+4. Token expires in 24 hours
+
+### Endpoints
+
+#### POST /api/auth/register
+
+Create a new user account.
+
+**Request Body:**
+```json
+{
+  "email": "user@example.com",
+  "username": "myuser",
+  "password": "securepassword123"
+}
+```
+
+**Response:** `201 Created`
+```json
+{
+  "id": 1,
+  "email": "user@example.com",
+  "username": "myuser",
+  "created_at": "2026-02-06T10:00:00"
+}
+```
+
+**Errors:**
+- `400 Bad Request` - Email or username already exists
+- `422 Unprocessable Entity` - Password too short (min 8 chars)
+
+---
+
+#### POST /api/auth/login
+
+Authenticate and receive a session cookie.
+
+**Request Body:**
+```json
+{
+  "login": "user@example.com",
+  "password": "securepassword123"
+}
+```
+
+The `login` field accepts either email or username.
+
+**Response:** `200 OK`
+```json
+{
+  "id": 1,
+  "email": "user@example.com",
+  "username": "myuser",
+  "created_at": "2026-02-06T10:00:00"
+}
+```
+
+**Errors:**
+- `401 Unauthorized` - Invalid credentials
+
+---
+
+#### POST /api/auth/logout
+
+Clear the session cookie.
+
+**Response:** `200 OK`
+```json
+{
+  "message": "Logged out"
+}
+```
+
+---
+
+#### GET /api/auth/me
+
+Get the current authenticated user.
+
+**Response:** `200 OK`
+```json
+{
+  "id": 1,
+  "email": "user@example.com",
+  "username": "myuser",
+  "created_at": "2026-02-06T10:00:00"
+}
+```
+
+**Errors:**
+- `401 Unauthorized` - Not authenticated
 
 ---
 
@@ -555,6 +652,7 @@ All errors follow this format:
 | 400 | Bad Request (business logic error) |
 | 404 | Not Found |
 | 422 | Unprocessable Entity (validation error) |
+| 401 | Unauthorized (not authenticated) |
 | 500 | Internal Server Error |
 
 ---
@@ -569,10 +667,27 @@ Currently not implemented. Planned for future releases.
 
 ### cURL
 
-**Create transaction:**
+**Register:**
+```bash
+curl -X POST http://localhost:8000/api/auth/register \
+  -H "Content-Type: application/json" \
+  -c cookies.txt \
+  -d '{"email": "user@example.com", "username": "myuser", "password": "password123"}'
+```
+
+**Login:**
+```bash
+curl -X POST http://localhost:8000/api/auth/login \
+  -H "Content-Type: application/json" \
+  -c cookies.txt \
+  -d '{"login": "user@example.com", "password": "password123"}'
+```
+
+**Create transaction (authenticated):**
 ```bash
 curl -X POST http://localhost:8000/api/transactions \
   -H "Content-Type: application/json" \
+  -b cookies.txt \
   -d '{
     "amount": 1500.00,
     "description": "Пятёрочка",
@@ -634,5 +749,5 @@ curl "http://localhost:8000/api/transactions/analytics/forecast?history_months=6
 
 ---
 
-*Version: 2.0*
-*Date: 5 February 2026*
+*Version: 3.0*
+*Date: 6 February 2026*

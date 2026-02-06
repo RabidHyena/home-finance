@@ -12,6 +12,9 @@ import type {
   BudgetUpdate,
   BudgetStatus,
   ForecastData,
+  User,
+  LoginRequest,
+  RegisterRequest,
 } from '../types';
 import {
   mockTransactions,
@@ -32,7 +35,55 @@ const API_BASE = import.meta.env.VITE_API_URL || '';
 // Flag to use mock data (default: false — use real backend)
 const USE_MOCK = import.meta.env.VITE_USE_MOCK === 'true';
 
+// Helper to handle 401 responses
+async function handleResponse<T>(response: Response): Promise<T> {
+  if (response.status === 401) {
+    window.dispatchEvent(new CustomEvent('auth:unauthorized'));
+    throw new Error('Unauthorized');
+  }
+  if (!response.ok) {
+    const err = await response.json().catch(() => null);
+    throw new Error(err?.detail || `Request failed (${response.status})`);
+  }
+  return response.json();
+}
+
 export const api = {
+  // Auth
+  async login(data: LoginRequest): Promise<User> {
+    const response = await fetch(`${API_BASE}/api/auth/login`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+      credentials: 'include',
+    });
+    return handleResponse<User>(response);
+  },
+
+  async register(data: RegisterRequest): Promise<User> {
+    const response = await fetch(`${API_BASE}/api/auth/register`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+      credentials: 'include',
+    });
+    return handleResponse<User>(response);
+  },
+
+  async logout(): Promise<void> {
+    await fetch(`${API_BASE}/api/auth/logout`, {
+      method: 'POST',
+      credentials: 'include',
+    });
+  },
+
+  async getMe(): Promise<User> {
+    const response = await fetch(`${API_BASE}/api/auth/me`, {
+      credentials: 'include',
+    });
+    return handleResponse<User>(response);
+  },
+
   // Transactions
   async getTransactions(
     page = 1,
@@ -88,9 +139,10 @@ export const api = {
     if (dateFrom) params.append('date_from', dateFrom);
     if (dateTo) params.append('date_to', dateTo);
 
-    const response = await fetch(`${API_BASE}/api/transactions?${params}`);
-    if (!response.ok) throw new Error('Failed to fetch transactions');
-    return response.json();
+    const response = await fetch(`${API_BASE}/api/transactions?${params}`, {
+      credentials: 'include',
+    });
+    return handleResponse<TransactionList>(response);
   },
 
   async getTransaction(id: number): Promise<Transaction> {
@@ -101,9 +153,10 @@ export const api = {
       return transaction;
     }
 
-    const response = await fetch(`${API_BASE}/api/transactions/${id}`);
-    if (!response.ok) throw new Error('Transaction not found');
-    return response.json();
+    const response = await fetch(`${API_BASE}/api/transactions/${id}`, {
+      credentials: 'include',
+    });
+    return handleResponse<Transaction>(response);
   },
 
   async createTransaction(data: TransactionCreate): Promise<Transaction> {
@@ -132,9 +185,9 @@ export const api = {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
+      credentials: 'include',
     });
-    if (!response.ok) throw new Error('Failed to create transaction');
-    return response.json();
+    return handleResponse<Transaction>(response);
   },
 
   async updateTransaction(
@@ -158,9 +211,9 @@ export const api = {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
+      credentials: 'include',
     });
-    if (!response.ok) throw new Error('Failed to update transaction');
-    return response.json();
+    return handleResponse<Transaction>(response);
   },
 
   async deleteTransaction(id: number): Promise<void> {
@@ -174,7 +227,12 @@ export const api = {
 
     const response = await fetch(`${API_BASE}/api/transactions/${id}`, {
       method: 'DELETE',
+      credentials: 'include',
     });
+    if (response.status === 401) {
+      window.dispatchEvent(new CustomEvent('auth:unauthorized'));
+      throw new Error('Unauthorized');
+    }
     if (!response.ok) throw new Error('Failed to delete transaction');
   },
 
@@ -190,10 +248,10 @@ export const api = {
 
     const params = year ? `?year=${year}` : '';
     const response = await fetch(
-      `${API_BASE}/api/transactions/reports/monthly${params}`
+      `${API_BASE}/api/transactions/reports/monthly${params}`,
+      { credentials: 'include' }
     );
-    if (!response.ok) throw new Error('Failed to fetch reports');
-    return response.json();
+    return handleResponse<MonthlyReport[]>(response);
   },
 
   // Upload and parse
@@ -210,12 +268,9 @@ export const api = {
     const response = await fetch(`${API_BASE}/api/upload`, {
       method: 'POST',
       body: formData,
+      credentials: 'include',
     });
-    if (!response.ok) {
-      const err = await response.json().catch(() => null);
-      throw new Error(err?.detail || `Upload failed (${response.status})`);
-    }
-    return response.json();
+    return handleResponse<ParsedTransactions>(response);
   },
 
   // Export to CSV
@@ -250,7 +305,13 @@ export const api = {
     if (dateTo) params.append('date_to', dateTo);
     if (search) params.append('search', search);
 
-    const response = await fetch(`${API_BASE}/api/transactions/export?${params}`);
+    const response = await fetch(`${API_BASE}/api/transactions/export?${params}`, {
+      credentials: 'include',
+    });
+    if (response.status === 401) {
+      window.dispatchEvent(new CustomEvent('auth:unauthorized'));
+      throw new Error('Unauthorized');
+    }
     if (!response.ok) throw new Error('Failed to export');
     return response.blob();
   },
@@ -300,10 +361,10 @@ export const api = {
     }
 
     const response = await fetch(
-      `${API_BASE}/api/transactions/analytics/comparison?year=${year}&month=${month}`
+      `${API_BASE}/api/transactions/analytics/comparison?year=${year}&month=${month}`,
+      { credentials: 'include' }
     );
-    if (!response.ok) throw new Error('Failed to fetch comparison');
-    return response.json();
+    return handleResponse<MonthComparisonData>(response);
   },
 
   // Spending trends
@@ -341,10 +402,10 @@ export const api = {
     }
 
     const response = await fetch(
-      `${API_BASE}/api/transactions/analytics/trends?months=${months}`
+      `${API_BASE}/api/transactions/analytics/trends?months=${months}`,
+      { credentials: 'include' }
     );
-    if (!response.ok) throw new Error('Failed to fetch trends');
-    return response.json();
+    return handleResponse<TrendsData>(response);
   },
 
   // Budgets
@@ -371,9 +432,10 @@ export const api = {
       ];
     }
 
-    const response = await fetch(`${API_BASE}/api/budgets`);
-    if (!response.ok) throw new Error('Failed to fetch budgets');
-    return response.json();
+    const response = await fetch(`${API_BASE}/api/budgets`, {
+      credentials: 'include',
+    });
+    return handleResponse<Budget[]>(response);
   },
 
   async getBudgetsStatus(year?: number, month?: number): Promise<BudgetStatus[]> {
@@ -415,9 +477,10 @@ export const api = {
     if (year) params.append('year', String(year));
     if (month) params.append('month', String(month));
 
-    const response = await fetch(`${API_BASE}/api/budgets/status?${params}`);
-    if (!response.ok) throw new Error('Failed to fetch budget status');
-    return response.json();
+    const response = await fetch(`${API_BASE}/api/budgets/status?${params}`, {
+      credentials: 'include',
+    });
+    return handleResponse<BudgetStatus[]>(response);
   },
 
   async createBudget(data: BudgetCreate): Promise<Budget> {
@@ -435,9 +498,9 @@ export const api = {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
+      credentials: 'include',
     });
-    if (!response.ok) throw new Error('Failed to create budget');
-    return response.json();
+    return handleResponse<Budget>(response);
   },
 
   async updateBudget(id: number, data: BudgetUpdate): Promise<Budget> {
@@ -458,9 +521,9 @@ export const api = {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify(data),
+      credentials: 'include',
     });
-    if (!response.ok) throw new Error('Failed to update budget');
-    return response.json();
+    return handleResponse<Budget>(response);
   },
 
   async deleteBudget(id: number): Promise<void> {
@@ -471,7 +534,12 @@ export const api = {
 
     const response = await fetch(`${API_BASE}/api/budgets/${id}`, {
       method: 'DELETE',
+      credentials: 'include',
     });
+    if (response.status === 401) {
+      window.dispatchEvent(new CustomEvent('auth:unauthorized'));
+      throw new Error('Unauthorized');
+    }
     if (!response.ok) throw new Error('Failed to delete budget');
   },
 
@@ -524,9 +592,9 @@ export const api = {
     }
 
     const response = await fetch(
-      `${API_BASE}/api/transactions/analytics/forecast?history_months=${historyMonths}&forecast_months=${forecastMonths}`
+      `${API_BASE}/api/transactions/analytics/forecast?history_months=${historyMonths}&forecast_months=${forecastMonths}`,
+      { credentials: 'include' }
     );
-    if (!response.ok) throw new Error('Failed to fetch forecast');
-    return response.json();
+    return handleResponse<ForecastData>(response);
   },
 };

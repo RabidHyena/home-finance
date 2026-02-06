@@ -87,6 +87,7 @@ If you cannot extract some information, make reasonable assumptions and lower th
         )
         self.model = settings.openrouter_model
         self.db = db
+        self.user_id: int | None = None
 
     def _get_media_type(self, filename: str) -> str:
         """Determine media type from file extension."""
@@ -256,10 +257,10 @@ If you cannot extract some information, make reasonable assumptions and lower th
                 confidence = 0.5
 
             # Apply learned categories if available
-            if self.db:
+            if self.db and self.user_id:
                 from app.services.learning_service import get_learned_category
                 description = tx_data.get("description", "Unknown")
-                learned = get_learned_category(self.db, description)
+                learned = get_learned_category(self.db, description, self.user_id)
                 if learned:
                     learned_category, learned_confidence = learned
                     # Override if learned confidence is higher
