@@ -163,12 +163,13 @@ home-finance/
 ├── frontend/
 │   ├── src/
 │   │   ├── api/                 # API клиент и моки
-│   │   ├── components/          # React компоненты
+│   │   ├── components/          # React компоненты (ErrorBoundary, ConfirmModal, ...)
+│   │   ├── contexts/            # AuthContext (JWT auth state)
 │   │   ├── hooks/               # React Query хуки
-│   │   ├── pages/               # Страницы
+│   │   ├── pages/               # Страницы (Login, Register, ...)
 │   │   ├── types/               # TypeScript типы
 │   │   ├── registerSW.ts        # PWA Service Worker
-│   │   ├── App.tsx
+│   │   ├── App.tsx              # Routes, ErrorBoundary, 404 page
 │   │   └── main.tsx
 │   ├── public/
 │   │   ├── icons/               # PWA иконки
@@ -318,10 +319,18 @@ home-finance/
 | Data Isolation | user_id FK на всех моделях, фильтрация в запросах |
 | SQL Injection | SQLAlchemy ORM (параметризованные запросы) |
 | XSS | React автоматически экранирует |
-| CORS | Настроен в FastAPI с credentials |
+| CORS | Ограниченные методы (GET, POST, PUT, DELETE, OPTIONS) и заголовки (Content-Type, Authorization) |
 | CSRF | SameSite=Lax cookies |
-| Валидация | Pydantic schemas |
-| File Upload | Проверка MIME type, ограничение размера |
+| Валидация | Pydantic schemas, EmailStr, amount gt=0 |
+| File Upload | Проверка MIME type + расширения файла (.jpg, .jpeg, .png, .gif, .webp), ограничение размера 10MB |
+| JWT Secret | RuntimeError при запуске, если SECRET_KEY не задан в production |
+| nginx Headers | X-Content-Type-Options, X-Frame-Options, X-XSS-Protection, Referrer-Policy, server_tokens off |
+| CSV Sanitization | Защита от formula injection в CSV export (экранирование =, +, -, @, \t, \r) |
+| Search Escaping | Экранирование спецсимволов ILIKE (%, _, \) |
+| Error Messages | Generic error messages в upload (без раскрытия internal details) |
+| PWA Security | API ответы не кешируются в Service Worker |
+| Docker | DB port привязан к localhost (127.0.0.1:5432), healthcheck на backend |
+| ErrorBoundary | React ErrorBoundary без раскрытия stack trace пользователю |
 
 ### 6.2 Планируемые меры
 
@@ -329,7 +338,6 @@ home-finance/
 |------|--------|
 | HTTPS | Планируется для production |
 | Rate Limiting | Планируется |
-| Input Sanitization | Планируется |
 
 ---
 

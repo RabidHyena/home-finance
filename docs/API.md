@@ -546,11 +546,11 @@ Delete a budget.
 
 Get budget status with current spending for a given month.
 
-**Query Parameters (required):**
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| year | integer | Year |
-| month | integer | Month (1-12) |
+**Query Parameters:**
+| Parameter | Type | Default | Description |
+|-----------|------|---------|-------------|
+| year | integer | current year | Year |
+| month | integer | current month | Month (1-12) |
 
 **Response:** `200 OK`
 ```json
@@ -577,7 +577,7 @@ Get budget status with current spending for a given month.
 | Field | Type | Nullable | Description |
 |-------|------|----------|-------------|
 | id | integer | No | Unique identifier |
-| amount | decimal | No | Transaction amount |
+| amount | decimal | No | Transaction amount (must be > 0) |
 | description | string | No | Merchant name or description |
 | category | string | No | Category (default: "Other") |
 | currency | string | No | Currency code: RUB, USD, EUR, GBP (default: "RUB") |
@@ -595,7 +595,7 @@ Get budget status with current spending for a given month.
 |-------|------|----------|-------------|
 | id | integer | No | Unique identifier |
 | category | string | No | Category (unique) |
-| limit_amount | decimal | No | Spending limit |
+| limit_amount | decimal | No | Spending limit (must be > 0) |
 | period | string | No | "monthly" or "weekly" |
 | created_at | datetime | No | Record creation time |
 | updated_at | datetime | No | Last update time |
@@ -699,52 +699,61 @@ curl -X POST http://localhost:8000/api/transactions \
 
 **Search transactions:**
 ```bash
-curl "http://localhost:8000/api/transactions?search=пятёрочка&category=Food&page=1&per_page=10"
+curl -b cookies.txt \
+  "http://localhost:8000/api/transactions?search=пятёрочка&category=Food&page=1&per_page=10"
 ```
 
 **Upload screenshot:**
 ```bash
 curl -X POST http://localhost:8000/api/upload \
+  -b cookies.txt \
   -F "file=@screenshot.png"
 ```
 
 **Batch upload:**
 ```bash
 curl -X POST http://localhost:8000/api/upload/batch \
+  -b cookies.txt \
   -F "files=@screen1.png" \
   -F "files=@screen2.png"
 ```
 
 **Export CSV:**
 ```bash
-curl -o transactions.csv "http://localhost:8000/api/transactions/export?category=Food"
+curl -b cookies.txt \
+  -o transactions.csv "http://localhost:8000/api/transactions/export?category=Food"
 ```
 
 **Create budget:**
 ```bash
 curl -X POST http://localhost:8000/api/budgets \
   -H "Content-Type: application/json" \
+  -b cookies.txt \
   -d '{"category": "Food", "limit_amount": 15000, "period": "monthly"}'
 ```
 
 **Get budget status:**
 ```bash
-curl "http://localhost:8000/api/budgets/status?year=2026&month=1"
+curl -b cookies.txt \
+  "http://localhost:8000/api/budgets/status?year=2026&month=1"
 ```
 
 **Analytics - comparison:**
 ```bash
-curl "http://localhost:8000/api/transactions/analytics/comparison?year=2026&month=1"
+curl -b cookies.txt \
+  "http://localhost:8000/api/transactions/analytics/comparison?year=2026&month=1"
 ```
 
 **Analytics - trends:**
 ```bash
-curl "http://localhost:8000/api/transactions/analytics/trends?months=6"
+curl -b cookies.txt \
+  "http://localhost:8000/api/transactions/analytics/trends?months=6"
 ```
 
 **Analytics - forecast:**
 ```bash
-curl "http://localhost:8000/api/transactions/analytics/forecast?history_months=6&forecast_months=3"
+curl -b cookies.txt \
+  "http://localhost:8000/api/transactions/analytics/forecast?history_months=6&forecast_months=3"
 ```
 
 ---

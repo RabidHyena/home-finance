@@ -13,6 +13,8 @@
 | Фаза 4.3 | ✅ Готово | AI улучшения (авто-категоризация, обучение, batch upload) |
 | Фаза 4.4 | ✅ Готово | Расширенная аналитика |
 | Фаза 4.5 | ✅ Готово | PWA (vite-plugin-pwa, офлайн, установка) |
+| Фаза 4.6 | ✅ Готово | Аутентификация и мультипользовательность |
+| Фаза 5 | ✅ Готово | Безопасность и код-ревью |
 
 ---
 
@@ -28,7 +30,7 @@
 - [x] Сервис OCR (Gemini Vision через OpenRouter)
 - [x] Загрузка скриншотов
 - [x] Docker и docker-compose
-- [x] Комплексные тесты (111 тестов: CRUD, аналитика, бюджеты, OCR, обучение, валидация)
+- [x] Комплексные тесты (131 тест: auth, CRUD, аналитика, бюджеты, OCR, обучение, валидация)
 
 ### Frontend (Фаза 2)
 - [x] React + TypeScript + Vite
@@ -66,10 +68,11 @@
 - [x] Loading states
 - [x] Кеширование (staleTime: 5 min)
 
-### 3.3 Авторизация (опционально — перенесено в Фазу 4)
-- [ ] JWT токены
-- [ ] Страница логина
-- [ ] Protected routes
+### 3.3 Авторизация → реализовано в Фазе 4.6
+- [x] JWT токены в httpOnly cookies
+- [x] Страница логина и регистрации
+- [x] Protected routes
+- [x] Мультипользовательский режим (data isolation через user_id FK)
 
 ### Команды для интеграции
 
@@ -150,13 +153,64 @@ cd frontend && npm run test:e2e
 
 ### 4.5 PWA ✅ ЗАВЕРШЕНО
 - [x] vite-plugin-pwa с Workbox (автоматический precache и runtime caching)
-- [x] Офлайн режим (Cache-First для статики, Network-First для API)
+- [x] Офлайн режим (Cache-First для статики)
 - [x] Web App Manifest (иконки PNG 192/512, SVG, maskable)
 - [x] Установка на устройство (standalone display)
 - [x] OfflineIndicator компонент с анимацией
 - [x] Offline fallback страница
 - [x] Apple-touch-icon и meta-теги для iOS/Android
 - [x] Автоматическое обновление SW с уведомлением пользователя
+
+### 4.6 Аутентификация и мультипользовательность ✅ ЗАВЕРШЕНО
+- [x] JWT токены в httpOnly cookies (bcrypt + python-jose)
+- [x] Регистрация, вход, выход (/api/auth/*)
+- [x] Модель User (email, username, hashed_password)
+- [x] Миграции Alembic: users таблица, user_id FK на всех моделях
+- [x] Data isolation: фильтрация по user_id на всех запросах
+- [x] Страницы LoginPage и RegisterPage
+- [x] AuthContext с React Query (useCallback, queryClient.clear при logout)
+- [x] Protected routes (ProtectedRoute компонент)
+- [x] Email валидация (pydantic EmailStr)
+- [x] Автоматический seed admin пользователя при миграции
+
+---
+
+## Фаза 5: Безопасность и код-ревью ✅ ЗАВЕРШЕНО
+
+Комплексное ревью кода с исправлением 36 проблем (7 CRITICAL, 11 HIGH, 18 MEDIUM).
+
+### 5.1 CRITICAL исправления
+- [x] JWT SECRET_KEY валидация при запуске (RuntimeError в production)
+- [x] CORS: ограничены методы и заголовки (вместо wildcard *)
+- [x] Идемпотентная миграция с seed admin (пароль из env)
+- [x] Batch upload: использование api клиента вместо raw fetch с неверным env var
+- [x] PWA: удалено кеширование API ответов из Service Worker
+- [x] Docker: параметризация DATABASE_URL и DEBUG из env
+- [x] .env.example: документация SECRET_KEY
+
+### 5.2 HIGH исправления
+- [x] Email валидация (EmailStr вместо str)
+- [x] Upload: проверка расширения файла, generic error messages, batch cleanup
+- [x] Alembic env.py: импорт всех моделей
+- [x] UploadZone: memory leak fix (revokeObjectURL)
+- [x] ReportsPage: защита от деления на ноль
+- [x] AuthContext: useCallback, queryClient.clear, error handling
+- [x] nginx: security headers (X-Content-Type-Options, X-Frame-Options, X-XSS-Protection, Referrer-Policy)
+- [x] API client: consistent error handling в delete/export
+
+### 5.3 MEDIUM исправления
+- [x] Валидация amount: gt=0 вместо ge=0 (нулевые суммы запрещены)
+- [x] Бюджеты: реальный расчёт недельного периода
+- [x] Транзакции: log_correction при обновлении категории
+- [x] CSV export: санитизация от formula injection
+- [x] ILIKE search: экранирование спецсимволов (%, _, \)
+- [x] TransactionForm: полный сброс формы, убраны `as any`
+- [x] MonthComparison: исправлено направление стрелки, текст при 0%
+- [x] App.tsx: 404 route, ErrorBoundary
+- [x] BudgetsPage: ConfirmModal вместо window.confirm, фикс фильтра категорий
+- [x] .dockerignore файлы для backend и frontend
+- [x] .gitignore: обновлён для env файлов и postgres_data
+- [x] Docker: localhost DB port, backend healthcheck
 
 ---
 
@@ -213,9 +267,9 @@ docker-compose down
 
 ## Прогресс
 
-**Завершено:** Фазы 0-4.5 (100% запланированной функциональности)
-**Осталось:** Авторизация (опционально)
+**Завершено:** Фазы 0-5 (100% запланированной функциональности + безопасность)
+**131 backend тест**, TypeScript компилируется без ошибок
 
 ---
 
-*Обновлено: 5 февраля 2026 — Фазы 0-4.5 завершены, 111 backend тестов*
+*Обновлено: 6 февраля 2026 — Фазы 0-5 завершены, 131 backend тест, код-ревью пройдено*

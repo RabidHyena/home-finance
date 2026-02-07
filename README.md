@@ -4,8 +4,9 @@
 
 ## Возможности
 
-- **Аутентификация**: регистрация, вход, JWT-токены в httpOnly cookies
-- **Мультипользовательность**: изоляция данных между пользователями
+- **Аутентификация**: регистрация, вход, JWT-токены в httpOnly cookies (bcrypt + python-jose)
+- **Мультипользовательность**: изоляция данных между пользователями (user_id FK)
+- **Безопасность**: CORS ограничения, nginx security headers, CSV sanitization, email валидация, SECRET_KEY валидация
 - Загрузка скриншотов банковских приложений (одиночная и пакетная до 10 штук)
 - AI-распознавание суммы, описания, даты и категории (Gemini 3 Flash через OpenRouter)
 - Авто-категоризация с обучением на исправлениях пользователя
@@ -59,8 +60,9 @@ docker-compose up --build
 | `OPENROUTER_API_KEY` | да | — | API ключ OpenRouter для AI-распознавания |
 | `OPENROUTER_MODEL` | нет | `google/gemini-3-flash-preview` | Модель для OCR |
 | `DATABASE_URL` | нет | `postgresql://postgres:postgres@db:5432/home_finance` | URL базы данных |
-| `SECRET_KEY` | да (prod) | `change-me-in-production` | Секретный ключ для JWT |
-| `DEBUG` | нет | `false` | Режим отладки |
+| `SECRET_KEY` | **да** (prod) | `change-me-in-production` | Секретный ключ для JWT. В production обязателен (RuntimeError при запуске) |
+| `DEBUG` | нет | `false` | Режим отладки (разрешает default SECRET_KEY) |
+| `SEED_ADMIN_PASSWORD` | нет | `admin` | Пароль admin пользователя при первой миграции |
 
 ## Разработка
 
@@ -97,7 +99,7 @@ npm run dev
 ```bash
 # Backend (131 тест: auth, CRUD, аналитика, бюджеты, OCR, обучение, валидация)
 cd backend
-DATABASE_URL="sqlite:///:memory:" pytest -v
+DATABASE_URL="sqlite:///:memory:" DEBUG=true pytest -v
 
 # Frontend E2E (требует запущенный стек)
 cd frontend
