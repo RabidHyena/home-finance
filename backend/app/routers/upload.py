@@ -78,6 +78,7 @@ async def upload_and_parse(
 async def parse_without_save(
     file: UploadFile = File(...),
     ocr_service: OCRService = Depends(get_ocr_service),
+    db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     """Parse a bank screenshot without saving it."""
@@ -100,6 +101,10 @@ async def parse_without_save(
             status_code=400,
             detail=f"File too large. Maximum size: {settings.max_upload_size // 1024 // 1024}MB",
         )
+
+    # Pass DB and user_id for learned categories
+    ocr_service.db = db
+    ocr_service.user_id = current_user.id
 
     # Parse with AI
     try:

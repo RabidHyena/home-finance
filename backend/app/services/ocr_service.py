@@ -1,5 +1,6 @@
 import base64
 import json
+import logging
 import re
 from datetime import datetime
 from decimal import Decimal, InvalidOperation
@@ -12,7 +13,72 @@ from sqlalchemy.orm import Session
 from app.config import get_settings
 from app.schemas import ParsedTransaction
 
+logger = logging.getLogger(__name__)
+
 VALID_CATEGORIES = {"Food", "Transport", "Entertainment", "Shopping", "Bills", "Health", "Other"}
+
+DATE_FORMATS = [
+    lambda s: datetime.fromisoformat(s),
+    lambda s: datetime.strptime(s, "%Y-%m-%d"),
+    lambda s: datetime.strptime(s, "%d.%m.%Y"),
+    lambda s: datetime.strptime(s, "%d/%m/%Y"),
+]
+
+
+def _parse_date(date_str: str) -> datetime:
+    """Parse date string trying multiple formats, fallback to now."""
+    for fmt in DATE_FORMATS:
+        try:
+            return fmt(date_str)
+        except (ValueError, TypeError):
+            continue
+    logger.warning("Could not parse date '%s', falling back to now()", date_str)
+    return datetime.now()
+
+
+def _normalize_category(category: str) -> str:
+    """Normalize category to a valid value, fallback to Other."""
+    if category in VALID_CATEGORIES:
+        return category
+    logger.debug("Unknown category '%s', falling back to Other", category)
+    return "Other"
+
+
+def _clamp_confidence(value, default: float = 0.5) -> float:
+    """Clamp confidence to [0.0, 1.0] range."""
+    try:
+        conf = float(value)
+        return max(0.0, min(1.0, conf))
+    except (TypeError, ValueError):
+        return default
+
+
+def _strip_markdown_fences(text: str) -> str:
+    """Remove markdown code fences from AI response."""
+    stripped = text.strip()
+    stripped = re.sub(r"^```(?:json)?\s*", "", stripped)
+    stripped = re.sub(r"\s*```$", "", stripped)
+    return stripped.strip()
+
+
+def _extract_json(text: str) -> dict | list:
+    """Extract JSON from AI response text, handling markdown fences and embedded JSON."""
+    stripped = _strip_markdown_fences(text)
+
+    try:
+        return json.loads(stripped)
+    except json.JSONDecodeError:
+        pass
+
+    # Fallback: find the largest JSON object in the text
+    json_match = re.search(r"\{[\s\S]*\}", text)
+    if json_match:
+        try:
+            return json.loads(json_match.group())
+        except json.JSONDecodeError:
+            pass
+
+    raise ValueError(f"No valid JSON found in AI response: {text[:200]}")
 
 
 class OCRService:
@@ -79,15 +145,18 @@ If you cannot extract some information, make reasonable assumptions and lower th
         ".webp": "image/webp",
     }
 
-    def __init__(self, db: Optional[Session] = None):
+    API_TIMEOUT = 30.0  # seconds
+
+    def __init__(self, db: Optional[Session] = None, user_id: int | None = None):
         settings = get_settings()
         self.client = OpenAI(
             base_url="https://openrouter.ai/api/v1",
             api_key=settings.openrouter_api_key,
+            timeout=self.API_TIMEOUT,
         )
         self.model = settings.openrouter_model
         self.db = db
-        self.user_id: int | None = None
+        self.user_id = user_id
 
     def _get_media_type(self, filename: str) -> str:
         """Determine media type from file extension."""
@@ -96,9 +165,10 @@ If you cannot extract some information, make reasonable assumptions and lower th
 
     def _call_vision_api(self, image_data_b64: str, media_type: str) -> str:
         """Call the vision API and return raw response text."""
+        logger.info("Calling vision API with model=%s", self.model)
         response = self.client.chat.completions.create(
             model=self.model,
-            max_tokens=4096,  # Increased for multiple transactions
+            max_tokens=4096,
             messages=[
                 {"role": "system", "content": self.SYSTEM_PROMPT},
                 {
@@ -121,26 +191,56 @@ If you cannot extract some information, make reasonable assumptions and lower th
         content = response.choices[0].message.content
         if not content:
             raise ValueError("AI returned empty response")
+        logger.debug("Vision API response length: %d chars", len(content))
         return content
+
+    def _apply_learned_category(self, description: str, category: str, confidence: float) -> tuple[str, float]:
+        """Override category with learned mapping if available and more confident."""
+        if not self.db or not self.user_id:
+            return category, confidence
+
+        from app.services.learning_service import get_learned_category
+        learned = get_learned_category(self.db, description, self.user_id)
+        if learned:
+            learned_category, learned_confidence = learned
+            if float(learned_confidence) > confidence:
+                logger.debug(
+                    "Overriding category '%s' (%.2f) with learned '%s' (%.2f) for '%s'",
+                    category, confidence, learned_category, float(learned_confidence), description,
+                )
+                return learned_category, float(learned_confidence)
+
+        return category, confidence
+
+    def _parse_single_tx(self, data: dict) -> ParsedTransaction | None:
+        """Parse a single transaction dict into ParsedTransaction."""
+        try:
+            amount = Decimal(str(data["amount"]))
+        except (KeyError, InvalidOperation, TypeError):
+            logger.warning("Skipping transaction with invalid amount: %s", data.get("amount"))
+            return None
+
+        date_str = data.get("date", "")
+        parsed_date = _parse_date(date_str)
+
+        category = _normalize_category(data.get("category", "Other"))
+        confidence = _clamp_confidence(data.get("confidence", 0.5))
+        description = data.get("description", "Unknown")
+
+        category, confidence = self._apply_learned_category(description, category, confidence)
+
+        return ParsedTransaction(
+            amount=amount,
+            description=description,
+            date=parsed_date,
+            category=category,
+            raw_text="",  # filled by caller
+            confidence=confidence,
+        )
 
     def _parse_response(self, response_text: str) -> ParsedTransaction:
         """Parse the AI response text into a ParsedTransaction."""
-        # Try to extract JSON — handle both single object and array responses
-        stripped = response_text.strip()
-
-        # Remove markdown code fences if present
-        stripped = re.sub(r"^```(?:json)?\s*", "", stripped)
-        stripped = re.sub(r"\s*```$", "", stripped)
-        stripped = stripped.strip()
-
-        try:
-            data = json.loads(stripped)
-        except json.JSONDecodeError:
-            # Fallback: try to find any JSON object in the text
-            json_match = re.search(r"\{[^{}]*\}", response_text)
-            if not json_match:
-                raise ValueError(f"No valid JSON found in AI response: {response_text[:200]}")
-            data = json.loads(json_match.group())
+        data = _extract_json(response_text)
 
         # If response is an array, take the first item
         if isinstance(data, list):
@@ -151,66 +251,20 @@ If you cannot extract some information, make reasonable assumptions and lower th
         if not isinstance(data, dict):
             raise ValueError(f"Unexpected response format: {type(data)}")
 
-        # Parse amount robustly
-        try:
-            amount = Decimal(str(data["amount"]))
-        except (KeyError, InvalidOperation, TypeError):
+        # If the response has a "transactions" key, extract first transaction
+        if "transactions" in data and isinstance(data["transactions"], list) and data["transactions"]:
+            data = data["transactions"][0]
+
+        result = self._parse_single_tx(data)
+        if result is None:
             raise ValueError(f"Invalid amount in AI response: {data.get('amount')}")
 
-        # Parse date robustly — fallback to now if invalid
-        date_str = data.get("date", "")
-        parsed_date = None
-        for fmt in [
-            lambda s: datetime.fromisoformat(s),
-            lambda s: datetime.strptime(s, "%Y-%m-%d"),
-            lambda s: datetime.strptime(s, "%d.%m.%Y"),
-            lambda s: datetime.strptime(s, "%d/%m/%Y"),
-        ]:
-            try:
-                parsed_date = fmt(date_str)
-                break
-            except (ValueError, TypeError):
-                continue
-        if parsed_date is None:
-            parsed_date = datetime.now()
-
-        # Normalize category — fallback to Other
-        category = data.get("category", "Other")
-        if category not in VALID_CATEGORIES:
-            category = "Other"
-
-        # Clamp confidence
-        try:
-            confidence = float(data.get("confidence", 0.5))
-            confidence = max(0.0, min(1.0, confidence))
-        except (TypeError, ValueError):
-            confidence = 0.5
-
-        return ParsedTransaction(
-            amount=amount,
-            description=data.get("description", "Unknown"),
-            date=parsed_date,
-            category=category,
-            raw_text=response_text,
-            confidence=confidence,
-        )
+        result.raw_text = response_text
+        return result
 
     def _parse_multiple_response(self, response_text: str) -> dict:
         """Parse the AI response text into multiple transactions."""
-        # Remove markdown code fences if present
-        stripped = response_text.strip()
-        stripped = re.sub(r"^```(?:json)?\s*", "", stripped)
-        stripped = re.sub(r"\s*```$", "", stripped)
-        stripped = stripped.strip()
-
-        try:
-            data = json.loads(stripped)
-        except json.JSONDecodeError:
-            # Fallback: try to find JSON object in the text
-            json_match = re.search(r"\{[\s\S]*\}", response_text)
-            if not json_match:
-                raise ValueError(f"No valid JSON found in AI response: {response_text[:200]}")
-            data = json.loads(json_match.group())
+        data = _extract_json(response_text)
 
         if not isinstance(data, dict):
             raise ValueError(f"Unexpected response format: {type(data)}")
@@ -221,102 +275,22 @@ If you cannot extract some information, make reasonable assumptions and lower th
 
         parsed_transactions = []
         for tx_data in transactions_data:
-            # Parse amount
-            try:
-                amount = Decimal(str(tx_data["amount"]))
-            except (KeyError, InvalidOperation, TypeError):
-                continue  # Skip invalid transactions
+            tx = self._parse_single_tx(tx_data)
+            if tx is not None:
+                tx.raw_text = response_text
+                parsed_transactions.append(tx)
 
-            # Parse date
-            date_str = tx_data.get("date", "")
-            parsed_date = None
-            for fmt in [
-                lambda s: datetime.fromisoformat(s),
-                lambda s: datetime.strptime(s, "%Y-%m-%d"),
-                lambda s: datetime.strptime(s, "%d.%m.%Y"),
-                lambda s: datetime.strptime(s, "%d/%m/%Y"),
-            ]:
-                try:
-                    parsed_date = fmt(date_str)
-                    break
-                except (ValueError, TypeError):
-                    continue
-            if parsed_date is None:
-                parsed_date = datetime.now()
-
-            # Normalize category
-            category = tx_data.get("category", "Other")
-            if category not in VALID_CATEGORIES:
-                category = "Other"
-
-            # Clamp confidence
-            try:
-                confidence = float(tx_data.get("confidence", 0.5))
-                confidence = max(0.0, min(1.0, confidence))
-            except (TypeError, ValueError):
-                confidence = 0.5
-
-            # Apply learned categories if available
-            if self.db and self.user_id:
-                from app.services.learning_service import get_learned_category
-                description = tx_data.get("description", "Unknown")
-                learned = get_learned_category(self.db, description, self.user_id)
-                if learned:
-                    learned_category, learned_confidence = learned
-                    # Override if learned confidence is higher
-                    if float(learned_confidence) > confidence:
-                        category = learned_category
-                        confidence = float(learned_confidence)
-
-            parsed_transactions.append(ParsedTransaction(
-                amount=amount,
-                description=tx_data.get("description", "Unknown"),
-                date=parsed_date,
-                category=category,
-                raw_text=response_text,
-                confidence=confidence,
-            ))
+        logger.info("Parsed %d/%d transactions", len(parsed_transactions), len(transactions_data))
 
         # Parse total amount
         total_amount = Decimal("0")
         try:
             total_amount = Decimal(str(data.get("total_amount", 0)))
         except (InvalidOperation, TypeError):
-            # Calculate from transactions if not provided
             total_amount = sum(tx.amount for tx in parsed_transactions)
 
         # Parse chart data if present
-        chart_data = None
-        if "chart" in data and data["chart"] is not None:
-            try:
-                chart = data["chart"]
-                categories_data = chart.get("categories", [])
-
-                parsed_categories = []
-                for cat in categories_data:
-                    try:
-                        parsed_categories.append({
-                            "name": cat.get("name", "Unknown"),
-                            "value": Decimal(str(cat.get("value", 0))),
-                            "percentage": float(cat.get("percentage")) if cat.get("percentage") is not None else None,
-                        })
-                    except (InvalidOperation, TypeError, ValueError):
-                        continue  # Skip invalid categories
-
-                if parsed_categories:  # Only include chart if we parsed at least one category
-                    chart_confidence = float(chart.get("confidence", 0.5))
-                    chart_confidence = max(0.0, min(1.0, chart_confidence))
-
-                    chart_data = {
-                        "type": chart.get("type", "unknown"),
-                        "categories": parsed_categories,
-                        "total": Decimal(str(chart.get("total", 0))),
-                        "period": chart.get("period"),
-                        "confidence": chart_confidence,
-                    }
-            except (KeyError, TypeError, ValueError):
-                # If chart parsing fails, just skip it
-                pass
+        chart_data = self._parse_chart(data.get("chart"))
 
         return {
             "transactions": parsed_transactions,
@@ -324,6 +298,39 @@ If you cannot extract some information, make reasonable assumptions and lower th
             "chart": chart_data,
             "raw_text": response_text,
         }
+
+    def _parse_chart(self, chart: dict | None) -> dict | None:
+        """Parse chart data from AI response."""
+        if not chart:
+            return None
+
+        try:
+            categories_data = chart.get("categories", [])
+
+            parsed_categories = []
+            for cat in categories_data:
+                try:
+                    parsed_categories.append({
+                        "name": cat.get("name", "Unknown"),
+                        "value": Decimal(str(cat.get("value", 0))),
+                        "percentage": float(cat.get("percentage")) if cat.get("percentage") is not None else None,
+                    })
+                except (InvalidOperation, TypeError, ValueError):
+                    continue
+
+            if not parsed_categories:
+                return None
+
+            return {
+                "type": chart.get("type", "unknown"),
+                "categories": parsed_categories,
+                "total": Decimal(str(chart.get("total", 0))),
+                "period": chart.get("period"),
+                "confidence": _clamp_confidence(chart.get("confidence", 0.5)),
+            }
+        except (KeyError, TypeError, ValueError):
+            logger.warning("Failed to parse chart data", exc_info=True)
+            return None
 
     def parse_image(self, image_path: str) -> ParsedTransaction:
         """Parse a bank screenshot and extract transaction data."""
