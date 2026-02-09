@@ -101,6 +101,7 @@ class ParsedChart(BaseModel):
     categories: list[ChartDataItem]
     total: Decimal
     period: Optional[str] = None
+    period_type: Optional[str] = None  # 'month', 'year', 'week', 'custom'
     confidence: float = Field(..., ge=0, le=1)
 
     model_config = ConfigDict(

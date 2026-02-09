@@ -18,24 +18,103 @@ const RUSSIAN_MONTHS: Record<string, number> = {
   'декабрь': 11, 'декабря': 11, 'дек': 11,
 };
 
-function parsePeriodToDate(period: string | undefined): Date {
-  if (!period) return new Date();
+interface PeriodInfo {
+  startDate: Date;
+  endDate: Date;
+  type: 'month' | 'year' | 'week' | 'custom';
+}
 
+function parsePeriod(period: string | undefined, periodType?: string): PeriodInfo {
+  const now = new Date();
+  const resolvedType = (periodType as PeriodInfo['type']) || undefined;
+
+  if (!period) {
+    // No period string but we have a type hint — use current year/month
+    if (resolvedType === 'year') {
+      return { startDate: new Date(now.getFullYear(), 0, 1), endDate: new Date(now.getFullYear(), 11, 31), type: 'year' };
+    }
+    if (resolvedType === 'month') {
+      return { startDate: new Date(now.getFullYear(), now.getMonth(), 1), endDate: new Date(now.getFullYear(), now.getMonth() + 1, 0), type: 'month' };
+    }
+    return { startDate: now, endDate: now, type: 'custom' };
+  }
+
+  // Try range format "YYYY-MM to YYYY-MM"
+  const rangeMatch = period.match(/^(\d{4})-(\d{2})\s*(?:to|-|—)\s*(\d{4})-(\d{2})$/);
+  if (rangeMatch) {
+    const startYear = parseInt(rangeMatch[1], 10);
+    const startMonth = parseInt(rangeMatch[2], 10) - 1;
+    const endYear = parseInt(rangeMatch[3], 10);
+    const endMonth = parseInt(rangeMatch[4], 10) - 1;
+    return {
+      startDate: new Date(startYear, startMonth, 1),
+      endDate: new Date(endYear, endMonth + 1, 0),
+      type: resolvedType || 'custom',
+    };
+  }
+
+  // Try structured format "YYYY-MM"
+  const monthMatch = period.match(/^(\d{4})-(\d{2})$/);
+  if (monthMatch) {
+    const year = parseInt(monthMatch[1], 10);
+    const month = parseInt(monthMatch[2], 10) - 1;
+    // If AI says it's a year, trust it — expand to full year
+    if (resolvedType === 'year') {
+      return { startDate: new Date(year, 0, 1), endDate: new Date(year, 11, 31), type: 'year' };
+    }
+    return {
+      startDate: new Date(year, month, 1),
+      endDate: new Date(year, month + 1, 0),
+      type: resolvedType || 'month',
+    };
+  }
+
+  // Try structured format "YYYY"
+  const yearMatch = period.match(/^(\d{4})$/);
+  if (yearMatch) {
+    const year = parseInt(yearMatch[1], 10);
+    return {
+      startDate: new Date(year, 0, 1),
+      endDate: new Date(year, 11, 31),
+      type: 'year',
+    };
+  }
+
+  // Try Russian month names
   const parts = period.trim().toLowerCase().split(/\s+/);
   for (const part of parts) {
     if (part in RUSSIAN_MONTHS) {
       const monthIndex = RUSSIAN_MONTHS[part];
       const yearPart = parts.find(p => /^\d{4}$/.test(p));
-      const year = yearPart ? parseInt(yearPart, 10) : new Date().getFullYear();
-      return new Date(year, monthIndex, 1);
+      const year = yearPart ? parseInt(yearPart, 10) : now.getFullYear();
+      // If AI says it's a year, trust it — expand to full year
+      if (resolvedType === 'year') {
+        return { startDate: new Date(year, 0, 1), endDate: new Date(year, 11, 31), type: 'year' };
+      }
+      return {
+        startDate: new Date(year, monthIndex, 1),
+        endDate: new Date(year, monthIndex + 1, 0),
+        type: resolvedType || 'month',
+      };
     }
   }
 
   const fallback = new Date(period);
-  if (!isNaN(fallback.getTime())) return fallback;
+  if (!isNaN(fallback.getTime())) {
+    return { startDate: fallback, endDate: fallback, type: resolvedType || 'custom' };
+  }
 
-  return new Date();
+  // Last resort: use type hint to determine period
+  if (resolvedType === 'year') {
+    return { startDate: new Date(now.getFullYear(), 0, 1), endDate: new Date(now.getFullYear(), 11, 31), type: 'year' };
+  }
+  if (resolvedType === 'month') {
+    return { startDate: new Date(now.getFullYear(), now.getMonth(), 1), endDate: new Date(now.getFullYear(), now.getMonth() + 1, 0), type: 'month' };
+  }
+
+  return { startDate: now, endDate: now, type: 'custom' };
 }
+
 
 interface RecognizedChartDisplayProps {
   chart: ParsedChart;
@@ -52,8 +131,13 @@ export function RecognizedChartDisplay({
     new Set(chart.categories.map((_, i) => i))
   );
 
-  const [selectedDate, setSelectedDate] = useState<string>(
-    format(parsePeriodToDate(chart.period), "yyyy-MM-dd'T'HH:mm")
+  const periodInfo = parsePeriod(chart.period, chart.period_type);
+
+  const [periodStart, setPeriodStart] = useState<string>(
+    format(periodInfo.startDate, "yyyy-MM-dd")
+  );
+  const [periodEnd, setPeriodEnd] = useState<string>(
+    format(periodInfo.endDate, "yyyy-MM-dd")
   );
 
   const toggleCategory = (index: number) => {
@@ -74,33 +158,42 @@ export function RecognizedChartDisplay({
     }
   };
 
+  const mapCategory = (name: string): Category => {
+    const n = name.toLowerCase();
+    if (n.includes('еда') || n.includes('food') || n.includes('продукт') || n.includes('ресторан')) return 'Food';
+    if (n.includes('транспорт') || n.includes('transport')) return 'Transport';
+    if (n.includes('развлеч') || n.includes('entertainment')) return 'Entertainment';
+    if (n.includes('покупк') || n.includes('shopping')) return 'Shopping';
+    if (n.includes('счет') || n.includes('bills') || n.includes('платеж') || n.includes('комму')) return 'Bills';
+    if (n.includes('здоровье') || n.includes('health') || n.includes('аптек') || n.includes('медиц')) return 'Health';
+    return 'Other';
+  };
+
+  const getCategoryColor = (name: string): string => {
+    const mapped = mapCategory(name);
+    if (mapped !== 'Other') return CATEGORY_COLORS[mapped];
+    const hash = name.split('').reduce((acc, char) => char.charCodeAt(0) + acc, 0);
+    const fallbackColors = ['#3b82f6', '#f59e0b', '#10b981', '#8b5cf6', '#ec4899', '#14b8a6'];
+    return fallbackColors[hash % fallbackColors.length];
+  };
+
   const handleCreateTransactions = () => {
     if (!onCreateTransactions) return;
 
-    const transactions: TransactionCreate[] = chart.categories
-      .filter((_, i) => selectedCategories.has(i))
-      .map((category) => {
-        // Try to map category name to our predefined categories
-        const normalizedName = category.name.toLowerCase();
-        let mappedCategory: Category | undefined;
+    const selectedItems = chart.categories.filter((_, i) => selectedCategories.has(i));
 
-        if (normalizedName.includes('еда') || normalizedName.includes('food')) mappedCategory = 'Food';
-        else if (normalizedName.includes('транспорт') || normalizedName.includes('transport')) mappedCategory = 'Transport';
-        else if (normalizedName.includes('развлеч') || normalizedName.includes('entertainment')) mappedCategory = 'Entertainment';
-        else if (normalizedName.includes('покупк') || normalizedName.includes('shopping')) mappedCategory = 'Shopping';
-        else if (normalizedName.includes('счет') || normalizedName.includes('bills') || normalizedName.includes('платеж')) mappedCategory = 'Bills';
-        else if (normalizedName.includes('здоровье') || normalizedName.includes('health') || normalizedName.includes('аптек')) mappedCategory = 'Health';
-        else mappedCategory = 'Other';
+    const start = new Date(periodStart + 'T00:00:00');
+    const end = new Date(periodEnd + 'T23:59:59');
+    const mid = new Date((start.getTime() + end.getTime()) / 2);
 
-        return {
-          amount: Number(category.value),
-          description: `${category.name}${chart.period ? ` - ${chart.period}` : ''}`,
-          category: mappedCategory,
-          date: new Date(selectedDate).toISOString(),
-          currency: 'RUB',
-          raw_text: `Создано из диаграммы: ${chart.type}`,
-        };
-      });
+    const transactions: TransactionCreate[] = selectedItems.map((category) => ({
+      amount: Number(category.value),
+      description: `${category.name}${chart.period ? ` - ${chart.period}` : ''}`,
+      category: mapCategory(category.name),
+      date: mid.toISOString(),
+      currency: 'RUB',
+      raw_text: `Создано из диаграммы: ${chart.type}`,
+    }));
 
     onCreateTransactions(transactions);
   };
@@ -115,21 +208,6 @@ export function RecognizedChartDisplay({
     return types[type] || 'Диаграмма';
   };
 
-  const getCategoryColor = (name: string) => {
-    // Try to match with predefined categories
-    const normalizedName = name.toLowerCase();
-    if (normalizedName.includes('еда') || normalizedName.includes('food')) return CATEGORY_COLORS.Food;
-    if (normalizedName.includes('транспорт') || normalizedName.includes('transport')) return CATEGORY_COLORS.Transport;
-    if (normalizedName.includes('развлеч') || normalizedName.includes('entertainment')) return CATEGORY_COLORS.Entertainment;
-    if (normalizedName.includes('покупк') || normalizedName.includes('shopping')) return CATEGORY_COLORS.Shopping;
-    if (normalizedName.includes('счет') || normalizedName.includes('bills')) return CATEGORY_COLORS.Bills;
-    if (normalizedName.includes('здоровье') || normalizedName.includes('health')) return CATEGORY_COLORS.Health;
-
-    // Generate a color based on the name
-    const hash = name.split('').reduce((acc, char) => char.charCodeAt(0) + acc, 0);
-    const colors = ['#3b82f6', '#f59e0b', '#10b981', '#8b5cf6', '#ec4899', '#14b8a6'];
-    return colors[hash % colors.length];
-  };
 
   return (
     <div
@@ -203,13 +281,14 @@ export function RecognizedChartDisplay({
               borderRadius: '0.375rem',
               backgroundColor: 'var(--color-background)',
               marginBottom: '0.75rem',
+              flexWrap: 'wrap',
             }}
           >
-            <span style={{ fontSize: '0.875rem', fontWeight: 600 }}>Дата:</span>
+            <span style={{ fontSize: '0.875rem', fontWeight: 600 }}>Период:</span>
             <input
-              type="datetime-local"
-              value={selectedDate}
-              onChange={(e) => setSelectedDate(e.target.value)}
+              type="date"
+              value={periodStart}
+              onChange={(e) => setPeriodStart(e.target.value)}
               style={{
                 fontSize: '0.875rem',
                 color: 'var(--color-text-secondary)',
@@ -219,6 +298,23 @@ export function RecognizedChartDisplay({
                 padding: '0.25rem 0.5rem',
               }}
             />
+            <span style={{ fontSize: '0.875rem', color: 'var(--color-text-secondary)' }}>—</span>
+            <input
+              type="date"
+              value={periodEnd}
+              onChange={(e) => setPeriodEnd(e.target.value)}
+              style={{
+                fontSize: '0.875rem',
+                color: 'var(--color-text-secondary)',
+                background: 'transparent',
+                border: '1px solid var(--color-border)',
+                borderRadius: '0.25rem',
+                padding: '0.25rem 0.5rem',
+              }}
+            />
+            <span style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary)' }}>
+              (даты распределятся по периоду)
+            </span>
           </div>
         )}
 
@@ -337,8 +433,8 @@ export function RecognizedChartDisplay({
             }}
           >
             <p style={{ margin: 0, fontSize: '0.75rem', color: 'var(--color-text-secondary)' }}>
-              💡 <strong>Создание транзакций:</strong> Выберите категории, для которых хотите
-              создать транзакции. Для каждой категории будет создана одна транзакция с указанной суммой.
+              💡 <strong>Создание транзакций:</strong> Для каждой выбранной категории будет создана
+              одна транзакция с указанной суммой.
             </p>
           </div>
           <button

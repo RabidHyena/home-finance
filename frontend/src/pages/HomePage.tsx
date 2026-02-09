@@ -11,7 +11,10 @@ export function HomePage() {
   const error = txError || repError;
 
   const transactions = txData?.items ?? [];
-  const currentMonth = reports?.[0] ?? null;
+  const now = new Date();
+  const currentMonth = reports?.find(
+    r => r.year === now.getFullYear() && r.month === now.getMonth() + 1
+  ) ?? reports?.[0] ?? null;
 
   if (isLoading) {
     return (

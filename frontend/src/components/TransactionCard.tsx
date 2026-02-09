@@ -71,7 +71,13 @@ export function TransactionCard({
               }}
             >
               {categoryLabel} •{' '}
-              {format(new Date(transaction.date), 'd MMM, HH:mm', { locale: ru })}
+              {(() => {
+                try {
+                  return format(new Date(transaction.date), 'd MMM, HH:mm', { locale: ru });
+                } catch {
+                  return 'Неизвестная дата';
+                }
+              })()}
             </p>
           </div>
 

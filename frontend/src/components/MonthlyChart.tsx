@@ -7,22 +7,18 @@ import {
   Tooltip,
   ResponsiveContainer,
 } from 'recharts';
+import { MONTH_NAMES_SHORT } from '../types';
 import type { MonthlyReport } from '../types';
 
 interface MonthlyChartProps {
   data: MonthlyReport[];
 }
 
-const MONTH_NAMES = [
-  'Янв', 'Фев', 'Мар', 'Апр', 'Май', 'Июн',
-  'Июл', 'Авг', 'Сен', 'Окт', 'Ноя', 'Дек',
-];
-
 export function MonthlyChart({ data }: MonthlyChartProps) {
   const chartData = [...data]
     .reverse()
     .map((report) => ({
-      name: `${MONTH_NAMES[report.month - 1]} ${report.year}`,
+      name: `${MONTH_NAMES_SHORT[report.month - 1]} ${report.year}`,
       amount: report.total_amount,
       count: report.transaction_count,
     }));
@@ -63,7 +59,7 @@ export function MonthlyChart({ data }: MonthlyChartProps) {
               `${Number(value).toLocaleString('ru-RU')} ₽`,
               'Сумма',
             ]}
-            labelStyle={{ color: '#111827', fontWeight: 500 }}
+            labelStyle={{ color: 'var(--color-text, #111827)', fontWeight: 500 }}
             contentStyle={{
               borderRadius: '0.5rem',
               border: '1px solid #e5e7eb',

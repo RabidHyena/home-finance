@@ -38,7 +38,7 @@ export function BudgetsPage() {
     }
 
     try {
-      if (editingId) {
+      if (editingId !== null) {
         await updateMutation.mutateAsync({
           id: editingId,
           data: {
@@ -85,10 +85,10 @@ export function BudgetsPage() {
     }
   };
 
-  const getProgressColor = (percentage: number) => {
-    if (percentage < 70) return 'bg-green-500';
-    if (percentage < 90) return 'bg-yellow-500';
-    return 'bg-red-500';
+  const getProgressColor = (percentage: number): string => {
+    if (percentage < 70) return '#22c55e';
+    if (percentage < 90) return '#eab308';
+    return '#ef4444';
   };
 
   const usedCategories = new Set(budgetStatuses.map(s => s.budget.category));
@@ -107,12 +107,12 @@ export function BudgetsPage() {
     <div>
       <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
         <h1 style={{ fontSize: '1.5rem', fontWeight: 600 }}>Бюджеты</h1>
-        {!showForm && (
+        {!showForm && availableCategories.length > 0 && (
           <button
             onClick={() => {
               setShowForm(true);
               setEditingId(null);
-              setFormData({ category: availableCategories[0] || 'Food', limit_amount: '', period: 'monthly' });
+              setFormData({ category: availableCategories[0], limit_amount: '', period: 'monthly' });
             }}
             className="btn btn-primary"
             style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}
@@ -260,8 +260,8 @@ export function BudgetsPage() {
                   position: 'relative',
                 }}>
                   <div
-                    className={getProgressColor(status.percentage)}
                     style={{
+                      backgroundColor: getProgressColor(status.percentage),
                       width: `${Math.min(status.percentage, 100)}%`,
                       height: '100%',
                       transition: 'width 0.3s ease',

@@ -21,10 +21,17 @@ export function UploadZone({
 
   const handleFiles = useCallback(
     (fileList: File[]) => {
+      const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
       const validFiles = fileList.filter(f => f.type.startsWith('image/'));
 
       if (validFiles.length === 0) {
         alert('Пожалуйста, выберите изображения');
+        return;
+      }
+
+      const oversized = validFiles.filter(f => f.size > MAX_FILE_SIZE);
+      if (oversized.length > 0) {
+        alert(`Файлы превышают 10MB: ${oversized.map(f => f.name).join(', ')}`);
         return;
       }
 
@@ -49,7 +56,7 @@ export function UploadZone({
 
       onFileSelect(validFiles);
     },
-    [onFileSelect, multiple]
+    [onFileSelect, multiple, previews]
   );
 
   const handleDrop = useCallback(

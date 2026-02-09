@@ -1,4 +1,6 @@
-from fastapi import APIRouter, Depends, HTTPException, Response, status
+import time
+
+from fastapi import APIRouter, Depends, HTTPException, Request, Response
 from sqlalchemy.orm import Session
 
 from app.config import get_settings
@@ -16,6 +18,46 @@ from app.services.auth_service import (
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
+# Simple in-memory rate limiter (per-process; sufficient for single-worker deployments)
+_rate_limit_store: dict[str, list[float]] = {}
+_RATE_LIMIT_WINDOW = 60  # seconds
+_RATE_LIMIT_MAX_REQUESTS = 10  # max attempts per window
+_RATE_LIMIT_MAX_KEYS = 10000  # max tracked IPs before forced cleanup
+_last_cleanup = 0.0
+_CLEANUP_INTERVAL = 300  # full cleanup every 5 minutes
+
+
+def _cleanup_store(now: float) -> None:
+    """Remove all expired entries from the store."""
+    global _last_cleanup
+    expired_keys = [ip for ip, times in _rate_limit_store.items()
+                    if not any(now - t < _RATE_LIMIT_WINDOW for t in times)]
+    for key in expired_keys:
+        del _rate_limit_store[key]
+    _last_cleanup = now
+
+
+def _check_rate_limit(client_ip: str) -> None:
+    global _last_cleanup
+    now = time.time()
+
+    # Periodic full cleanup to prevent memory leak
+    if now - _last_cleanup > _CLEANUP_INTERVAL or len(_rate_limit_store) > _RATE_LIMIT_MAX_KEYS:
+        _cleanup_store(now)
+
+    # Clean this IP's expired entries
+    attempts = _rate_limit_store.get(client_ip, [])
+    attempts = [t for t in attempts if now - t < _RATE_LIMIT_WINDOW]
+
+    if len(attempts) >= _RATE_LIMIT_MAX_REQUESTS:
+        _rate_limit_store[client_ip] = attempts
+        raise HTTPException(
+            status_code=429,
+            detail="Too many requests. Please try again later.",
+        )
+    attempts.append(now)
+    _rate_limit_store[client_ip] = attempts
+
 
 def _set_token_cookie(response: Response, token: str) -> None:
     settings = get_settings()
@@ -31,11 +73,10 @@ def _set_token_cookie(response: Response, token: str) -> None:
 
 
 @router.post("/register", response_model=UserResponse, status_code=201)
-def register(data: UserRegister, response: Response, db: Session = Depends(get_db)):
-    if get_user_by_email(db, data.email):
-        raise HTTPException(status_code=400, detail="Email already registered")
-    if get_user_by_username(db, data.username):
-        raise HTTPException(status_code=400, detail="Username already taken")
+def register(data: UserRegister, response: Response, request: Request, db: Session = Depends(get_db)):
+    _check_rate_limit(request.client.host if request.client else "unknown")
+    if get_user_by_email(db, data.email) or get_user_by_username(db, data.username):
+        raise HTTPException(status_code=400, detail="Registration failed. Email or username may already be in use.")
 
     user = create_user(db, data.email, data.username, data.password)
     token = create_access_token(user.id)
@@ -44,7 +85,8 @@ def register(data: UserRegister, response: Response, db: Session = Depends(get_d
 
 
 @router.post("/login", response_model=UserResponse)
-def login(data: UserLogin, response: Response, db: Session = Depends(get_db)):
+def login(data: UserLogin, response: Response, request: Request, db: Session = Depends(get_db)):
+    _check_rate_limit(request.client.host if request.client else "unknown")
     user = authenticate_user(db, data.login, data.password)
     if not user:
         raise HTTPException(status_code=401, detail="Invalid credentials")

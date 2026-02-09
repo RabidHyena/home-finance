@@ -91,17 +91,38 @@ Your task is to extract ALL financial information from bank app screenshots, inc
 For EACH transaction visible in a list, extract:
 - amount: The transaction amount (numeric value only, without currency symbol)
 - description: The merchant name or transaction description
-- date: The transaction date in ISO 8601 format: YYYY-MM-DDTHH:MM:SS (e.g. 2026-01-15T14:30:00). If time is unknown, use 00:00:00.
+- date: The EXACT date shown for THIS specific transaction in ISO 8601 format: YYYY-MM-DDTHH:MM:SS (e.g. 2026-01-15T14:30:00). If time is unknown, use 12:00:00.
 - category: One of EXACTLY these values: Food, Transport, Entertainment, Shopping, Bills, Health, Other
 - confidence: Your confidence level (0.0 to 1.0)
+
+CRITICAL DATE RULES:
+- Each transaction MUST have its OWN date as shown on the screenshot
+- Look for dates next to each transaction (e.g. "15 янв", "3 февраля", "2026-01-20")
+- If a group header shows a date like "15 января" and several transactions follow, all those transactions have that date
+- If the screenshot shows transactions from different days, each MUST have the correct day
+- NEVER assign the same date to all transactions unless they truly occurred on the same day
+- If only a month/year is visible (no specific day), distribute transactions across the month (1st, 5th, 10th, 15th, 20th, 25th)
 
 ## Extract charts/diagrams:
 If you see a pie chart, bar chart, or any spending diagram showing category breakdowns, extract:
 - type: "pie", "bar", "line", or "other"
 - categories: Array of {name, value, percentage (optional)}
 - total: Total amount shown in the chart
-- period: Time period (e.g., "January 2024", "Last month")
+- period: Time period in STRUCTURED format ONLY:
+  - For a single month: "YYYY-MM" (e.g. "2026-01" for January 2026)
+  - For a full year: "YYYY" (e.g. "2026")
+  - For a date range: "YYYY-MM to YYYY-MM" (e.g. "2025-06 to 2026-01")
+- period_type: "month", "year", "week", or "custom"
 - confidence: Your confidence level (0.0 to 1.0)
+
+CRITICAL PERIOD RULES:
+- Look carefully at the chart title, header, or labels for the time period
+- Common patterns: "Январь 2026" → period="2026-01", period_type="month"
+- "2025 год" or "За 2025" → period="2025", period_type="year"
+- "Июнь 2025 - Январь 2026" → period="2025-06 to 2026-01", period_type="custom"
+- "За последний месяц" → use current month in YYYY-MM format, period_type="month"
+- If you see monthly data spanning multiple months (e.g. Jan-Dec), that's a YEAR — use period_type="year"
+- NEVER return Russian text as the period value — always use structured YYYY or YYYY-MM format
 
 IMPORTANT:
 - Extract ALL visible transactions from lists
@@ -129,7 +150,8 @@ Respond with a JSON object in this exact format:
             {"name": "Shopping", "value": 3000.00, "percentage": 27.2}
         ],
         "total": 11000.50,
-        "period": "January 2024",
+        "period": "2026-01",
+        "period_type": "month",
         "confidence": 0.90
     }
 }
@@ -326,6 +348,7 @@ If you cannot extract some information, make reasonable assumptions and lower th
                 "categories": parsed_categories,
                 "total": Decimal(str(chart.get("total", 0))),
                 "period": chart.get("period"),
+                "period_type": chart.get("period_type", "month"),
                 "confidence": _clamp_confidence(chart.get("confidence", 0.5)),
             }
         except (KeyError, TypeError, ValueError):

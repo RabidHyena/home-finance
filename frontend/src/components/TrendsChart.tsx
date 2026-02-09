@@ -1,10 +1,6 @@
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, Legend, ResponsiveContainer } from 'recharts';
+import { MONTH_NAMES_SHORT } from '../types';
 import type { TrendsData } from '../types';
-
-const MONTH_NAMES_SHORT = [
-  'Янв', 'Фев', 'Мар', 'Апр', 'Май', 'Июн',
-  'Июл', 'Авг', 'Сен', 'Окт', 'Ноя', 'Дек',
-];
 
 interface TrendsChartProps {
   data: TrendsData;
@@ -15,32 +11,32 @@ export function TrendsChart({ data }: TrendsChartProps) {
   const chartData = data.data.map((point, index) => ({
     name: `${MONTH_NAMES_SHORT[point.month - 1]} ${point.year}`,
     actual: point.total,
-    trend: data.trend_line[index],
+    trend: index < data.trend_line.length ? data.trend_line[index] : undefined,
   }));
 
   const { statistics } = data;
 
   return (
     <div className="card">
-      <h2 className="text-xl font-bold mb-4">Тренды расходов</h2>
+      <h2 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '1rem' }}>Тренды расходов</h2>
 
       {/* Statistics */}
-      <div className="grid grid-cols-4 gap-4 mb-6">
-        <div className="p-3 bg-gray-50 rounded-lg">
-          <p className="text-xs text-gray-500 mb-1">Среднее</p>
-          <p className="text-lg font-bold">{statistics.average.toFixed(0)} ₽</p>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1rem', marginBottom: '1.5rem' }}>
+        <div style={{ padding: '0.75rem', backgroundColor: 'var(--color-bg, #f9fafb)', borderRadius: '0.5rem' }}>
+          <p style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary, #6b7280)', marginBottom: '0.25rem' }}>Среднее</p>
+          <p style={{ fontSize: '1.125rem', fontWeight: 700 }}>{statistics.average.toFixed(0)} ₽</p>
         </div>
-        <div className="p-3 bg-gray-50 rounded-lg">
-          <p className="text-xs text-gray-500 mb-1">Минимум</p>
-          <p className="text-lg font-bold text-green-600">{statistics.min.toFixed(0)} ₽</p>
+        <div style={{ padding: '0.75rem', backgroundColor: 'var(--color-bg, #f9fafb)', borderRadius: '0.5rem' }}>
+          <p style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary, #6b7280)', marginBottom: '0.25rem' }}>Минимум</p>
+          <p style={{ fontSize: '1.125rem', fontWeight: 700, color: 'var(--color-success, #16a34a)' }}>{statistics.min.toFixed(0)} ₽</p>
         </div>
-        <div className="p-3 bg-gray-50 rounded-lg">
-          <p className="text-xs text-gray-500 mb-1">Максимум</p>
-          <p className="text-lg font-bold text-red-600">{statistics.max.toFixed(0)} ₽</p>
+        <div style={{ padding: '0.75rem', backgroundColor: 'var(--color-bg, #f9fafb)', borderRadius: '0.5rem' }}>
+          <p style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary, #6b7280)', marginBottom: '0.25rem' }}>Максимум</p>
+          <p style={{ fontSize: '1.125rem', fontWeight: 700, color: 'var(--color-danger, #dc2626)' }}>{statistics.max.toFixed(0)} ₽</p>
         </div>
-        <div className="p-3 bg-gray-50 rounded-lg">
-          <p className="text-xs text-gray-500 mb-1">Отклонение</p>
-          <p className="text-lg font-bold text-blue-600">{statistics.std_deviation.toFixed(0)} ₽</p>
+        <div style={{ padding: '0.75rem', backgroundColor: 'var(--color-bg, #f9fafb)', borderRadius: '0.5rem' }}>
+          <p style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary, #6b7280)', marginBottom: '0.25rem' }}>Отклонение</p>
+          <p style={{ fontSize: '1.125rem', fontWeight: 700, color: 'var(--color-primary, #2563eb)' }}>{statistics.std_deviation.toFixed(0)} ₽</p>
         </div>
       </div>
 
@@ -91,7 +87,7 @@ export function TrendsChart({ data }: TrendsChartProps) {
       </ResponsiveContainer>
 
       {/* Period info */}
-      <p className="text-sm text-gray-500 mt-4 text-center">
+      <p style={{ fontSize: '0.875rem', color: 'var(--color-text-secondary, #6b7280)', marginTop: '1rem', textAlign: 'center' }}>
         Период: {data.period}
       </p>
     </div>

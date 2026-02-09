@@ -52,7 +52,7 @@ export function CategoryChart({ data }: CategoryChartProps) {
             formatter={(value) => {
               const num = Number(value);
               return [
-                `${num.toLocaleString('ru-RU')} ₽ (${((num / total) * 100).toFixed(1)}%)`,
+                `${num.toLocaleString('ru-RU')} ₽ (${total > 0 ? ((num / total) * 100).toFixed(1) : '0'}%)`,
                 '',
               ];
             }}
@@ -67,7 +67,7 @@ export function CategoryChart({ data }: CategoryChartProps) {
             align="right"
             verticalAlign="middle"
             formatter={(value) => (
-              <span style={{ color: '#111827', fontSize: '0.875rem' }}>{value}</span>
+              <span style={{ color: 'var(--color-text, #111827)', fontSize: '0.875rem' }}>{value}</span>
             )}
           />
         </PieChart>

@@ -46,6 +46,9 @@ async function handleResponse<T>(response: Response): Promise<T> {
     const err = await response.json().catch(() => null);
     throw new Error(err?.detail || `Request failed (${response.status})`);
   }
+  if (response.status === 204 || response.headers.get('content-length') === '0') {
+    return undefined as T;
+  }
   return response.json();
 }
 
@@ -389,14 +392,14 @@ export const api = {
 
       for (let i = months - 1; i >= 0; i--) {
         const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
-        const total = 30000 + Math.random() * 20000 + i * 1000; // Increasing trend
+        const total = 30000 + Math.random() * 20000 + (months - 1 - i) * 1000; // Increasing trend over time
         data.push({
           year: d.getFullYear(),
           month: d.getMonth() + 1,
           total,
           count: Math.floor(30 + Math.random() * 20),
         });
-        trendLine.push(30000 + i * 1500); // Linear trend
+        trendLine.push(30000 + (months - 1 - i) * 1500); // Linear trend upward
       }
 
       return {

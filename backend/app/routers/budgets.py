@@ -73,40 +73,50 @@ def get_budgets_status(
         month = now.month
 
     budgets = db.query(Budget).filter(Budget.user_id == current_user.id).all()
-    statuses = []
+    if not budgets:
+        return []
 
-    for budget in budgets:
-        # Calculate spent amount for the period
-        query = db.query(func.sum(Transaction.amount)).filter(
+    # Pre-compute spending for all categories in bulk (2 queries max instead of N)
+    # Monthly spending by category
+    monthly_spent_rows = db.query(
+        Transaction.category,
+        func.coalesce(func.sum(Transaction.amount), 0).label("total"),
+    ).filter(
+        Transaction.user_id == current_user.id,
+        extract('year', Transaction.date) == year,
+        extract('month', Transaction.date) == month,
+    ).group_by(Transaction.category).all()
+    monthly_spent = {row.category: Decimal(str(row.total)) for row in monthly_spent_rows}
+
+    # Weekly spending by category (only if any budget uses weekly)
+    weekly_spent: dict[str, Decimal] = {}
+    if any(b.period == 'weekly' for b in budgets):
+        today = datetime.now()
+        week_start = today - timedelta(days=today.weekday())
+        week_end = week_start + timedelta(days=6)
+        weekly_spent_rows = db.query(
+            Transaction.category,
+            func.coalesce(func.sum(Transaction.amount), 0).label("total"),
+        ).filter(
             Transaction.user_id == current_user.id,
-            Transaction.category == budget.category
-        )
+            Transaction.date >= week_start.replace(hour=0, minute=0, second=0),
+            Transaction.date <= week_end.replace(hour=23, minute=59, second=59),
+        ).group_by(Transaction.category).all()
+        weekly_spent = {row.category: Decimal(str(row.total)) for row in weekly_spent_rows}
 
-        if budget.period == 'monthly':
-            query = query.filter(
-                extract('year', Transaction.date) == year,
-                extract('month', Transaction.date) == month,
-            )
-        else:  # weekly
-            today = datetime.now()
-            week_start = today - timedelta(days=today.weekday())
-            week_end = week_start + timedelta(days=6)
-            query = query.filter(
-                Transaction.date >= week_start.replace(hour=0, minute=0, second=0),
-                Transaction.date <= week_end.replace(hour=23, minute=59, second=59),
-            )
-
-        spent = query.scalar() or Decimal('0')
+    statuses = []
+    for budget in budgets:
+        spent_lookup = weekly_spent if budget.period == 'weekly' else monthly_spent
+        spent = spent_lookup.get(budget.category, Decimal('0'))
         remaining = budget.limit_amount - spent
         percentage = float((spent / budget.limit_amount) * 100) if budget.limit_amount > 0 else 0
-        exceeded = spent > budget.limit_amount
 
         statuses.append(BudgetStatus(
             budget=budget,
             spent=spent,
             remaining=remaining,
             percentage=percentage,
-            exceeded=exceeded,
+            exceeded=spent > budget.limit_amount,
         ))
 
     return statuses

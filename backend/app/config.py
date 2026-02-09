@@ -24,7 +24,7 @@ class Settings(BaseSettings):
     access_token_expire_minutes: int = 1440  # 24h
     cookie_name: str = "access_token"
     cookie_samesite: str = "lax"
-    cookie_secure: bool = False
+    cookie_secure: bool | None = None  # auto: True when debug=False
 
     # CORS
     cors_origins: list[str] = ["http://localhost:3000"]
@@ -38,6 +38,9 @@ class Settings(BaseSettings):
 @lru_cache
 def get_settings() -> Settings:
     settings = Settings()
+    # Auto-set cookie_secure: True in production, False in debug
+    if settings.cookie_secure is None:
+        object.__setattr__(settings, "cookie_secure", not settings.debug)
     if settings.secret_key == "change-me-in-production" and not settings.debug:
         raise RuntimeError(
             "SECRET_KEY must be set to a secure random value in production. "

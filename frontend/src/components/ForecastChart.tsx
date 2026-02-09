@@ -9,59 +9,64 @@ import {
   Area,
   ComposedChart,
 } from 'recharts';
+import { MONTH_NAMES_SHORT } from '../types';
 import type { ForecastData } from '../types';
-
-const MONTH_NAMES_SHORT = [
-  'Янв', 'Фев', 'Мар', 'Апр', 'Май', 'Июн',
-  'Июл', 'Авг', 'Сен', 'Окт', 'Ноя', 'Дек',
-];
 
 interface ForecastChartProps {
   data: ForecastData;
 }
 
 export function ForecastChart({ data }: ForecastChartProps) {
-  // Combine historical and forecast data
-  const chartData = [
-    ...data.historical.map((point) => ({
-      name: `${MONTH_NAMES_SHORT[point.month - 1]} ${point.year}`,
-      actual: point.amount,
-      forecast: null,
-      confidenceMin: null,
-      confidenceMax: null,
-      isForecast: false,
-    })),
-    ...data.forecast.map((point) => ({
-      name: `${MONTH_NAMES_SHORT[point.month - 1]} ${point.year}`,
-      actual: null,
-      forecast: point.amount,
-      confidenceMin: point.confidence_min,
-      confidenceMax: point.confidence_max,
-      isForecast: true,
-    })),
-  ];
+  const lastHistorical = data.historical[data.historical.length - 1];
+
+  // Build chart data with a bridge point so lines connect
+  const historicalPoints = data.historical.map((point) => ({
+    name: `${MONTH_NAMES_SHORT[point.month - 1]} ${point.year}`,
+    actual: point.amount,
+    forecast: null as number | null,
+    confidenceRange: null as [number, number] | null,
+  }));
+
+  const forecastPoints = data.forecast.map((point) => ({
+    name: `${MONTH_NAMES_SHORT[point.month - 1]} ${point.year}`,
+    actual: null as number | null,
+    forecast: point.amount,
+    confidenceRange: (point.confidence_min != null && point.confidence_max != null)
+      ? [point.confidence_min, point.confidence_max] as [number, number]
+      : null,
+  }));
+
+  // Bridge: last historical point also gets forecast value so lines connect
+  if (lastHistorical && forecastPoints.length > 0) {
+    historicalPoints[historicalPoints.length - 1] = {
+      ...historicalPoints[historicalPoints.length - 1],
+      forecast: lastHistorical.amount,
+    };
+  }
+
+  const chartData = [...historicalPoints, ...forecastPoints];
 
   const { statistics } = data;
 
   return (
     <div className="card">
-      <h2 className="text-xl font-bold mb-4">Прогноз расходов</h2>
+      <h2 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '1rem' }}>Прогноз расходов</h2>
 
       {/* Statistics */}
-      <div className="grid grid-cols-3 gap-4 mb-6">
-        <div className="p-3 bg-gray-50 rounded-lg">
-          <p className="text-xs text-gray-500 mb-1">Среднее</p>
-          <p className="text-lg font-bold">{statistics.average.toFixed(0)} ₽</p>
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem', marginBottom: '1.5rem' }}>
+        <div style={{ padding: '0.75rem', backgroundColor: 'var(--color-bg, #f9fafb)', borderRadius: '0.5rem' }}>
+          <p style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary, #6b7280)', marginBottom: '0.25rem' }}>Среднее</p>
+          <p style={{ fontSize: '1.125rem', fontWeight: 700 }}>{statistics.average.toFixed(0)} ₽</p>
         </div>
-        <div className="p-3 bg-gray-50 rounded-lg">
-          <p className="text-xs text-gray-500 mb-1">Доверительный интервал</p>
-          <p className="text-sm font-semibold text-blue-600">
+        <div style={{ padding: '0.75rem', backgroundColor: 'var(--color-bg, #f9fafb)', borderRadius: '0.5rem' }}>
+          <p style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary, #6b7280)', marginBottom: '0.25rem' }}>Доверительный интервал</p>
+          <p style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--color-primary, #2563eb)' }}>
             {statistics.confidence_interval.min.toFixed(0)} - {statistics.confidence_interval.max.toFixed(0)} ₽
           </p>
         </div>
-        <div className="p-3 bg-gray-50 rounded-lg">
-          <p className="text-xs text-gray-500 mb-1">Отклонение</p>
-          <p className="text-lg font-bold text-orange-600">±{statistics.std_deviation.toFixed(0)} ₽</p>
+        <div style={{ padding: '0.75rem', backgroundColor: 'var(--color-bg, #f9fafb)', borderRadius: '0.5rem' }}>
+          <p style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary, #6b7280)', marginBottom: '0.25rem' }}>Отклонение</p>
+          <p style={{ fontSize: '1.125rem', fontWeight: 700, color: 'var(--color-warning, #ea580c)' }}>±{statistics.std_deviation.toFixed(0)} ₽</p>
         </div>
       </div>
 
@@ -92,23 +97,16 @@ export function ForecastChart({ data }: ForecastChartProps) {
           />
           <Legend />
 
-          {/* Confidence interval area */}
+          {/* Confidence interval as a proper range area */}
           <Area
             type="monotone"
-            dataKey="confidenceMax"
+            dataKey="confidenceRange"
             stroke="none"
             fill="#fbbf24"
             fillOpacity={0.2}
             name="Доверительный интервал"
             legendType="none"
-          />
-          <Area
-            type="monotone"
-            dataKey="confidenceMin"
-            stroke="none"
-            fill="#ffffff"
-            fillOpacity={1}
-            legendType="none"
+            connectNulls={false}
           />
 
           {/* Historical data line */}
@@ -137,10 +135,10 @@ export function ForecastChart({ data }: ForecastChartProps) {
       </ResponsiveContainer>
 
       {/* Info text */}
-      <div className="mt-4 p-3 bg-blue-50 rounded-lg">
-        <p className="text-sm text-gray-700">
+      <div style={{ marginTop: '1rem', padding: '0.75rem', backgroundColor: 'var(--color-bg, #eff6ff)', borderRadius: '0.5rem' }}>
+        <p style={{ fontSize: '0.875rem', color: 'var(--color-text, #374151)' }}>
           <strong>Прогноз основан на:</strong> среднем значении расходов за последние{' '}
-          {data.historical.length} месяцев. Серая область показывает доверительный интервал (±1 стандартное отклонение).
+          {data.historical.length} месяцев. Жёлтая область показывает доверительный интервал (±1 стандартное отклонение).
         </p>
       </div>
     </div>

@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { CheckCircle } from 'lucide-react';
 import { UploadZone, MultipleTransactionsForm, RecognizedChartDisplay, useToast, ErrorBoundary } from '../components';
@@ -16,8 +16,27 @@ export function UploadPage() {
   const batchUploadMutation = useBatchUploadAndParse();
   const createMutation = useCreateTransaction();
   const [batchResults, setBatchResults] = useState<BatchUploadResponse | null>(null);
+  // Track which batch files have been saved (by index)
+  const [savedBatchFiles, setSavedBatchFiles] = useState<Set<number>>(new Set());
+  // Track which batch files had chart transactions created
+  const [savedBatchCharts, setSavedBatchCharts] = useState<Set<number>>(new Set());
+  // Store original AI categories from parsed data (keyed by description+amount)
+  const [originalAiCategories] = useState<Map<string, { category: string; confidence: number }>>(new Map());
 
   const error = uploadMutation.error || createMutation.error || batchUploadMutation.error;
+
+  // Store original AI predictions when data arrives
+  const storeOriginalPredictions = useCallback((transactions: { description: string; amount: number; category?: string | null; confidence?: number }[]) => {
+    for (const tx of transactions) {
+      const key = `${tx.description}|${tx.amount}`;
+      if (!originalAiCategories.has(key)) {
+        originalAiCategories.set(key, {
+          category: tx.category || 'Other',
+          confidence: tx.confidence ?? 0.5,
+        });
+      }
+    }
+  }, [originalAiCategories]);
 
   const handleFileSelect = async (files: File[]) => {
     // Use batch upload for multiple files
@@ -25,7 +44,15 @@ export function UploadPage() {
       try {
         const results = await batchUploadMutation.mutateAsync(files);
         setBatchResults(results);
+        setSavedBatchFiles(new Set());
+        setSavedBatchCharts(new Set());
         setStep('review');
+        // Store original AI predictions
+        for (const r of results.results) {
+          if (r.status === 'success' && r.data) {
+            storeOriginalPredictions(r.data.transactions);
+          }
+        }
         toast.success(`Обработано: ${results.successful} из ${results.total_files}`);
         if (results.failed > 0) {
           toast.error(`Ошибок: ${results.failed}`);
@@ -39,6 +66,7 @@ export function UploadPage() {
         const result = await uploadMutation.mutateAsync(files[0]);
         if (result) {
           setStep('review');
+          storeOriginalPredictions(result.transactions);
           toast.success('Скриншот распознан');
         }
       } catch (e) {
@@ -47,44 +75,72 @@ export function UploadPage() {
     }
   };
 
-  const handleSubmit = async (transactions: (TransactionCreate & { confidence?: number })[]) => {
+  const handleSubmit = async (transactions: (TransactionCreate & { confidence?: number })[], batchIndex?: number) => {
     try {
-      // Preserve original AI prediction
-      const enrichedTransactions = transactions.map(tx => ({
-        amount: tx.amount,
-        description: tx.description,
-        category: tx.category,
-        date: tx.date,
-        currency: tx.currency,
-        image_path: tx.image_path,
-        raw_text: tx.raw_text,
-        ai_category: tx.category,  // Preserve original AI prediction
-        ai_confidence: tx.confidence,
-      }));
+      const enrichedTransactions = transactions.map(tx => {
+        const key = `${tx.description}|${tx.amount}`;
+        const original = originalAiCategories.get(key);
+        return {
+          amount: tx.amount,
+          description: tx.description,
+          category: tx.category,
+          date: tx.date,
+          currency: tx.currency,
+          image_path: tx.image_path,
+          raw_text: tx.raw_text,
+          ai_category: original?.category ?? tx.category,
+          ai_confidence: original?.confidence ?? tx.confidence,
+        };
+      });
 
       // Save all selected transactions
-      await Promise.all(
+      const results = await Promise.allSettled(
         enrichedTransactions.map(tx => createMutation.mutateAsync(tx))
       );
-      setStep('success');
-      const count = transactions.length;
-      toast.success(`Сохранено транзакций: ${count}`);
+      const succeeded = results.filter(r => r.status === 'fulfilled').length;
+      const failed = results.filter(r => r.status === 'rejected').length;
+
+      if (succeeded > 0 && batchIndex !== undefined) {
+        // In batch mode, mark this file as saved instead of navigating away
+        setSavedBatchFiles(prev => new Set(prev).add(batchIndex));
+      }
+
+      if (failed === 0) {
+        toast.success(`Сохранено транзакций: ${succeeded}`);
+        if (batchIndex === undefined) {
+          setStep('success');
+        }
+      } else if (succeeded > 0) {
+        toast.success(`Сохранено: ${succeeded}, ошибок: ${failed}`);
+        if (batchIndex === undefined) {
+          setStep('success');
+        }
+      } else {
+        toast.error('Не удалось сохранить транзакции');
+      }
     } catch {
       toast.error('Не удалось сохранить транзакции');
     }
   };
 
-  const handleCreateFromChart = async (transactions: TransactionCreate[]) => {
+  const handleCreateFromChart = async (transactions: TransactionCreate[], batchIndex?: number) => {
     try {
-      await Promise.all(
+      const results = await Promise.allSettled(
         transactions.map(tx => createMutation.mutateAsync(tx))
       );
-      const count = transactions.length;
-      toast.success(`Создано транзакций из диаграммы: ${count}`);
-      // Optionally move to success step or just show success message
-      setTimeout(() => {
-        setStep('success');
-      }, 500);
+      const succeeded = results.filter(r => r.status === 'fulfilled').length;
+      const failed = results.filter(r => r.status === 'rejected').length;
+      if (failed === 0) {
+        toast.success(`Создано транзакций из диаграммы: ${succeeded}`);
+      } else {
+        toast.success(`Создано: ${succeeded}, ошибок: ${failed}`);
+      }
+
+      if (batchIndex !== undefined) {
+        setSavedBatchCharts(prev => new Set(prev).add(batchIndex));
+      } else {
+        setTimeout(() => setStep('success'), 500);
+      }
     } catch {
       toast.error('Не удалось создать транзакции из диаграммы');
     }
@@ -96,7 +152,15 @@ export function UploadPage() {
     batchUploadMutation.reset();
     createMutation.reset();
     setBatchResults(null);
+    setSavedBatchFiles(new Set());
+    setSavedBatchCharts(new Set());
   };
+
+  // In batch mode, check if all successful files have been saved
+  const allBatchFilesSaved = batchResults
+    ? batchResults.results.every((r, idx) =>
+        r.status === 'error' || savedBatchFiles.has(idx))
+    : false;
 
   return (
     <ErrorBoundary>
@@ -161,58 +225,92 @@ export function UploadPage() {
 
       {step === 'review' && batchResults && (
         <div>
-          {batchResults.results.map((result, idx) => (
-            <details
-              key={idx}
-              open={idx === 0}
-              style={{
-                marginBottom: '1rem',
-                border: '1px solid var(--color-border)',
-                borderRadius: '0.5rem',
-                padding: '1rem',
-                backgroundColor: 'var(--color-surface)',
-              }}
-            >
-              <summary style={{
-                cursor: 'pointer',
-                fontWeight: 600,
-                display: 'flex',
-                justifyContent: 'space-between',
-                alignItems: 'center',
-              }}>
-                <span>{result.filename}</span>
-                <span style={{
-                  color: result.status === 'success' ? 'var(--color-success)' : 'var(--color-danger)',
-                  fontSize: '0.875rem',
+          {batchResults.results.map((result, idx) => {
+            const isSaved = savedBatchFiles.has(idx);
+            const isChartSaved = savedBatchCharts.has(idx);
+            return (
+              <details
+                key={idx}
+                open={idx === 0 && !isSaved}
+                style={{
+                  marginBottom: '1rem',
+                  border: '1px solid var(--color-border)',
+                  borderRadius: '0.5rem',
+                  padding: '1rem',
+                  backgroundColor: 'var(--color-surface)',
+                  opacity: isSaved ? 0.6 : 1,
+                }}
+              >
+                <summary style={{
+                  cursor: 'pointer',
+                  fontWeight: 600,
+                  display: 'flex',
+                  justifyContent: 'space-between',
+                  alignItems: 'center',
                 }}>
-                  {result.status === 'success'
-                    ? `✓ ${result.data?.transactions.length || 0} транзакций`
-                    : `✗ ${result.error}`}
-                </span>
-              </summary>
+                  <span>{result.filename}</span>
+                  <span style={{
+                    color: isSaved
+                      ? 'var(--color-success)'
+                      : result.status === 'success'
+                        ? 'var(--color-success)'
+                        : 'var(--color-danger)',
+                    fontSize: '0.875rem',
+                  }}>
+                    {isSaved
+                      ? '✓ Сохранено'
+                      : result.status === 'success'
+                        ? `${result.data?.transactions.length || 0} транзакций`
+                        : `✗ ${result.error}`}
+                  </span>
+                </summary>
 
-              {result.status === 'success' && result.data && (
-                <div style={{ marginTop: '1rem' }}>
-                  {result.data.chart && (
-                    <RecognizedChartDisplay
-                      chart={result.data.chart}
-                      onCreateTransactions={handleCreateFromChart}
-                      isCreating={createMutation.isPending}
-                    />
-                  )}
-                  <div className="card">
-                    <MultipleTransactionsForm
-                      transactions={result.data.transactions}
-                      totalAmount={result.data.total_amount}
-                      onSubmit={handleSubmit}
-                      onCancel={handleReset}
-                      isLoading={createMutation.isPending}
-                    />
+                {result.status === 'success' && result.data && !isSaved && (
+                  <div style={{ marginTop: '1rem' }}>
+                    {result.data.chart && !isChartSaved && (
+                      <RecognizedChartDisplay
+                        chart={result.data.chart}
+                        onCreateTransactions={(txs) => handleCreateFromChart(txs, idx)}
+                        isCreating={createMutation.isPending}
+                      />
+                    )}
+                    {isChartSaved && (
+                      <div style={{
+                        padding: '0.75rem',
+                        marginBottom: '1rem',
+                        backgroundColor: 'rgba(34, 197, 94, 0.1)',
+                        borderRadius: '0.5rem',
+                        color: 'var(--color-success)',
+                        fontSize: '0.875rem',
+                      }}>
+                        Транзакции из диаграммы созданы
+                      </div>
+                    )}
+                    <div className="card">
+                      <MultipleTransactionsForm
+                        transactions={result.data.transactions}
+                        totalAmount={result.data.total_amount}
+                        onSubmit={(txs) => handleSubmit(txs, idx)}
+                        onCancel={handleReset}
+                        isLoading={createMutation.isPending}
+                      />
+                    </div>
                   </div>
-                </div>
-              )}
-            </details>
-          ))}
+                )}
+              </details>
+            );
+          })}
+
+          {allBatchFilesSaved && (
+            <div style={{ textAlign: 'center', marginTop: '1rem' }}>
+              <button
+                className="btn btn-primary"
+                onClick={() => setStep('success')}
+              >
+                Готово
+              </button>
+            </div>
+          )}
         </div>
       )}
 

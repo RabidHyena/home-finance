@@ -46,7 +46,12 @@ def upgrade() -> None:
     default_user_id = result.scalar()
 
     if default_user_id is None:
-        seed_password = os.environ.get("SEED_ADMIN_PASSWORD", "changeme")
+        seed_password = os.environ.get("SEED_ADMIN_PASSWORD", "")
+        if not seed_password:
+            raise RuntimeError(
+                "SEED_ADMIN_PASSWORD environment variable is required for initial migration. "
+                "Set it to a secure password for the default admin account."
+            )
         hashed = bcrypt.hashpw(seed_password.encode(), bcrypt.gensalt()).decode('utf-8')
         conn.execute(
             sa.text("INSERT INTO users (email, username, hashed_password) VALUES (:email, :username, :pw)"),
@@ -71,32 +76,49 @@ def upgrade() -> None:
                 {"uid": default_user_id}
             )
 
-    # 5. Alter to NOT NULL + add FK + index
+    # 5. Alter to NOT NULL + add FK + index (idempotent via SQL checks)
+    def _fk_exists(table_name, fk_name):
+        result = conn.execute(sa.text(
+            "SELECT 1 FROM information_schema.table_constraints "
+            "WHERE constraint_name = :name AND table_name = :table AND constraint_type = 'FOREIGN KEY'"
+        ), {"name": fk_name, "table": table_name})
+        return result.scalar() is not None
+
+    def _index_exists(idx_name):
+        result = conn.execute(sa.text(
+            "SELECT 1 FROM pg_indexes WHERE indexname = :name"
+        ), {"name": idx_name})
+        return result.scalar() is not None
+
+    def _constraint_exists(table_name, constraint_name):
+        # Check both pg_constraint and pg_class (index with same name)
+        result = conn.execute(sa.text(
+            "SELECT 1 FROM pg_class WHERE relname = :name"
+        ), {"name": constraint_name})
+        return result.scalar() is not None
+
     for table in tables_to_update:
         if table in existing_tables:
             op.alter_column(table, 'user_id', nullable=False)
-            op.create_foreign_key(
-                f'fk_{table}_user_id', table, 'users', ['user_id'], ['id'], ondelete='CASCADE'
-            )
-            op.create_index(f'ix_{table}_user_id', table, ['user_id'], unique=False)
+            if not _fk_exists(table, f'fk_{table}_user_id'):
+                op.create_foreign_key(
+                    f'fk_{table}_user_id', table, 'users', ['user_id'], ['id'], ondelete='CASCADE'
+                )
+            if not _index_exists(f'ix_{table}_user_id'):
+                op.create_index(f'ix_{table}_user_id', table, ['user_id'], unique=False)
 
     # 6. Drop old unique constraints, create composite ones
-    # Budget: drop unique on category, add (user_id, category)
     if 'budgets' in existing_tables:
-        # Drop old unique constraint on category
-        try:
+        if _constraint_exists('budgets', 'budgets_category_key'):
             op.drop_constraint('budgets_category_key', 'budgets', type_='unique')
-        except Exception:
-            pass
-        op.create_unique_constraint('uq_user_budget_category', 'budgets', ['user_id', 'category'])
+        if not _constraint_exists('budgets', 'uq_user_budget_category'):
+            op.create_unique_constraint('uq_user_budget_category', 'budgets', ['user_id', 'category'])
 
-    # MerchantCategoryMapping: drop unique on merchant_normalized, add (user_id, merchant_normalized)
     if 'merchant_category_mappings' in existing_tables:
-        try:
+        if _constraint_exists('merchant_category_mappings', 'merchant_category_mappings_merchant_normalized_key'):
             op.drop_constraint('merchant_category_mappings_merchant_normalized_key', 'merchant_category_mappings', type_='unique')
-        except Exception:
-            pass
-        op.create_unique_constraint('uq_user_merchant', 'merchant_category_mappings', ['user_id', 'merchant_normalized'])
+        if not _constraint_exists('merchant_category_mappings', 'uq_user_merchant'):
+            op.create_unique_constraint('uq_user_merchant', 'merchant_category_mappings', ['user_id', 'merchant_normalized'])
 
 
 def downgrade() -> None:

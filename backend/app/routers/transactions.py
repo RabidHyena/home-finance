@@ -8,6 +8,9 @@ from typing import Optional
 import csv
 from io import StringIO
 
+import numpy as np
+from dateutil.relativedelta import relativedelta
+
 from app.database import get_db
 from app.dependencies import get_current_user
 from app.models import Transaction, MerchantCategoryMapping, User
@@ -198,27 +201,38 @@ def get_monthly_reports(
         extract("month", Transaction.date).desc(),
     ).all()
 
+    # Get all category breakdowns in a single query to avoid N+1
+    category_results = db.query(
+        extract("year", Transaction.date).label("year"),
+        extract("month", Transaction.date).label("month"),
+        Transaction.category,
+        func.sum(Transaction.amount).label("total"),
+    ).filter(
+        Transaction.user_id == current_user.id
+    )
+
+    if year:
+        category_results = category_results.filter(extract("year", Transaction.date) == year)
+
+    category_results = category_results.group_by(
+        extract("year", Transaction.date),
+        extract("month", Transaction.date),
+        Transaction.category,
+    ).all()
+
+    # Build lookup: (year, month) -> {category: total}
+    category_lookup: dict[tuple[int, int], dict[str, Decimal]] = {}
+    for cat_row in category_results:
+        key = (int(cat_row.year), int(cat_row.month))
+        if key not in category_lookup:
+            category_lookup[key] = {}
+        cat_name = cat_row.category or "Uncategorized"
+        category_lookup[key][cat_name] = Decimal(str(cat_row.total))
+
     reports = []
     for row in results:
-        # Get category breakdown for this month
-        category_query = (
-            db.query(
-                Transaction.category,
-                func.sum(Transaction.amount).label("total"),
-            )
-            .filter(
-                Transaction.user_id == current_user.id,
-                extract("year", Transaction.date) == int(row.year),
-                extract("month", Transaction.date) == int(row.month),
-            )
-            .group_by(Transaction.category)
-            .all()
-        )
-
-        by_category = {
-            cat or "Uncategorized": Decimal(str(total))
-            for cat, total in category_query
-        }
+        key = (int(row.year), int(row.month))
+        by_category = category_lookup.get(key, {})
 
         reports.append(
             MonthlyReport(
@@ -231,67 +245,6 @@ def get_monthly_reports(
         )
 
     return reports
-
-
-@router.get("/{transaction_id}", response_model=TransactionResponse)
-def get_transaction(
-    transaction_id: int,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    """Get a single transaction by ID."""
-    transaction = db.query(Transaction).filter(
-        Transaction.id == transaction_id,
-        Transaction.user_id == current_user.id,
-    ).first()
-    if not transaction:
-        raise HTTPException(status_code=404, detail="Transaction not found")
-    return transaction
-
-
-@router.put("/{transaction_id}", response_model=TransactionResponse)
-def update_transaction(
-    transaction_id: int,
-    update_data: TransactionUpdate,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    """Update an existing transaction."""
-    transaction = db.query(Transaction).filter(
-        Transaction.id == transaction_id,
-        Transaction.user_id == current_user.id,
-    ).first()
-    if not transaction:
-        raise HTTPException(status_code=404, detail="Transaction not found")
-
-    update_dict = update_data.model_dump(exclude_unset=True)
-    for field, value in update_dict.items():
-        setattr(transaction, field, value)
-
-    # Log correction if category was changed (for AI learning)
-    log_correction(db, transaction, current_user.id)
-
-    db.commit()
-    db.refresh(transaction)
-    return transaction
-
-
-@router.delete("/{transaction_id}", status_code=204)
-def delete_transaction(
-    transaction_id: int,
-    db: Session = Depends(get_db),
-    current_user: User = Depends(get_current_user),
-):
-    """Delete a transaction."""
-    transaction = db.query(Transaction).filter(
-        Transaction.id == transaction_id,
-        Transaction.user_id == current_user.id,
-    ).first()
-    if not transaction:
-        raise HTTPException(status_code=404, detail="Transaction not found")
-
-    db.delete(transaction)
-    db.commit()
 
 
 @router.get("/analytics/ai-accuracy")
@@ -330,26 +283,28 @@ def get_spending_forecast(
     current_user: User = Depends(get_current_user),
 ):
     """Forecast future spending based on historical data."""
-    from dateutil.relativedelta import relativedelta
-    import numpy as np
-
     # Get historical data
     end_date = datetime.now()
     start_date = end_date - relativedelta(months=history_months)
 
-    transactions = db.query(Transaction).filter(
+    # Aggregate by month in SQL instead of loading all transactions
+    monthly_rows = db.query(
+        extract("year", Transaction.date).label("year"),
+        extract("month", Transaction.date).label("month"),
+        func.sum(Transaction.amount).label("total"),
+    ).filter(
         Transaction.user_id == current_user.id,
         Transaction.date >= start_date,
         Transaction.date <= end_date
+    ).group_by(
+        extract("year", Transaction.date),
+        extract("month", Transaction.date),
     ).all()
 
-    # Group by month
-    monthly_data = {}
-    for tx in transactions:
-        key = (tx.date.year, tx.date.month)
-        if key not in monthly_data:
-            monthly_data[key] = Decimal('0')
-        monthly_data[key] += tx.amount
+    monthly_data = {
+        (int(row.year), int(row.month)): Decimal(str(row.total))
+        for row in monthly_rows
+    }
 
     # Create historical series
     historical = []
@@ -424,28 +379,30 @@ def get_spending_trends(
     current_user: User = Depends(get_current_user),
 ):
     """Get spending trends for last N months."""
-    from dateutil.relativedelta import relativedelta
-    import numpy as np
 
     # Calculate date range
     end_date = datetime.now()
     start_date = end_date - relativedelta(months=months)
 
-    # Get transactions
-    transactions = db.query(Transaction).filter(
+    # Aggregate by month in SQL
+    monthly_rows = db.query(
+        extract("year", Transaction.date).label("year"),
+        extract("month", Transaction.date).label("month"),
+        func.sum(Transaction.amount).label("total"),
+        func.count(Transaction.id).label("count"),
+    ).filter(
         Transaction.user_id == current_user.id,
         Transaction.date >= start_date,
         Transaction.date <= end_date
+    ).group_by(
+        extract("year", Transaction.date),
+        extract("month", Transaction.date),
     ).all()
 
-    # Group by month
-    monthly_data = {}
-    for tx in transactions:
-        key = (tx.date.year, tx.date.month)
-        if key not in monthly_data:
-            monthly_data[key] = {"total": Decimal('0'), "count": 0}
-        monthly_data[key]["total"] += tx.amount
-        monthly_data[key]["count"] += 1
+    monthly_data = {
+        (int(row.year), int(row.month)): {"total": Decimal(str(row.total)), "count": row.count}
+        for row in monthly_rows
+    }
 
     # Create series
     series = []
@@ -504,7 +461,6 @@ def get_month_comparison(
     current_user: User = Depends(get_current_user),
 ):
     """Compare current month with previous month."""
-    from dateutil.relativedelta import relativedelta
 
     # Current month dates
     current_start = datetime(year, month, 1)
@@ -517,38 +473,56 @@ def get_month_comparison(
     prev_start = current_start - relativedelta(months=1)
     prev_end = current_start - relativedelta(days=1)
 
-    # Query current month
-    current_txs = db.query(Transaction).filter(
+    # Aggregate current month totals in SQL
+    current_agg = db.query(
+        func.coalesce(func.sum(Transaction.amount), 0).label("total"),
+        func.count(Transaction.id).label("count"),
+    ).filter(
         Transaction.user_id == current_user.id,
         Transaction.date >= current_start,
-        Transaction.date <= current_end
-    ).all()
+        Transaction.date <= current_end,
+    ).one()
 
-    # Query previous month
-    prev_txs = db.query(Transaction).filter(
+    # Aggregate previous month totals in SQL
+    prev_agg = db.query(
+        func.coalesce(func.sum(Transaction.amount), 0).label("total"),
+        func.count(Transaction.id).label("count"),
+    ).filter(
         Transaction.user_id == current_user.id,
         Transaction.date >= prev_start,
-        Transaction.date <= prev_end
-    ).all()
+        Transaction.date <= prev_end,
+    ).one()
 
-    # Calculate metrics
-    current_total = sum(tx.amount for tx in current_txs)
-    prev_total = sum(tx.amount for tx in prev_txs)
+    current_total = Decimal(str(current_agg.total))
+    prev_total = Decimal(str(prev_agg.total))
+    current_count = current_agg.count
+    prev_count = prev_agg.count
 
-    # Category breakdown
-    current_by_category = {}
-    for tx in current_txs:
-        cat = tx.category or "Other"
-        current_by_category[cat] = current_by_category.get(cat, Decimal('0')) + tx.amount
+    # Category breakdown via SQL
+    current_cat_rows = db.query(
+        func.coalesce(Transaction.category, 'Other').label("cat"),
+        func.sum(Transaction.amount).label("total"),
+    ).filter(
+        Transaction.user_id == current_user.id,
+        Transaction.date >= current_start,
+        Transaction.date <= current_end,
+    ).group_by(func.coalesce(Transaction.category, 'Other')).all()
 
-    prev_by_category = {}
-    for tx in prev_txs:
-        cat = tx.category or "Other"
-        prev_by_category[cat] = prev_by_category.get(cat, Decimal('0')) + tx.amount
+    prev_cat_rows = db.query(
+        func.coalesce(Transaction.category, 'Other').label("cat"),
+        func.sum(Transaction.amount).label("total"),
+    ).filter(
+        Transaction.user_id == current_user.id,
+        Transaction.date >= prev_start,
+        Transaction.date <= prev_end,
+    ).group_by(func.coalesce(Transaction.category, 'Other')).all()
+
+    current_by_category = {row.cat: Decimal(str(row.total)) for row in current_cat_rows}
+    prev_by_category = {row.cat: Decimal(str(row.total)) for row in prev_cat_rows}
 
     # Calculate changes
     total_change = float((current_total - prev_total) / prev_total * 100) if prev_total > 0 else 0
-    count_change = float((len(current_txs) - len(prev_txs)) / len(prev_txs) * 100) if len(prev_txs) > 0 else 0
+    count_change = float((current_count - prev_count) / prev_count * 100) if prev_count > 0 else 0
 
     # Top categories by change
     category_changes = []
@@ -572,12 +546,12 @@ def get_month_comparison(
         "previous_month": {"year": prev_start.year, "month": prev_start.month},
         "current": {
             "total": float(current_total),
-            "count": len(current_txs),
+            "count": current_count,
             "by_category": {k: float(v) for k, v in current_by_category.items()}
         },
         "previous": {
             "total": float(prev_total),
-            "count": len(prev_txs),
+            "count": prev_count,
             "by_category": {k: float(v) for k, v in prev_by_category.items()}
         },
         "changes": {
@@ -586,3 +560,64 @@ def get_month_comparison(
             "by_category": category_changes[:5]  # Top 5
         }
     }
+
+
+@router.get("/{transaction_id}", response_model=TransactionResponse)
+def get_transaction(
+    transaction_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Get a single transaction by ID."""
+    transaction = db.query(Transaction).filter(
+        Transaction.id == transaction_id,
+        Transaction.user_id == current_user.id,
+    ).first()
+    if not transaction:
+        raise HTTPException(status_code=404, detail="Transaction not found")
+    return transaction
+
+
+@router.put("/{transaction_id}", response_model=TransactionResponse)
+def update_transaction(
+    transaction_id: int,
+    update_data: TransactionUpdate,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Update an existing transaction."""
+    transaction = db.query(Transaction).filter(
+        Transaction.id == transaction_id,
+        Transaction.user_id == current_user.id,
+    ).first()
+    if not transaction:
+        raise HTTPException(status_code=404, detail="Transaction not found")
+
+    update_dict = update_data.model_dump(exclude_unset=True)
+    for field, value in update_dict.items():
+        setattr(transaction, field, value)
+
+    # Log correction if category was changed (for AI learning)
+    log_correction(db, transaction, current_user.id)
+
+    db.commit()
+    db.refresh(transaction)
+    return transaction
+
+
+@router.delete("/{transaction_id}", status_code=204)
+def delete_transaction(
+    transaction_id: int,
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Delete a transaction."""
+    transaction = db.query(Transaction).filter(
+        Transaction.id == transaction_id,
+        Transaction.user_id == current_user.id,
+    ).first()
+    if not transaction:
+        raise HTTPException(status_code=404, detail="Transaction not found")
+
+    db.delete(transaction)
+    db.commit()

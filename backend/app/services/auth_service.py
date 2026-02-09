@@ -2,7 +2,8 @@ from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 import bcrypt
-from jose import JWTError, jwt
+import jwt
+from jwt.exceptions import PyJWTError
 from sqlalchemy.orm import Session
 
 from app.config import get_settings
@@ -31,7 +32,7 @@ def decode_access_token(token: str) -> Optional[int]:
         payload = jwt.decode(token, settings.secret_key, algorithms=[settings.jwt_algorithm])
         user_id = int(payload["sub"])
         return user_id
-    except (JWTError, KeyError, ValueError):
+    except (PyJWTError, KeyError, ValueError):
         return None
 
 

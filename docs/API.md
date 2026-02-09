@@ -417,15 +417,26 @@ Upload a bank screenshot and parse transaction data using AI.
 
 **Max file size:** 10 MB
 
+**Validation:**
+- Content-Type must be `image/jpeg`, `image/png`, `image/gif`, or `image/webp`
+- Magic byte validation (file content verified, not just extension)
+- Max file size: 10 MB
+
 **Response:** `200 OK`
 ```json
 {
-  "amount": 1599.00,
-  "description": "Лента",
-  "date": "2026-01-15T14:30:00",
-  "category": "Food",
-  "raw_text": "Распознано: Лента, 1599.00 руб",
-  "confidence": 0.92
+  "transactions": [
+    {
+      "amount": 1599.00,
+      "description": "Лента",
+      "date": "2026-01-15T14:30:00",
+      "category": "Food",
+      "raw_text": "...",
+      "confidence": 0.92
+    }
+  ],
+  "total_amount": 1599.00,
+  "chart": null
 }
 ```
 
@@ -448,15 +459,30 @@ Upload multiple screenshots at once (up to 10).
 **Response:** `200 OK`
 ```json
 {
-  "transactions": [...],
-  "total_amount": 5000.00,
-  "chart": {
-    "type": "pie",
-    "categories": [
-      {"name": "Food", "value": 3000, "percentage": 60},
-      {"name": "Transport", "value": 2000, "percentage": 40}
-    ]
-  }
+  "results": [
+    {
+      "filename": "screen1.png",
+      "status": "success",
+      "data": {
+        "transactions": [...],
+        "total_amount": 5000.00,
+        "chart": {
+          "type": "pie",
+          "categories": [
+            {"name": "Food", "value": 3000, "percentage": 60},
+            {"name": "Transport", "value": 2000, "percentage": 40}
+          ],
+          "total": 5000.00,
+          "period": "2026-01",
+          "period_type": "month",
+          "confidence": 0.85
+        }
+      }
+    }
+  ],
+  "total_files": 1,
+  "successful": 1,
+  "failed": 0
 }
 ```
 
@@ -653,13 +679,18 @@ All errors follow this format:
 | 404 | Not Found |
 | 422 | Unprocessable Entity (validation error) |
 | 401 | Unauthorized (not authenticated) |
+| 429 | Too Many Requests (rate limited) |
 | 500 | Internal Server Error |
 
 ---
 
 ## Rate Limiting
 
-Currently not implemented. Planned for future releases.
+Authentication endpoints (`/api/auth/register`, `/api/auth/login`) are rate limited:
+- **Window**: 60 seconds
+- **Max requests**: 10 per IP per window
+- **Response**: `429 Too Many Requests` when exceeded
+- **Cleanup**: Automatic every 5 minutes, forced at 10,000 tracked IPs
 
 ---
 
@@ -758,5 +789,5 @@ curl -b cookies.txt \
 
 ---
 
-*Version: 3.0*
-*Date: 6 February 2026*
+*Version: 4.0*
+*Date: 9 February 2026*

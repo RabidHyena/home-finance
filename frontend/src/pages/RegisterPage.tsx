@@ -84,8 +84,8 @@ export function RegisterPage() {
 
         {error && (
           <div style={{
-            backgroundColor: '#fef2f2',
-            color: '#b91c1c',
+            backgroundColor: 'rgba(239, 68, 68, 0.1)',
+            color: 'var(--color-danger)',
             padding: '0.75rem',
             borderRadius: '0.5rem',
             marginBottom: '1rem',

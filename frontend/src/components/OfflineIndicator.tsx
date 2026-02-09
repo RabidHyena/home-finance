@@ -34,7 +34,7 @@ export function OfflineIndicator() {
         left: '50%',
         transform: 'translateX(-50%)',
         padding: '0.75rem 1.5rem',
-        backgroundColor: '#ef4444',
+        backgroundColor: 'var(--color-danger, #ef4444)',
         color: 'white',
         borderRadius: '2rem',
         display: 'flex',

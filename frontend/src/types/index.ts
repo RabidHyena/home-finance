@@ -80,6 +80,7 @@ export interface ParsedChart {
   categories: ChartDataItem[];
   total: number;
   period?: string;
+  period_type?: 'month' | 'year' | 'week' | 'custom';
   confidence: number;
 }
 
@@ -136,6 +137,16 @@ export const CATEGORY_LABELS: Record<Category, string> = {
   Health: 'Здоровье',
   Other: 'Другое',
 };
+
+export const MONTH_NAMES = [
+  'Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь',
+  'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь',
+] as const;
+
+export const MONTH_NAMES_SHORT = [
+  'Янв', 'Фев', 'Мар', 'Апр', 'Май', 'Июн',
+  'Июл', 'Авг', 'Сен', 'Окт', 'Ноя', 'Дек',
+] as const;
 
 export const CURRENCIES = ['RUB', 'USD', 'EUR', 'GBP'] as const;
 export type Currency = typeof CURRENCIES[number];

@@ -43,11 +43,13 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   }, []);
 
   const login = useCallback(async (data: LoginRequest) => {
+    queryClient.clear();
     const loggedInUser = await api.login(data);
     setUser(loggedInUser);
   }, []);
 
   const register = useCallback(async (data: RegisterRequest) => {
+    queryClient.clear();
     const newUser = await api.register(data);
     setUser(newUser);
   }, []);

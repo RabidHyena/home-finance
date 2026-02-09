@@ -32,6 +32,8 @@ export function TransactionsPage() {
     return () => clearTimeout(timer);
   }, [search]);
 
+  const isDateRangeInvalid = !!(dateFrom && dateTo && new Date(dateFrom) > new Date(dateTo));
+
   const {
     data,
     isLoading,
@@ -43,8 +45,8 @@ export function TransactionsPage() {
     perPage,
     filter || undefined,
     debouncedSearch || undefined,
-    dateFrom || undefined,
-    dateTo || undefined
+    isDateRangeInvalid ? undefined : (dateFrom || undefined),
+    isDateRangeInvalid ? undefined : (dateTo || undefined),
   );
   const createMutation = useCreateTransaction();
   const updateMutation = useUpdateTransaction();

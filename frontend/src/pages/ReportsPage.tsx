@@ -2,13 +2,8 @@ import { useEffect, useState } from 'react';
 import { Calendar } from 'lucide-react';
 import { MonthlyChart, CategoryChart, MonthComparison, TrendsChart, ForecastChart, StatCardSkeleton, ChartSkeleton } from '../components';
 import { useMonthlyReports, useMonthComparison, useSpendingTrends, useForecast } from '../hooks/useApi';
+import { MONTH_NAMES, CATEGORY_LABELS, type Category } from '../types';
 import type { MonthlyReport } from '../types';
-import { CATEGORY_LABELS, type Category } from '../types';
-
-const MONTH_NAMES = [
-  'Январь', 'Февраль', 'Март', 'Апрель', 'Май', 'Июнь',
-  'Июль', 'Август', 'Сентябрь', 'Октябрь', 'Ноябрь', 'Декабрь',
-];
 
 export function ReportsPage() {
   const { data: reports = [], isLoading, error } = useMonthlyReports();

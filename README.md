@@ -4,16 +4,16 @@
 
 ## Возможности
 
-- **Аутентификация**: регистрация, вход, JWT-токены в httpOnly cookies (bcrypt + python-jose)
+- **Аутентификация**: регистрация, вход, JWT-токены в httpOnly cookies (bcrypt + PyJWT)
 - **Мультипользовательность**: изоляция данных между пользователями (user_id FK)
-- **Безопасность**: CORS ограничения, nginx security headers, CSV sanitization, email валидация, SECRET_KEY валидация
+- **Безопасность**: CORS, CSP headers, rate limiting (auth), magic byte валидация файлов, CSV sanitization, SECRET_KEY enforcement
 - Загрузка скриншотов банковских приложений (одиночная и пакетная до 10 штук)
-- AI-распознавание суммы, описания, даты и категории (Gemini 3 Flash через OpenRouter)
+- AI-распознавание транзакций и диаграмм (Gemini 3 Flash через OpenRouter)
 - Авто-категоризация с обучением на исправлениях пользователя
 - CRUD транзакций с поиском, фильтрами по датам и категориям
 - Мультивалютность (RUB, USD, EUR, GBP)
 - Экспорт в CSV
-- Бюджеты по категориям с уведомлениями о превышении
+- Бюджеты по категориям (месячные/недельные) с уведомлениями о превышении
 - Аналитика: сравнение месяцев, тренды, прогнозирование
 - Отчёты с интерактивными графиками (Recharts)
 - PWA: установка на устройство, офлайн-режим, кеширование
@@ -24,11 +24,11 @@
 
 | Компонент | Технология |
 |-----------|------------|
-| Frontend | React 19, TypeScript, Vite, Recharts, vite-plugin-pwa |
-| Backend | Python 3.12, FastAPI, SQLAlchemy, Alembic |
+| Frontend | React 19, TypeScript, Vite, Recharts, Inline Styles (CSS Variables), vite-plugin-pwa |
+| Backend | Python 3.12, FastAPI, SQLAlchemy, Alembic, PyJWT, bcrypt |
 | Database | PostgreSQL 16 |
 | AI | Google Gemini 3 Flash Preview через OpenRouter |
-| Containers | Docker, Docker Compose |
+| Containers | Docker, Docker Compose, nginx |
 
 ## Быстрый старт
 
@@ -36,13 +36,13 @@
 
 ```bash
 cp .env.example .env
-# Отредактируйте .env и добавьте ваш OPENROUTER_API_KEY
+# Отредактируйте .env и добавьте ваш OPENROUTER_API_KEY и SECRET_KEY
 ```
 
 ### 2. Запустить в Docker
 
 ```bash
-docker-compose up --build
+docker compose up --build
 ```
 
 ### 3. Открыть приложение
@@ -61,7 +61,7 @@ docker-compose up --build
 | `OPENROUTER_MODEL` | нет | `google/gemini-3-flash-preview` | Модель для OCR |
 | `DATABASE_URL` | нет | `postgresql://postgres:postgres@db:5432/home_finance` | URL базы данных |
 | `SECRET_KEY` | **да** (prod) | `change-me-in-production` | Секретный ключ для JWT. В production обязателен (RuntimeError при запуске) |
-| `DEBUG` | нет | `false` | Режим отладки (разрешает default SECRET_KEY) |
+| `DEBUG` | нет | `false` | Режим отладки (разрешает default SECRET_KEY, cookie_secure=false) |
 | `SEED_ADMIN_PASSWORD` | нет | `admin` | Пароль admin пользователя при первой миграции |
 
 ## Разработка
@@ -97,13 +97,14 @@ npm run dev
 ### Тесты
 
 ```bash
-# Backend (131 тест: auth, CRUD, аналитика, бюджеты, OCR, обучение, валидация)
-cd backend
-DATABASE_URL="sqlite:///:memory:" DEBUG=true pytest -v
+# Backend (157 тестов: auth, CRUD, аналитика, бюджеты, OCR, обучение, валидация, upload, rate limiter)
+# Запуск в Docker контейнере:
+docker compose exec -e DEBUG=true backend python -m pytest tests/ -v
 
-# Frontend E2E (требует запущенный стек)
-cd frontend
-npm run test:e2e
+# Или локально (нужен PostgreSQL или SQLite):
+cd backend
+pip install -r requirements-dev.txt
+DEBUG=true pytest -v
 ```
 
 ## Структура проекта
@@ -113,34 +114,44 @@ home-finance/
 ├── backend/
 │   ├── app/
 │   │   ├── main.py              # FastAPI приложение
-│   │   ├── config.py            # Настройки (env)
+│   │   ├── config.py            # Настройки (env, auto cookie_secure)
 │   │   ├── database.py          # Подключение к БД
 │   │   ├── models.py            # SQLAlchemy модели
 │   │   ├── schemas.py           # Pydantic схемы
 │   │   ├── routers/
-│   │   │   ├── auth.py          # Регистрация, вход, выход
-│   │   │   ├── transactions.py  # CRUD + аналитика
-│   │   │   ├── upload.py        # Загрузка скриншотов
-│   │   │   └── budgets.py       # Бюджеты
+│   │   │   ├── auth.py          # Регистрация, вход, выход, rate limiter
+│   │   │   ├── transactions.py  # CRUD + аналитика + экспорт
+│   │   │   ├── upload.py        # Загрузка скриншотов (magic byte validation)
+│   │   │   └── budgets.py       # Бюджеты (bulk SQL queries)
 │   │   ├── dependencies.py      # get_current_user
 │   │   ├── schemas_auth.py      # Auth схемы
 │   │   └── services/
-│   │       ├── auth_service.py  # JWT, bcrypt
+│   │       ├── auth_service.py  # JWT (PyJWT), bcrypt
 │   │       ├── ocr_service.py   # Gemini Vision через OpenRouter
 │   │       ├── learning_service.py  # Обучение категоризации
 │   │       └── merchant_normalization.py
 │   ├── alembic/                 # Миграции БД
-│   ├── tests/
+│   ├── tests/                   # 157 тестов (pytest)
+│   │   ├── conftest.py          # Фикстуры (in-memory SQLite)
+│   │   ├── test_auth.py         # Auth, data isolation
+│   │   ├── test_transactions.py # CRUD, поиск, фильтры, CSV
+│   │   ├── test_budgets.py      # Бюджеты CRUD + статус
+│   │   ├── test_analytics.py    # AI accuracy, тренды, прогноз
+│   │   ├── test_services.py     # OCR parsing, merchant norm, learning
+│   │   ├── test_upload.py       # Magic bytes, file validation
+│   │   ├── test_rate_limiter.py # Rate limiter, chart parsing
+│   │   └── test_e2e.py          # E2E integration
 │   ├── Dockerfile
-│   └── requirements.txt
+│   ├── requirements.txt
+│   └── requirements-dev.txt
 ├── frontend/
 │   ├── src/
 │   │   ├── api/                 # API клиент и моки
 │   │   ├── components/          # React компоненты
 │   │   ├── contexts/            # AuthContext
 │   │   ├── hooks/               # React Query хуки
-│   │   ├── pages/               # Страницы (Login, Register, ...)
-│   │   ├── types/               # TypeScript типы
+│   │   ├── pages/               # Страницы
+│   │   ├── types/               # TypeScript типы, MONTH_NAMES
 │   │   ├── registerSW.ts        # PWA Service Worker
 │   │   ├── App.tsx
 │   │   └── main.tsx
@@ -148,7 +159,7 @@ home-finance/
 │   │   ├── icons/               # PWA иконки
 │   │   └── offline.html         # Офлайн-страница
 │   ├── Dockerfile
-│   ├── nginx.conf
+│   ├── nginx.conf               # CSP headers, proxy
 │   └── vite.config.ts
 ├── docs/
 │   ├── REQUIREMENTS.md
@@ -166,7 +177,7 @@ home-finance/
 | Метод | URL | Описание |
 |-------|-----|----------|
 | POST | `/api/auth/register` | Регистрация (email, username, password) |
-| POST | `/api/auth/login` | Вход (login, password) |
+| POST | `/api/auth/login` | Вход (login, password). Rate limited: 10 req/min |
 | POST | `/api/auth/logout` | Выход (очистка cookie) |
 | GET | `/api/auth/me` | Текущий пользователь |
 
@@ -190,7 +201,7 @@ home-finance/
 
 | Метод | URL | Описание |
 |-------|-----|----------|
-| POST | `/api/upload` | Загрузить и распознать скриншот |
+| POST | `/api/upload` | Загрузить и распознать скриншот (транзакции + диаграммы) |
 | POST | `/api/upload/parse-only` | Только распознать |
 | POST | `/api/upload/batch` | Пакетная загрузка (до 10) |
 
@@ -200,7 +211,7 @@ home-finance/
 |-------|-----|----------|
 | POST | `/api/budgets` | Создать бюджет |
 | GET | `/api/budgets` | Список бюджетов |
-| GET | `/api/budgets/status` | Статус бюджетов |
+| GET | `/api/budgets/status` | Статус бюджетов (с расчётом расходов) |
 | PUT | `/api/budgets/{id}` | Обновить |
 | DELETE | `/api/budgets/{id}` | Удалить |
 

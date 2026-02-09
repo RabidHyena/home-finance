@@ -30,7 +30,7 @@ class TestRegistration:
             "password": "password123",
         })
         assert response.status_code == 400
-        assert "Email already registered" in response.json()["detail"]
+        assert "already" in response.json()["detail"].lower()
 
     def test_register_duplicate_username(self, client, test_user):
         """Test registration with duplicate username is rejected."""
@@ -40,7 +40,7 @@ class TestRegistration:
             "password": "password123",
         })
         assert response.status_code == 400
-        assert "Username already taken" in response.json()["detail"]
+        assert "already" in response.json()["detail"].lower()
 
     def test_register_short_password(self, client):
         """Test registration with short password is rejected."""

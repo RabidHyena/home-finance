@@ -96,7 +96,7 @@
 | React | 19.x | UI библиотека |
 | TypeScript | 5.x | Типизация |
 | Vite | 7.x | Сборка и dev-сервер |
-| TailwindCSS | 4.x | Стили |
+| Inline Styles | — | CSS Variables + inline styles (без CSS-фреймворков) |
 | React Router | 7.x | Роутинг |
 | React Query | 5.x | Кеширование запросов |
 | Recharts | 3.x | Графики |
@@ -112,8 +112,9 @@
 | SQLAlchemy | 2.0.x | ORM |
 | Pydantic | 2.9.x | Валидация данных |
 | Uvicorn | 0.30.x | ASGI сервер |
-| httpx | 0.27.x | HTTP клиент |
 | OpenAI SDK | 1.x | OpenRouter API (совместимый клиент) |
+| PyJWT | 2.9.x | JWT токены |
+| bcrypt | 4.2.x | Хеширование паролей |
 
 ### 2.3 Infrastructure
 
@@ -150,13 +151,16 @@ home-finance/
 │   │       ├── learning_service.py  # Обучение категоризации
 │   │       └── merchant_normalization.py  # Нормализация названий
 │   ├── alembic/                 # Миграции БД
-│   ├── tests/
-│   │   ├── conftest.py          # Фикстуры pytest
-│   │   ├── test_transactions.py # Тесты CRUD, поиск, фильтры, валюта, экспорт
-│   │   ├── test_e2e.py          # E2E тесты (lifecycle, pagination, validation)
-│   │   ├── test_analytics.py    # Тесты AI accuracy, сравнение, тренды, прогноз
-│   │   ├── test_budgets.py      # Тесты бюджетов CRUD + статус
-│   │   └── test_services.py     # Тесты OCR, merchant normalization, learning
+│   ├── tests/                   # 157 тестов (pytest)
+│   │   ├── conftest.py          # Фикстуры (in-memory SQLite, auth)
+│   │   ├── test_auth.py         # Auth, registration, data isolation
+│   │   ├── test_transactions.py # CRUD, поиск, фильтры, валюта, CSV экспорт
+│   │   ├── test_budgets.py      # Бюджеты CRUD + статус расходов
+│   │   ├── test_analytics.py    # AI accuracy, сравнение, тренды, прогноз
+│   │   ├── test_services.py     # OCR parsing, merchant normalization, learning
+│   │   ├── test_upload.py       # Magic byte валидация, file size, content type
+│   │   ├── test_rate_limiter.py # Rate limiter, chart parsing
+│   │   └── test_e2e.py          # E2E integration тесты
 │   ├── Dockerfile
 │   └── requirements.txt
 │
@@ -315,14 +319,14 @@ home-finance/
 
 | Мера | Реализация |
 |------|------------|
-| Authentication | JWT в httpOnly cookies (bcrypt, python-jose) |
+| Authentication | JWT в httpOnly cookies (bcrypt, PyJWT) |
 | Data Isolation | user_id FK на всех моделях, фильтрация в запросах |
 | SQL Injection | SQLAlchemy ORM (параметризованные запросы) |
 | XSS | React автоматически экранирует |
 | CORS | Ограниченные методы (GET, POST, PUT, DELETE, OPTIONS) и заголовки (Content-Type, Authorization) |
 | CSRF | SameSite=Lax cookies |
 | Валидация | Pydantic schemas, EmailStr, amount gt=0 |
-| File Upload | Проверка MIME type + расширения файла (.jpg, .jpeg, .png, .gif, .webp), ограничение размера 10MB |
+| File Upload | Magic byte валидация + MIME type + расширение (.jpg, .jpeg, .png, .gif, .webp), ограничение 10MB |
 | JWT Secret | RuntimeError при запуске, если SECRET_KEY не задан в production |
 | nginx Headers | X-Content-Type-Options, X-Frame-Options, X-XSS-Protection, Referrer-Policy, server_tokens off |
 | CSV Sanitization | Защита от formula injection в CSV export (экранирование =, +, -, @, \t, \r) |
@@ -332,12 +336,15 @@ home-finance/
 | Docker | DB port привязан к localhost (127.0.0.1:5432), healthcheck на backend |
 | ErrorBoundary | React ErrorBoundary без раскрытия stack trace пользователю |
 
+| Rate Limiting | In-memory rate limiter на auth endpoints (10 req/min per IP, auto-cleanup) |
+| Cookie Security | cookie_secure автоматически из DEBUG (secure=true в production) |
+| nginx CSP | Content-Security-Policy headers на всех location блоках |
+
 ### 6.2 Планируемые меры
 
 | Мера | Статус |
 |------|--------|
 | HTTPS | Планируется для production |
-| Rate Limiting | Планируется |
 
 ---
 
@@ -398,5 +405,5 @@ home-finance/
 
 ---
 
-*Версия документа: 3.0*
-*Дата: 6 февраля 2026*
+*Версия документа: 4.0*
+*Дата: 9 февраля 2026*

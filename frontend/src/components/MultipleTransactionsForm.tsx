@@ -194,7 +194,13 @@ export function MultipleTransactionsForm({
                     </div>
                     <input
                       type="datetime-local"
-                      value={format(new Date(editedTransactions.get(index)?.date || tx.date), "yyyy-MM-dd'T'HH:mm")}
+                      value={(() => {
+                        try {
+                          return format(new Date(editedTransactions.get(index)?.date || tx.date), "yyyy-MM-dd'T'HH:mm");
+                        } catch {
+                          return '';
+                        }
+                      })()}
                       onChange={(e) => updateDate(index, e.target.value)}
                       onClick={(e) => e.stopPropagation()}
                       style={{

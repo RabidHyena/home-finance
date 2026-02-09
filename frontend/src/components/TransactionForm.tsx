@@ -26,7 +26,7 @@ export function TransactionForm({
 
   useEffect(() => {
     if (initialData) {
-      setAmount(String(initialData.amount || ''));
+      setAmount(String(initialData.amount ?? ''));
       setDescription(initialData.description || '');
       setCategory((initialData.category as Category) || '');
       setCurrency(('currency' in initialData ? (initialData.currency as Currency) : undefined) || 'RUB');
@@ -47,8 +47,14 @@ export function TransactionForm({
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
 
+    const parsedAmount = parseFloat(amount);
+    if (isNaN(parsedAmount) || parsedAmount <= 0) {
+      alert('Введите корректную сумму больше нуля');
+      return;
+    }
+
     const data: TransactionCreate = {
-      amount: parseFloat(amount),
+      amount: parsedAmount,
       description,
       category: category || undefined,
       date: new Date(date).toISOString(),
