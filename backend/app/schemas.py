@@ -1,17 +1,49 @@
-from pydantic import BaseModel, Field, ConfigDict
+import re
+from pydantic import BaseModel, Field, ConfigDict, field_validator
 from datetime import datetime
 from decimal import Decimal
 from typing import Optional
+
+# Matches null bytes, surrogate characters, and other problematic unicode
+_DANGEROUS_CHARS = re.compile(r'[\x00-\x08\x0b\x0c\x0e-\x1f\ud800-\udfff]')
+# Matches HTML tags
+_HTML_TAGS = re.compile(r'<[^>]+>')
+
+MIN_DATE = datetime(2000, 1, 1)
+MAX_DATE = datetime(2100, 12, 31, 23, 59, 59)
+
+
+def _sanitize_string(value: str) -> str:
+    """Remove null bytes, control chars, surrogates, and HTML tags."""
+    value = _DANGEROUS_CHARS.sub('', value)
+    value = _HTML_TAGS.sub('', value)
+    return value.strip()
 
 
 class TransactionBase(BaseModel):
     """Base schema for transaction data."""
 
-    amount: Decimal = Field(..., description="Transaction amount", gt=0)
+    amount: Decimal = Field(..., description="Transaction amount", ge=Decimal('0.01'), le=Decimal('9999999999'))
     description: str = Field(..., description="Transaction description", max_length=500)
     category: Optional[str] = Field(None, description="Transaction category", max_length=100)
     date: datetime = Field(..., description="Transaction date")
     currency: str = Field(default='RUB', max_length=3, pattern='^(RUB|USD|EUR|GBP)$')
+
+    @field_validator('description', 'category', mode='before')
+    @classmethod
+    def sanitize_strings(cls, v: str | None) -> str | None:
+        if v is None:
+            return v
+        if not isinstance(v, str):
+            return v
+        return _sanitize_string(v)
+
+    @field_validator('date')
+    @classmethod
+    def validate_date_range(cls, v: datetime) -> datetime:
+        if v < MIN_DATE or v > MAX_DATE:
+            raise ValueError(f'Date must be between {MIN_DATE.year} and {MAX_DATE.year}')
+        return v
 
 
 class TransactionCreate(TransactionBase):
@@ -26,11 +58,29 @@ class TransactionCreate(TransactionBase):
 class TransactionUpdate(BaseModel):
     """Schema for updating a transaction."""
 
-    amount: Optional[Decimal] = Field(None, gt=0)
+    amount: Optional[Decimal] = Field(None, ge=Decimal('0.01'), le=Decimal('9999999999'))
     description: Optional[str] = Field(None, max_length=500)
     category: Optional[str] = Field(None, max_length=100)
     date: Optional[datetime] = None
     currency: Optional[str] = Field(None, max_length=3, pattern='^(RUB|USD|EUR|GBP)$')
+
+    @field_validator('description', 'category', mode='before')
+    @classmethod
+    def sanitize_strings(cls, v: str | None) -> str | None:
+        if v is None:
+            return v
+        if not isinstance(v, str):
+            return v
+        return _sanitize_string(v)
+
+    @field_validator('date')
+    @classmethod
+    def validate_date_range(cls, v: datetime | None) -> datetime | None:
+        if v is None:
+            return v
+        if v < MIN_DATE or v > MAX_DATE:
+            raise ValueError(f'Date must be between {MIN_DATE.year} and {MAX_DATE.year}')
+        return v
 
 
 class TransactionResponse(TransactionBase):

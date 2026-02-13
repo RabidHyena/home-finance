@@ -20,18 +20,16 @@ router = APIRouter(prefix="/api/auth", tags=["auth"])
 
 # Simple in-memory rate limiter (per-process; sufficient for single-worker deployments)
 _rate_limit_store: dict[str, list[float]] = {}
-_RATE_LIMIT_WINDOW = 60  # seconds
-_RATE_LIMIT_MAX_REQUESTS = 10  # max attempts per window
 _RATE_LIMIT_MAX_KEYS = 10000  # max tracked IPs before forced cleanup
 _last_cleanup = 0.0
 _CLEANUP_INTERVAL = 300  # full cleanup every 5 minutes
 
 
-def _cleanup_store(now: float) -> None:
+def _cleanup_store(now: float, window: int) -> None:
     """Remove all expired entries from the store."""
     global _last_cleanup
     expired_keys = [ip for ip, times in _rate_limit_store.items()
-                    if not any(now - t < _RATE_LIMIT_WINDOW for t in times)]
+                    if not any(now - t < window for t in times)]
     for key in expired_keys:
         del _rate_limit_store[key]
     _last_cleanup = now
@@ -39,17 +37,20 @@ def _cleanup_store(now: float) -> None:
 
 def _check_rate_limit(client_ip: str) -> None:
     global _last_cleanup
+    settings = get_settings()
+    window = settings.rate_limit_window
+    max_requests = settings.rate_limit_max_requests
     now = time.time()
 
     # Periodic full cleanup to prevent memory leak
     if now - _last_cleanup > _CLEANUP_INTERVAL or len(_rate_limit_store) > _RATE_LIMIT_MAX_KEYS:
-        _cleanup_store(now)
+        _cleanup_store(now, window)
 
     # Clean this IP's expired entries
     attempts = _rate_limit_store.get(client_ip, [])
-    attempts = [t for t in attempts if now - t < _RATE_LIMIT_WINDOW]
+    attempts = [t for t in attempts if now - t < window]
 
-    if len(attempts) >= _RATE_LIMIT_MAX_REQUESTS:
+    if len(attempts) >= max_requests:
         _rate_limit_store[client_ip] = attempts
         raise HTTPException(
             status_code=429,

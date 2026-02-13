@@ -6,7 +6,7 @@
 
 - **Аутентификация**: регистрация, вход, JWT-токены в httpOnly cookies (bcrypt + PyJWT)
 - **Мультипользовательность**: изоляция данных между пользователями (user_id FK)
-- **Безопасность**: CORS, CSP headers, rate limiting (auth), magic byte валидация файлов, CSV sanitization, SECRET_KEY enforcement
+- **Безопасность**: CORS, CSP headers, rate limiting (auth, configurable), magic byte валидация файлов, CSV sanitization, SECRET_KEY enforcement, input sanitization (null bytes, HTML, control chars), amount/date range validation
 - Загрузка скриншотов банковских приложений (одиночная и пакетная до 10 штук)
 - AI-распознавание транзакций и диаграмм (Gemini 3 Flash через OpenRouter)
 - Авто-категоризация с обучением на исправлениях пользователя
@@ -63,6 +63,8 @@ docker compose up --build
 | `SECRET_KEY` | **да** (prod) | `change-me-in-production` | Секретный ключ для JWT. В production обязателен (RuntimeError при запуске) |
 | `DEBUG` | нет | `false` | Режим отладки (разрешает default SECRET_KEY, cookie_secure=false) |
 | `SEED_ADMIN_PASSWORD` | нет | `admin` | Пароль admin пользователя при первой миграции |
+| `RATE_LIMIT_WINDOW` | нет | `60` | Окно rate limiter в секундах |
+| `RATE_LIMIT_MAX_REQUESTS` | нет | `100` (docker) / `10` (default) | Максимум запросов на IP за окно |
 
 ## Разработка
 
@@ -117,9 +119,9 @@ home-finance/
 │   │   ├── config.py            # Настройки (env, auto cookie_secure)
 │   │   ├── database.py          # Подключение к БД
 │   │   ├── models.py            # SQLAlchemy модели
-│   │   ├── schemas.py           # Pydantic схемы
+│   │   ├── schemas.py           # Pydantic схемы (sanitization, validation)
 │   │   ├── routers/
-│   │   │   ├── auth.py          # Регистрация, вход, выход, rate limiter
+│   │   │   ├── auth.py          # Регистрация, вход, выход, configurable rate limiter
 │   │   │   ├── transactions.py  # CRUD + аналитика + экспорт
 │   │   │   ├── upload.py        # Загрузка скриншотов (magic byte validation)
 │   │   │   └── budgets.py       # Бюджеты (bulk SQL queries)
@@ -164,7 +166,8 @@ home-finance/
 ├── docs/
 │   ├── REQUIREMENTS.md
 │   ├── ARCHITECTURE.md
-│   └── API.md
+│   ├── API.md
+│   └── Home_Finance_API.postman_collection.json
 ├── docker-compose.yml
 ├── ROADMAP.md
 └── README.md
@@ -177,7 +180,7 @@ home-finance/
 | Метод | URL | Описание |
 |-------|-----|----------|
 | POST | `/api/auth/register` | Регистрация (email, username, password) |
-| POST | `/api/auth/login` | Вход (login, password). Rate limited: 10 req/min |
+| POST | `/api/auth/login` | Вход (login, password). Rate limited (configurable) |
 | POST | `/api/auth/logout` | Выход (очистка cookie) |
 | GET | `/api/auth/me` | Текущий пользователь |
 
@@ -223,6 +226,7 @@ home-finance/
 | [ARCHITECTURE.md](docs/ARCHITECTURE.md) | Архитектура, стек, схемы потоков данных |
 | [API.md](docs/API.md) | REST API с примерами |
 | [ROADMAP.md](ROADMAP.md) | План развития |
+| [Postman Collection](docs/Home_Finance_API.postman_collection.json) | 64 запроса, 163 assertion, security tests |
 
 ## Лицензия
 

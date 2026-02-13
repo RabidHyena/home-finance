@@ -137,9 +137,9 @@ home-finance/
 │   │   ├── config.py            # Настройки (env)
 │   │   ├── database.py          # Подключение к БД
 │   │   ├── models.py            # SQLAlchemy модели
-│   │   ├── schemas.py           # Pydantic схемы
+│   │   ├── schemas.py           # Pydantic схемы (sanitization, validation)
 │   │   ├── routers/
-│   │   │   ├── auth.py          # Регистрация, вход, выход
+│   │   │   ├── auth.py          # Регистрация, вход, выход, configurable rate limiter
 │   │   │   ├── transactions.py  # CRUD + аналитика + экспорт
 │   │   │   ├── upload.py        # Загрузка скриншотов
 │   │   │   └── budgets.py       # Бюджеты
@@ -186,7 +186,8 @@ home-finance/
 │   ├── REQUIREMENTS.md          # Функциональные требования
 │   ├── ARCHITECTURE.md          # Архитектура (этот файл)
 │   ├── API.md                   # REST API документация
-│   └── PHASE_4.5_PLAN.md       # План PWA (завершён)
+│   ├── PHASE_4.5_PLAN.md       # План PWA (завершён)
+│   └── Home_Finance_API.postman_collection.json  # Postman (64 запроса, 163 assertion)
 │
 ├── docker-compose.yml           # Оркестрация контейнеров
 ├── .env.example                 # Шаблон переменных окружения
@@ -325,7 +326,7 @@ home-finance/
 | XSS | React автоматически экранирует |
 | CORS | Ограниченные методы (GET, POST, PUT, DELETE, OPTIONS) и заголовки (Content-Type, Authorization) |
 | CSRF | SameSite=Lax cookies |
-| Валидация | Pydantic schemas, EmailStr, amount gt=0 |
+| Валидация | Pydantic schemas, EmailStr, amount 0.01–9999999999, date range 2000–2100 |
 | File Upload | Magic byte валидация + MIME type + расширение (.jpg, .jpeg, .png, .gif, .webp), ограничение 10MB |
 | JWT Secret | RuntimeError при запуске, если SECRET_KEY не задан в production |
 | nginx Headers | X-Content-Type-Options, X-Frame-Options, X-XSS-Protection, Referrer-Policy, server_tokens off |
@@ -336,7 +337,8 @@ home-finance/
 | Docker | DB port привязан к localhost (127.0.0.1:5432), healthcheck на backend |
 | ErrorBoundary | React ErrorBoundary без раскрытия stack trace пользователю |
 
-| Rate Limiting | In-memory rate limiter на auth endpoints (10 req/min per IP, auto-cleanup) |
+| Input Sanitization | Null bytes, control chars, surrogates, HTML tags stripped from strings |
+| Rate Limiting | In-memory rate limiter на auth endpoints (configurable via env, auto-cleanup) |
 | Cookie Security | cookie_secure автоматически из DEBUG (secure=true в production) |
 | nginx CSP | Content-Security-Policy headers на всех location блоках |
 
@@ -405,5 +407,5 @@ home-finance/
 
 ---
 
-*Версия документа: 4.0*
-*Дата: 9 февраля 2026*
+*Версия документа: 5.0*
+*Дата: 13 февраля 2026*

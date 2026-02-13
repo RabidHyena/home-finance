@@ -15,6 +15,7 @@
 | Фаза 4.5 | ✅ Готово | PWA (vite-plugin-pwa, офлайн, установка) |
 | Фаза 4.6 | ✅ Готово | Аутентификация и мультипользовательность |
 | Фаза 5 | ✅ Готово | Безопасность и код-ревью |
+| Фаза 5.1 | ✅ Готово | Security testing, input sanitization, Postman collection |
 
 ---
 
@@ -30,7 +31,7 @@
 - [x] Сервис OCR (Gemini Vision через OpenRouter)
 - [x] Загрузка скриншотов
 - [x] Docker и docker-compose
-- [x] Комплексные тесты (131 тест: auth, CRUD, аналитика, бюджеты, OCR, обучение, валидация)
+- [x] Комплексные тесты (157 тестов: auth, CRUD, аналитика, бюджеты, OCR, обучение, валидация)
 
 ### Frontend (Фаза 2)
 - [x] React + TypeScript + Vite
@@ -267,9 +268,33 @@ docker-compose down
 
 ## Прогресс
 
-**Завершено:** Фазы 0-5 (100% запланированной функциональности + безопасность)
-**131 backend тест**, TypeScript компилируется без ошибок
+**Завершено:** Фазы 0-5.1 (100% запланированной функциональности + безопасность + API testing)
+**157 backend тестов** (pytest), **163 API assertions** (Postman/Newman), TypeScript компилируется без ошибок
 
 ---
 
-*Обновлено: 6 февраля 2026 — Фазы 0-5 завершены, 131 backend тест, код-ревью пройдено*
+## Фаза 5.1: Security Testing & Input Sanitization ✅ ЗАВЕРШЕНО
+
+### 5.1.1 Обнаруженные и исправленные уязвимости
+- [x] Amount overflow (99999999999999 → 500) — добавлен `le=9999999999`
+- [x] Amount precision (0.000000001 → 0.00 в БД) — изменён `gt=0` на `ge=0.01`
+- [x] Null bytes в строках (500 от Postgres) — добавлена `_sanitize_string()`
+- [x] XSS (HTML теги сохранялись as-is) — добавлена очистка `_HTML_TAGS`
+- [x] Даты вне диапазона (9999/0001) — добавлена валидация 2000–2100
+
+### 5.1.2 Configurable Rate Limiting
+- [x] `RATE_LIMIT_WINDOW` env var (default: 60s)
+- [x] `RATE_LIMIT_MAX_REQUESTS` env var (default: 10, docker: 100)
+- [x] Рефакторинг rate limiter для чтения из config
+
+### 5.1.3 Postman Collection
+- [x] 64 запроса покрывающих все 26 endpoints
+- [x] 163 автоматических assertion (pm.test)
+- [x] Security & Edge Cases (26 тестов): overflow, XSS, injection, IDOR, mass assignment
+- [x] Setup/Cleanup для идемпотентных прогонов
+- [x] Cascade skip guards для зависимых тестов
+- [x] Newman: 67 requests, 163 assertions, 0 failures
+
+---
+
+*Обновлено: 13 февраля 2026 — Фазы 0-5.1 завершены, 157 backend тестов, 163 API assertions, код-ревью пройдено*

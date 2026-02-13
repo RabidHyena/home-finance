@@ -603,7 +603,7 @@ Get budget status with current spending for a given month.
 | Field | Type | Nullable | Description |
 |-------|------|----------|-------------|
 | id | integer | No | Unique identifier |
-| amount | decimal | No | Transaction amount (must be > 0) |
+| amount | decimal | No | Transaction amount (0.01 — 9,999,999,999) |
 | description | string | No | Merchant name or description |
 | category | string | No | Category (default: "Other") |
 | currency | string | No | Currency code: RUB, USD, EUR, GBP (default: "RUB") |
@@ -684,11 +684,21 @@ All errors follow this format:
 
 ---
 
+## Input Validation & Sanitization
+
+All transaction inputs are validated and sanitized:
+- **Amount**: must be between `0.01` and `9,999,999,999` (Numeric(12,2) in DB)
+- **Date range**: must be between year 2000 and 2100
+- **String sanitization**: null bytes, control characters (U+0000–U+001F), surrogate characters, and HTML tags are automatically stripped from `description` and `category` fields
+- **Currency**: must be one of `RUB`, `USD`, `EUR`, `GBP`
+
+---
+
 ## Rate Limiting
 
 Authentication endpoints (`/api/auth/register`, `/api/auth/login`) are rate limited:
-- **Window**: 60 seconds
-- **Max requests**: 10 per IP per window
+- **Window**: configurable via `RATE_LIMIT_WINDOW` env var (default: 60 seconds)
+- **Max requests**: configurable via `RATE_LIMIT_MAX_REQUESTS` env var (default: 10 per IP; 100 in docker-compose)
 - **Response**: `429 Too Many Requests` when exceeded
 - **Cleanup**: Automatic every 5 minutes, forced at 10,000 tracked IPs
 
@@ -789,5 +799,17 @@ curl -b cookies.txt \
 
 ---
 
-*Version: 4.0*
-*Date: 9 February 2026*
+## Postman Collection
+
+A comprehensive Postman collection is available at [`docs/Home_Finance_API.postman_collection.json`](Home_Finance_API.postman_collection.json):
+- **64 requests** covering all endpoints
+- **163 auto-assertions** (pm.test scripts)
+- **Security & Edge Cases** folder: amount overflow/precision, XSS, null bytes, SQL injection, IDOR, date range, mass assignment
+- **Setup/Cleanup** folder for idempotent runs
+- **Cascade skip guards** for dependent tests
+- Import into Postman or run with Newman: `newman run docs/Home_Finance_API.postman_collection.json`
+
+---
+
+*Version: 5.0*
+*Date: 13 February 2026*
