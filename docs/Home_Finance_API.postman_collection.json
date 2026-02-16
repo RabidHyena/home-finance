@@ -3456,24 +3456,6 @@
                 ],
                 "type": "text/javascript"
               }
-            },
-            {
-              "listen": "prerequest",
-              "script": {
-                "exec": [
-                  "const token = pm.collectionVariables.get('accessToken');",
-                  "",
-                  "if (!token || token.length === 0) {",
-                  "    console.error('NO TOKEN! Run Login first.');",
-                  "} else {",
-                  "    pm.request.headers.upsert({",
-                  "        key: 'Cookie',",
-                  "        value: 'access_token=' + token",
-                  "    });",
-                  "}"
-                ],
-                "type": "text/javascript"
-              }
             }
           ],
           "request": {
