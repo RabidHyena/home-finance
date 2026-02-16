@@ -50,7 +50,9 @@ class _InputValidationMixin(_SanitizationMixin):
         if v is None:
             return v
         # After mode: v is already converted to datetime by Pydantic
-        if v < MIN_DATE or v > MAX_DATE:
+        # Convert to naive datetime for comparison (remove timezone if present)
+        v_naive = v.replace(tzinfo=None) if v.tzinfo else v
+        if v_naive < MIN_DATE or v_naive > MAX_DATE:
             raise ValueError(f'Date must be between {MIN_DATE.year} and {MAX_DATE.year}')
         return v
 
