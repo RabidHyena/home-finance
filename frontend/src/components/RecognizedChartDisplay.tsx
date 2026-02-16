@@ -184,16 +184,43 @@ export function RecognizedChartDisplay({
 
     const start = new Date(periodStart + 'T00:00:00');
     const end = new Date(periodEnd + 'T23:59:59');
-    const mid = new Date((start.getTime() + end.getTime()) / 2);
 
-    const transactions: TransactionCreate[] = selectedItems.map((category) => ({
-      amount: Number(category.value),
-      description: `${category.name}${chart.period ? ` - ${chart.period}` : ''}`,
-      category: mapCategory(category.name),
-      date: mid.toISOString(),
-      currency: 'RUB',
-      raw_text: `Создано из диаграммы: ${chart.type}`,
-    }));
+    const transactions: TransactionCreate[] = [];
+
+    // For annual data, distribute each category across 12 months
+    if (periodInfo.type === 'year') {
+      const year = start.getFullYear();
+      const monthlyAmount = 12; // number of months to distribute across
+
+      for (const category of selectedItems) {
+        const amountPerMonth = Number(category.value) / monthlyAmount;
+
+        for (let month = 0; month < 12; month++) {
+          transactions.push({
+            amount: amountPerMonth,
+            description: `${category.name} - ${year}-${String(month + 1).padStart(2, '0')}`,
+            category: mapCategory(category.name),
+            date: new Date(year, month, 15, 12, 0, 0).toISOString(),
+            currency: 'RUB',
+            raw_text: `Создано из годовой диаграммы: ${chart.type}`,
+          });
+        }
+      }
+    } else {
+      // For monthly or custom periods, create one transaction per category (mid-period)
+      const mid = new Date((start.getTime() + end.getTime()) / 2);
+
+      for (const category of selectedItems) {
+        transactions.push({
+          amount: Number(category.value),
+          description: `${category.name}${chart.period ? ` - ${chart.period}` : ''}`,
+          category: mapCategory(category.name),
+          date: mid.toISOString(),
+          currency: 'RUB',
+          raw_text: `Создано из диаграммы: ${chart.type}`,
+        });
+      }
+    }
 
     onCreateTransactions(transactions);
   };
@@ -433,8 +460,10 @@ export function RecognizedChartDisplay({
             }}
           >
             <p style={{ margin: 0, fontSize: '0.75rem', color: 'var(--color-text-secondary)' }}>
-              💡 <strong>Создание транзакций:</strong> Для каждой выбранной категории будет создана
-              одна транзакция с указанной суммой.
+              💡 <strong>Создание транзакций:</strong>{' '}
+              {periodInfo.type === 'year'
+                ? 'Годовая сумма каждой категории будет автоматически распределена на 12 месяцев (по месяцам).'
+                : 'Для каждой выбранной категории будет создана одна транзакция с указанной суммой.'}
             </p>
           </div>
           <button
