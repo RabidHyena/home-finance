@@ -193,11 +193,12 @@ export function RecognizedChartDisplay({
       const monthlyAmount = 12; // number of months to distribute across
 
       for (const category of selectedItems) {
-        const amountPerMonth = Number(category.value) / monthlyAmount;
+        const totalAmount = Number(category.value);
+        const amountPerMonth = Math.round((totalAmount / monthlyAmount) * 100) / 100; // Round to 2 decimals
 
         for (let month = 0; month < 12; month++) {
           transactions.push({
-            amount: amountPerMonth,
+            amount: Number(amountPerMonth.toFixed(2)),
             description: `${category.name} - ${year}-${String(month + 1).padStart(2, '0')}`,
             category: mapCategory(category.name),
             date: new Date(year, month, 15, 12, 0, 0).toISOString(),
@@ -211,8 +212,9 @@ export function RecognizedChartDisplay({
       const mid = new Date((start.getTime() + end.getTime()) / 2);
 
       for (const category of selectedItems) {
+        const amount = Number(category.value);
         transactions.push({
-          amount: Number(category.value),
+          amount: Number(amount.toFixed(2)),
           description: `${category.name}${chart.period ? ` - ${chart.period}` : ''}`,
           category: mapCategory(category.name),
           date: mid.toISOString(),
