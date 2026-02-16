@@ -327,8 +327,8 @@ export function ReportsPage() {
                             color: 'var(--color-text-secondary)',
                           }}
                         >
-                          {selectedReport.total_amount > 0
-                            ? ((amount / selectedReport.total_amount) * 100).toFixed(1)
+                          {Number(selectedReport.total_amount) > 0
+                            ? ((Number(amount) / Number(selectedReport.total_amount)) * 100).toFixed(1)
                             : '0.0'}%
                         </td>
                       </tr>

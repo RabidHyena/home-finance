@@ -280,7 +280,7 @@ export function BudgetsPage() {
                     fontWeight: 600,
                     color: status.percentage > 50 ? 'white' : 'var(--color-text)',
                   }}>
-                    {status.percentage.toFixed(1)}%
+                    {Number(status.percentage).toFixed(1)}%
                   </div>
                 </div>
               </div>

@@ -29,13 +29,13 @@ export function MonthComparison({ data }: MonthComparisonProps) {
       <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1.5rem' }}>
         <div style={{ padding: '1rem', backgroundColor: 'var(--color-bg, #f9fafb)', borderRadius: '0.5rem' }}>
           <p style={{ fontSize: '0.875rem', color: 'var(--color-text-secondary, #6b7280)', marginBottom: '0.25rem' }}>Текущий месяц</p>
-          <p style={{ fontSize: '1.5rem', fontWeight: 700 }}>{current.total.toFixed(2)} ₽</p>
+          <p style={{ fontSize: '1.5rem', fontWeight: 700 }}>{Number(current.total).toFixed(2)} ₽</p>
           <p style={{ fontSize: '0.875rem', color: 'var(--color-text, #4b5563)' }}>{current.count} транзакций</p>
         </div>
 
         <div style={{ padding: '1rem', backgroundColor: 'var(--color-bg, #f9fafb)', borderRadius: '0.5rem' }}>
           <p style={{ fontSize: '0.875rem', color: 'var(--color-text-secondary, #6b7280)', marginBottom: '0.25rem' }}>Прошлый месяц</p>
-          <p style={{ fontSize: '1.5rem', fontWeight: 700 }}>{previous.total.toFixed(2)} ₽</p>
+          <p style={{ fontSize: '1.5rem', fontWeight: 700 }}>{Number(previous.total).toFixed(2)} ₽</p>
           <p style={{ fontSize: '0.875rem', color: 'var(--color-text, #4b5563)' }}>{previous.count} транзакций</p>
         </div>
       </div>
@@ -60,7 +60,7 @@ export function MonthComparison({ data }: MonthComparisonProps) {
               <div>
                 <p style={{ fontWeight: 500 }}>{CATEGORY_LABELS[cat.category as keyof typeof CATEGORY_LABELS] || cat.category}</p>
                 <p style={{ fontSize: '0.875rem', color: 'var(--color-text-secondary, #6b7280)' }}>
-                  {cat.previous.toFixed(0)} ₽ → {cat.current.toFixed(0)} ₽
+                  {Number(cat.previous).toFixed(0)} ₽ → {Number(cat.current).toFixed(0)} ₽
                 </p>
               </div>
               <span style={{ fontWeight: 600, color: getChangeColor(cat.change_percent) }}>

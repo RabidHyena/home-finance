@@ -24,19 +24,19 @@ export function TrendsChart({ data }: TrendsChartProps) {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1rem', marginBottom: '1.5rem' }}>
         <div style={{ padding: '0.75rem', backgroundColor: 'var(--color-bg, #f9fafb)', borderRadius: '0.5rem' }}>
           <p style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary, #6b7280)', marginBottom: '0.25rem' }}>Среднее</p>
-          <p style={{ fontSize: '1.125rem', fontWeight: 700 }}>{statistics.average.toFixed(0)} ₽</p>
+          <p style={{ fontSize: '1.125rem', fontWeight: 700 }}>{Number(statistics.average).toFixed(0)} ₽</p>
         </div>
         <div style={{ padding: '0.75rem', backgroundColor: 'var(--color-bg, #f9fafb)', borderRadius: '0.5rem' }}>
           <p style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary, #6b7280)', marginBottom: '0.25rem' }}>Минимум</p>
-          <p style={{ fontSize: '1.125rem', fontWeight: 700, color: 'var(--color-success, #16a34a)' }}>{statistics.min.toFixed(0)} ₽</p>
+          <p style={{ fontSize: '1.125rem', fontWeight: 700, color: 'var(--color-success, #16a34a)' }}>{Number(statistics.min).toFixed(0)} ₽</p>
         </div>
         <div style={{ padding: '0.75rem', backgroundColor: 'var(--color-bg, #f9fafb)', borderRadius: '0.5rem' }}>
           <p style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary, #6b7280)', marginBottom: '0.25rem' }}>Максимум</p>
-          <p style={{ fontSize: '1.125rem', fontWeight: 700, color: 'var(--color-danger, #dc2626)' }}>{statistics.max.toFixed(0)} ₽</p>
+          <p style={{ fontSize: '1.125rem', fontWeight: 700, color: 'var(--color-danger, #dc2626)' }}>{Number(statistics.max).toFixed(0)} ₽</p>
         </div>
         <div style={{ padding: '0.75rem', backgroundColor: 'var(--color-bg, #f9fafb)', borderRadius: '0.5rem' }}>
           <p style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary, #6b7280)', marginBottom: '0.25rem' }}>Отклонение</p>
-          <p style={{ fontSize: '1.125rem', fontWeight: 700, color: 'var(--color-primary, #2563eb)' }}>{statistics.std_deviation.toFixed(0)} ₽</p>
+          <p style={{ fontSize: '1.125rem', fontWeight: 700, color: 'var(--color-primary, #2563eb)' }}>{Number(statistics.std_deviation).toFixed(0)} ₽</p>
         </div>
       </div>
 
@@ -53,12 +53,13 @@ export function TrendsChart({ data }: TrendsChartProps) {
           />
           <YAxis
             style={{ fontSize: '0.75rem' }}
-            tickFormatter={(value) => `${(value / 1000).toFixed(0)}k`}
+            tickFormatter={(value) => `${(Number(value) / 1000).toFixed(0)}k`}
           />
           <Tooltip
-            formatter={(value: number | undefined) =>
-              value !== undefined ? `${value.toFixed(2)} ₽` : ''
-            }
+            formatter={(value: number | undefined) => {
+              if (value === undefined || value === null) return '';
+              return `${Number(value).toFixed(2)} ₽`;
+            }}
             contentStyle={{
               backgroundColor: 'var(--color-surface)',
               border: '1px solid var(--color-border)',

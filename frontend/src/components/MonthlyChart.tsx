@@ -50,9 +50,10 @@ export function MonthlyChart({ data }: MonthlyChartProps) {
           <YAxis
             tick={{ fontSize: 12, fill: '#6b7280' }}
             axisLine={{ stroke: '#e5e7eb' }}
-            tickFormatter={(value) =>
-              value >= 1000 ? `${(value / 1000).toFixed(0)}k` : value
-            }
+            tickFormatter={(value) => {
+              const num = Number(value);
+              return num >= 1000 ? `${(num / 1000).toFixed(0)}k` : String(num);
+            }}
           />
           <Tooltip
             formatter={(value) => [

@@ -56,17 +56,17 @@ export function ForecastChart({ data }: ForecastChartProps) {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(3, 1fr)', gap: '1rem', marginBottom: '1.5rem' }}>
         <div style={{ padding: '0.75rem', backgroundColor: 'var(--color-bg, #f9fafb)', borderRadius: '0.5rem' }}>
           <p style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary, #6b7280)', marginBottom: '0.25rem' }}>Среднее</p>
-          <p style={{ fontSize: '1.125rem', fontWeight: 700 }}>{statistics.average.toFixed(0)} ₽</p>
+          <p style={{ fontSize: '1.125rem', fontWeight: 700 }}>{Number(statistics.average).toFixed(0)} ₽</p>
         </div>
         <div style={{ padding: '0.75rem', backgroundColor: 'var(--color-bg, #f9fafb)', borderRadius: '0.5rem' }}>
           <p style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary, #6b7280)', marginBottom: '0.25rem' }}>Доверительный интервал</p>
           <p style={{ fontSize: '0.875rem', fontWeight: 600, color: 'var(--color-primary, #2563eb)' }}>
-            {statistics.confidence_interval.min.toFixed(0)} - {statistics.confidence_interval.max.toFixed(0)} ₽
+            {Number(statistics.confidence_interval.min).toFixed(0)} - {Number(statistics.confidence_interval.max).toFixed(0)} ₽
           </p>
         </div>
         <div style={{ padding: '0.75rem', backgroundColor: 'var(--color-bg, #f9fafb)', borderRadius: '0.5rem' }}>
           <p style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary, #6b7280)', marginBottom: '0.25rem' }}>Отклонение</p>
-          <p style={{ fontSize: '1.125rem', fontWeight: 700, color: 'var(--color-warning, #ea580c)' }}>±{statistics.std_deviation.toFixed(0)} ₽</p>
+          <p style={{ fontSize: '1.125rem', fontWeight: 700, color: 'var(--color-warning, #ea580c)' }}>±{Number(statistics.std_deviation).toFixed(0)} ₽</p>
         </div>
       </div>
 
@@ -83,12 +83,14 @@ export function ForecastChart({ data }: ForecastChartProps) {
           />
           <YAxis
             style={{ fontSize: '0.75rem' }}
-            tickFormatter={(value) => `${(value / 1000).toFixed(0)}k`}
+            tickFormatter={(value) => `${(Number(value) / 1000).toFixed(0)}k`}
           />
           <Tooltip
-            formatter={(value: number | undefined) =>
-              value !== undefined ? `${value.toFixed(2)} ₽` : ''
-            }
+            formatter={(value: number | number[] | undefined) => {
+              if (value === undefined || value === null) return '';
+              if (Array.isArray(value)) return `${Number(value[0]).toFixed(0)} — ${Number(value[1]).toFixed(0)} ₽`;
+              return `${Number(value).toFixed(2)} ₽`;
+            }}
             contentStyle={{
               backgroundColor: 'var(--color-surface)',
               border: '1px solid var(--color-border)',
