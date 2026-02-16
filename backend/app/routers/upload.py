@@ -13,7 +13,7 @@ from app.database import get_db
 from app.dependencies import get_current_user
 from app.models import User
 from app.schemas import ParsedTransaction, ParsedTransactions, BatchUploadResult, BatchUploadResponse
-from app.services.ocr_service import OCRService, get_ocr_service
+from app.services.ocr_service import OCRService
 
 router = APIRouter(prefix="/api/upload", tags=["upload"])
 
@@ -84,7 +84,6 @@ def _save_file(content: bytes, filename: str) -> Path:
 @router.post("", response_model=ParsedTransactions)
 async def upload_and_parse(
     file: UploadFile = File(...),
-    ocr_service: OCRService = Depends(get_ocr_service),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -92,8 +91,7 @@ async def upload_and_parse(
     content = await _read_and_validate(file)
     file_path = _save_file(content, file.filename or "image.jpg")
 
-    ocr_service.db = db
-    ocr_service.user_id = current_user.id
+    ocr_service = OCRService(db=db, user_id=current_user.id)
 
     try:
         result = ocr_service.parse_image_bytes_multiple(content, file.filename or "image.jpg")
@@ -107,15 +105,13 @@ async def upload_and_parse(
 @router.post("/parse-only", response_model=ParsedTransaction)
 async def parse_without_save(
     file: UploadFile = File(...),
-    ocr_service: OCRService = Depends(get_ocr_service),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     """Parse a bank screenshot without saving it."""
     content = await _read_and_validate(file)
 
-    ocr_service.db = db
-    ocr_service.user_id = current_user.id
+    ocr_service = OCRService(db=db, user_id=current_user.id)
 
     try:
         return ocr_service.parse_image_bytes(content, file.filename or "image.jpg")
@@ -127,7 +123,6 @@ async def parse_without_save(
 @router.post("/batch", response_model=BatchUploadResponse)
 async def upload_and_parse_batch(
     files: List[UploadFile] = File(...),
-    ocr_service: OCRService = Depends(get_ocr_service),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -135,8 +130,7 @@ async def upload_and_parse_batch(
     if len(files) > 10:
         raise HTTPException(status_code=400, detail="Maximum 10 files per batch")
 
-    ocr_service.db = db
-    ocr_service.user_id = current_user.id
+    ocr_service = OCRService(db=db, user_id=current_user.id)
 
     results = []
     successful = 0

@@ -383,6 +383,3 @@ If you cannot extract some information, make reasonable assumptions and lower th
         return self._parse_multiple_response(response_text)
 
 
-def get_ocr_service() -> OCRService:
-    """Dependency for getting OCR service."""
-    return OCRService()

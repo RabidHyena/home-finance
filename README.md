@@ -218,6 +218,34 @@ home-finance/
 | PUT | `/api/budgets/{id}` | Обновить |
 | DELETE | `/api/budgets/{id}` | Удалить |
 
+## Тестирование API (Postman)
+
+### Быстрый старт
+
+1. **Импортируйте collection:**
+   ```
+   Postman → File → Import → docs/Home_Finance_API.postman_collection.json
+   ```
+
+2. **Выполните Login:**
+   ```
+   Auth → Login → Send
+   ```
+   В консоли Postman должно появиться: `✅ Access token saved`
+
+3. **Тестируйте API:**
+   - Create Transaction → Send (201 Created)
+   - Get Transactions → Send (200 OK)
+   - И т.д.
+
+**Collection включает:**
+- 21 защищённых endpoint с автоматической аутентификацией
+- Pre-request scripts для автоматической передачи JWT токенов
+- Автоматические тесты для всех запросов
+- Проверки безопасности (httpOnly cookies, headers)
+
+Подробнее: [POSTMAN_GUIDE.md](docs/POSTMAN_GUIDE.md)
+
 ## Документация
 
 | Документ | Описание |
@@ -225,8 +253,9 @@ home-finance/
 | [REQUIREMENTS.md](docs/REQUIREMENTS.md) | Функциональные и нефункциональные требования |
 | [ARCHITECTURE.md](docs/ARCHITECTURE.md) | Архитектура, стек, схемы потоков данных |
 | [API.md](docs/API.md) | REST API с примерами |
+| [POSTMAN_GUIDE.md](docs/POSTMAN_GUIDE.md) | Гайд по тестированию API в Postman |
 | [ROADMAP.md](ROADMAP.md) | План развития |
-| [Postman Collection](docs/Home_Finance_API.postman_collection.json) | 64 запроса, 163 assertion, security tests |
+| [Postman Collection](docs/Home_Finance_API.postman_collection.json) | Полный набор API запросов с тестами |
 
 ## Лицензия
 

@@ -26,6 +26,27 @@ from app.services.learning_service import log_correction
 router = APIRouter(prefix="/api/transactions", tags=["transactions"])
 
 
+def _apply_filters(query, user_id: int, category=None, date_from=None, date_to=None, search=None):
+    """Apply common filters to a transaction query."""
+    query = query.filter(Transaction.user_id == user_id)
+    if category:
+        query = query.filter(Transaction.category == category)
+    if date_from:
+        query = query.filter(Transaction.date >= date_from)
+    if date_to:
+        query = query.filter(Transaction.date <= date_to)
+    if search:
+        escaped = search.replace('\\', '\\\\').replace('%', '\\%').replace('_', '\\_')
+        pattern = f"%{escaped}%"
+        query = query.filter(
+            or_(
+                Transaction.description.ilike(pattern),
+                Transaction.raw_text.ilike(pattern)
+            )
+        )
+    return query
+
+
 @router.post("", response_model=TransactionResponse, status_code=201)
 def create_transaction(
     transaction: TransactionCreate,
@@ -68,23 +89,10 @@ def get_transactions(
     current_user: User = Depends(get_current_user),
 ):
     """Get paginated list of transactions."""
-    query = db.query(Transaction).filter(Transaction.user_id == current_user.id)
-
-    if category:
-        query = query.filter(Transaction.category == category)
-    if date_from:
-        query = query.filter(Transaction.date >= date_from)
-    if date_to:
-        query = query.filter(Transaction.date <= date_to)
-    if search:
-        escaped_search = search.replace('\\', '\\\\').replace('%', '\\%').replace('_', '\\_')
-        search_pattern = f"%{escaped_search}%"
-        query = query.filter(
-            or_(
-                Transaction.description.ilike(search_pattern),
-                Transaction.raw_text.ilike(search_pattern)
-            )
-        )
+    query = _apply_filters(
+        db.query(Transaction), current_user.id,
+        category=category, date_from=date_from, date_to=date_to, search=search,
+    )
 
     total = query.count()
     items = (
@@ -112,26 +120,10 @@ def export_transactions(
     current_user: User = Depends(get_current_user),
 ):
     """Export transactions as CSV with filters."""
-    # Build query with same filters as get_transactions
-    query = db.query(Transaction).filter(
-        Transaction.user_id == current_user.id
+    query = _apply_filters(
+        db.query(Transaction), current_user.id,
+        category=category, date_from=date_from, date_to=date_to, search=search,
     ).order_by(Transaction.date.desc())
-
-    if category:
-        query = query.filter(Transaction.category == category)
-    if date_from:
-        query = query.filter(Transaction.date >= date_from)
-    if date_to:
-        query = query.filter(Transaction.date <= date_to)
-    if search:
-        escaped_search = search.replace('\\', '\\\\').replace('%', '\\%').replace('_', '\\_')
-        search_pattern = f"%{escaped_search}%"
-        query = query.filter(
-            or_(
-                Transaction.description.ilike(search_pattern),
-                Transaction.raw_text.ilike(search_pattern)
-            )
-        )
 
     # Safety limit to prevent memory issues
     transactions = query.limit(10000).all()

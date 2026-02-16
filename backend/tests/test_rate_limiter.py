@@ -12,9 +12,8 @@ from app.routers.auth import (
     _check_rate_limit,
     _cleanup_store,
     _rate_limit_store,
-    _RATE_LIMIT_MAX_REQUESTS,
-    _RATE_LIMIT_WINDOW,
 )
+from app.config import get_settings
 from app.services.ocr_service import OCRService
 
 
@@ -24,37 +23,40 @@ class TestRateLimiter:
     def setup_method(self):
         """Clear rate limit store before each test."""
         _rate_limit_store.clear()
+        settings = get_settings()
+        self.max_requests = settings.rate_limit_max_requests
+        self.window = settings.rate_limit_window
 
     def test_allows_requests_under_limit(self):
-        for _ in range(_RATE_LIMIT_MAX_REQUESTS - 1):
+        for _ in range(self.max_requests - 1):
             _check_rate_limit("1.2.3.4")
         # Should not raise
 
     def test_blocks_requests_over_limit(self):
-        for _ in range(_RATE_LIMIT_MAX_REQUESTS):
+        for _ in range(self.max_requests):
             _check_rate_limit("1.2.3.4")
         with pytest.raises(HTTPException) as exc_info:
             _check_rate_limit("1.2.3.4")
         assert exc_info.value.status_code == 429
 
     def test_different_ips_independent(self):
-        for _ in range(_RATE_LIMIT_MAX_REQUESTS):
+        for _ in range(self.max_requests):
             _check_rate_limit("1.1.1.1")
         # Different IP should still work
         _check_rate_limit("2.2.2.2")
 
     def test_expired_entries_cleaned(self):
         """Requests outside the window should be ignored."""
-        past = time.time() - _RATE_LIMIT_WINDOW - 10
-        _rate_limit_store["5.5.5.5"] = [past] * _RATE_LIMIT_MAX_REQUESTS
+        past = time.time() - self.window - 10
+        _rate_limit_store["5.5.5.5"] = [past] * self.max_requests
         # Should not raise — old entries are expired
         _check_rate_limit("5.5.5.5")
 
     def test_cleanup_removes_expired_ips(self):
-        past = time.time() - _RATE_LIMIT_WINDOW - 10
+        past = time.time() - self.window - 10
         _rate_limit_store["old.ip"] = [past]
         _rate_limit_store["fresh.ip"] = [time.time()]
-        _cleanup_store(time.time())
+        _cleanup_store(time.time(), self.window)
         assert "old.ip" not in _rate_limit_store
         assert "fresh.ip" in _rate_limit_store
 

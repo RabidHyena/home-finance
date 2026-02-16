@@ -9,8 +9,18 @@ _DANGEROUS_CHARS = re.compile(r'[\x00-\x08\x0b\x0c\x0e-\x1f\ud800-\udfff]')
 # Matches HTML tags
 _HTML_TAGS = re.compile(r'<[^>]+>')
 
+VALID_CURRENCIES = ('RUB', 'USD', 'EUR', 'GBP')
+CURRENCY_PATTERN = f'^({"|".join(VALID_CURRENCIES)})$'
+
 MIN_DATE = datetime(2000, 1, 1)
 MAX_DATE = datetime(2100, 12, 31, 23, 59, 59)
+
+# Shared model config for Decimal serialization
+_DECIMAL_CONFIG = ConfigDict(json_encoders={Decimal: lambda v: float(v)})
+_ORM_DECIMAL_CONFIG = ConfigDict(
+    from_attributes=True,
+    json_encoders={Decimal: lambda v: float(v)},
+)
 
 
 def _sanitize_string(value: str) -> str:
@@ -20,30 +30,34 @@ def _sanitize_string(value: str) -> str:
     return value.strip()
 
 
-class TransactionBase(BaseModel):
+class _SanitizationMixin:
+    """Shared validators for string sanitization and date range."""
+
+    @field_validator('description', 'category', mode='before', check_fields=False)
+    @classmethod
+    def sanitize_strings(cls, v: str | None) -> str | None:
+        if v is None or not isinstance(v, str):
+            return v
+        return _sanitize_string(v)
+
+    @field_validator('date', mode='before', check_fields=False)
+    @classmethod
+    def validate_date_range(cls, v: datetime | None) -> datetime | None:
+        if v is None:
+            return v
+        if isinstance(v, datetime) and (v < MIN_DATE or v > MAX_DATE):
+            raise ValueError(f'Date must be between {MIN_DATE.year} and {MAX_DATE.year}')
+        return v
+
+
+class TransactionBase(_SanitizationMixin, BaseModel):
     """Base schema for transaction data."""
 
     amount: Decimal = Field(..., description="Transaction amount", ge=Decimal('0.01'), le=Decimal('9999999999'))
     description: str = Field(..., description="Transaction description", max_length=500)
     category: Optional[str] = Field(None, description="Transaction category", max_length=100)
     date: datetime = Field(..., description="Transaction date")
-    currency: str = Field(default='RUB', max_length=3, pattern='^(RUB|USD|EUR|GBP)$')
-
-    @field_validator('description', 'category', mode='before')
-    @classmethod
-    def sanitize_strings(cls, v: str | None) -> str | None:
-        if v is None:
-            return v
-        if not isinstance(v, str):
-            return v
-        return _sanitize_string(v)
-
-    @field_validator('date')
-    @classmethod
-    def validate_date_range(cls, v: datetime) -> datetime:
-        if v < MIN_DATE or v > MAX_DATE:
-            raise ValueError(f'Date must be between {MIN_DATE.year} and {MAX_DATE.year}')
-        return v
+    currency: str = Field(default='RUB', max_length=3, pattern=CURRENCY_PATTERN)
 
 
 class TransactionCreate(TransactionBase):
@@ -55,32 +69,14 @@ class TransactionCreate(TransactionBase):
     ai_confidence: Optional[Decimal] = Field(None, ge=0, le=1)
 
 
-class TransactionUpdate(BaseModel):
+class TransactionUpdate(_SanitizationMixin, BaseModel):
     """Schema for updating a transaction."""
 
     amount: Optional[Decimal] = Field(None, ge=Decimal('0.01'), le=Decimal('9999999999'))
     description: Optional[str] = Field(None, max_length=500)
     category: Optional[str] = Field(None, max_length=100)
     date: Optional[datetime] = None
-    currency: Optional[str] = Field(None, max_length=3, pattern='^(RUB|USD|EUR|GBP)$')
-
-    @field_validator('description', 'category', mode='before')
-    @classmethod
-    def sanitize_strings(cls, v: str | None) -> str | None:
-        if v is None:
-            return v
-        if not isinstance(v, str):
-            return v
-        return _sanitize_string(v)
-
-    @field_validator('date')
-    @classmethod
-    def validate_date_range(cls, v: datetime | None) -> datetime | None:
-        if v is None:
-            return v
-        if v < MIN_DATE or v > MAX_DATE:
-            raise ValueError(f'Date must be between {MIN_DATE.year} and {MAX_DATE.year}')
-        return v
+    currency: Optional[str] = Field(None, max_length=3, pattern=CURRENCY_PATTERN)
 
 
 class TransactionResponse(TransactionBase):
@@ -95,12 +91,7 @@ class TransactionResponse(TransactionBase):
     created_at: datetime
     updated_at: datetime
 
-    model_config = ConfigDict(
-        from_attributes=True,
-        json_encoders={
-            Decimal: lambda v: float(v)
-        }
-    )
+    model_config = _ORM_DECIMAL_CONFIG
 
 
 class TransactionList(BaseModel):
@@ -123,11 +114,7 @@ class ParsedTransaction(BaseModel):
     raw_text: str
     confidence: float = Field(..., ge=0, le=1)
 
-    model_config = ConfigDict(
-        json_encoders={
-            Decimal: lambda v: float(v)
-        }
-    )
+    model_config = _DECIMAL_CONFIG
 
 
 class ChartDataItem(BaseModel):
@@ -137,11 +124,7 @@ class ChartDataItem(BaseModel):
     value: Decimal
     percentage: Optional[float] = None
 
-    model_config = ConfigDict(
-        json_encoders={
-            Decimal: lambda v: float(v)
-        }
-    )
+    model_config = _DECIMAL_CONFIG
 
 
 class ParsedChart(BaseModel):
@@ -154,11 +137,7 @@ class ParsedChart(BaseModel):
     period_type: Optional[str] = None  # 'month', 'year', 'week', 'custom'
     confidence: float = Field(..., ge=0, le=1)
 
-    model_config = ConfigDict(
-        json_encoders={
-            Decimal: lambda v: float(v)
-        }
-    )
+    model_config = _DECIMAL_CONFIG
 
 
 class ParsedTransactions(BaseModel):
@@ -169,11 +148,7 @@ class ParsedTransactions(BaseModel):
     chart: Optional[ParsedChart] = None
     raw_text: str
 
-    model_config = ConfigDict(
-        json_encoders={
-            Decimal: lambda v: float(v)
-        }
-    )
+    model_config = _DECIMAL_CONFIG
 
 
 class MonthlyReport(BaseModel):
@@ -185,11 +160,7 @@ class MonthlyReport(BaseModel):
     transaction_count: int
     by_category: dict[str, Decimal]
 
-    model_config = ConfigDict(
-        json_encoders={
-            Decimal: lambda v: float(v)
-        }
-    )
+    model_config = _DECIMAL_CONFIG
 
 
 class HealthResponse(BaseModel):
@@ -245,12 +216,7 @@ class BudgetResponse(BudgetBase):
     created_at: datetime
     updated_at: datetime
 
-    model_config = ConfigDict(
-        from_attributes=True,
-        json_encoders={
-            Decimal: lambda v: float(v)
-        }
-    )
+    model_config = _ORM_DECIMAL_CONFIG
 
 
 class BudgetStatus(BaseModel):
@@ -262,8 +228,4 @@ class BudgetStatus(BaseModel):
     percentage: float
     exceeded: bool
 
-    model_config = ConfigDict(
-        json_encoders={
-            Decimal: lambda v: float(v)
-        }
-    )
+    model_config = _DECIMAL_CONFIG
