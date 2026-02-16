@@ -40,12 +40,13 @@ class _SanitizationMixin:
             return v
         return _sanitize_string(v)
 
-    @field_validator('date', mode='before', check_fields=False)
+    @field_validator('date', mode='after', check_fields=False)
     @classmethod
     def validate_date_range(cls, v: datetime | None) -> datetime | None:
         if v is None:
             return v
-        if isinstance(v, datetime) and (v < MIN_DATE or v > MAX_DATE):
+        # After mode: v is already converted to datetime by Pydantic
+        if v < MIN_DATE or v > MAX_DATE:
             raise ValueError(f'Date must be between {MIN_DATE.year} and {MAX_DATE.year}')
         return v
 
