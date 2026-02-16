@@ -31,7 +31,7 @@ def _sanitize_string(value: str) -> str:
 
 
 class _SanitizationMixin:
-    """Shared validators for string sanitization and date range."""
+    """Shared validators for string sanitization."""
 
     @field_validator('description', 'category', mode='before', check_fields=False)
     @classmethod
@@ -39,6 +39,10 @@ class _SanitizationMixin:
         if v is None or not isinstance(v, str):
             return v
         return _sanitize_string(v)
+
+
+class _InputValidationMixin(_SanitizationMixin):
+    """Validators for input data: sanitization + date range validation."""
 
     @field_validator('date', mode='after', check_fields=False)
     @classmethod
@@ -51,8 +55,8 @@ class _SanitizationMixin:
         return v
 
 
-class TransactionBase(_SanitizationMixin, BaseModel):
-    """Base schema for transaction data."""
+class TransactionBase(BaseModel):
+    """Base schema for transaction data (no validation, for responses)."""
 
     amount: Decimal = Field(..., description="Transaction amount", ge=Decimal('0.01'), le=Decimal('9999999999'))
     description: str = Field(..., description="Transaction description", max_length=500)
@@ -61,8 +65,8 @@ class TransactionBase(_SanitizationMixin, BaseModel):
     currency: str = Field(default='RUB', max_length=3, pattern=CURRENCY_PATTERN)
 
 
-class TransactionCreate(TransactionBase):
-    """Schema for creating a transaction."""
+class TransactionCreate(_InputValidationMixin, TransactionBase):
+    """Schema for creating a transaction (with validation)."""
 
     image_path: Optional[str] = None
     raw_text: Optional[str] = None
@@ -70,8 +74,8 @@ class TransactionCreate(TransactionBase):
     ai_confidence: Optional[Decimal] = Field(None, ge=0, le=1)
 
 
-class TransactionUpdate(_SanitizationMixin, BaseModel):
-    """Schema for updating a transaction."""
+class TransactionUpdate(_InputValidationMixin, BaseModel):
+    """Schema for updating a transaction (with validation)."""
 
     amount: Optional[Decimal] = Field(None, ge=Decimal('0.01'), le=Decimal('9999999999'))
     description: Optional[str] = Field(None, max_length=500)
