@@ -233,14 +233,7 @@ export const api = {
       method: 'DELETE',
       credentials: 'include',
     });
-    if (response.status === 401) {
-      window.dispatchEvent(new CustomEvent('auth:unauthorized'));
-      throw new Error('Unauthorized');
-    }
-    if (!response.ok) {
-      const err = await response.json().catch(() => null);
-      throw new Error(err?.detail || 'Failed to delete transaction');
-    }
+    await handleResponse<void>(response);
   },
 
   // Reports
@@ -550,14 +543,7 @@ export const api = {
       method: 'DELETE',
       credentials: 'include',
     });
-    if (response.status === 401) {
-      window.dispatchEvent(new CustomEvent('auth:unauthorized'));
-      throw new Error('Unauthorized');
-    }
-    if (!response.ok) {
-      const err = await response.json().catch(() => null);
-      throw new Error(err?.detail || 'Failed to delete budget');
-    }
+    await handleResponse<void>(response);
   },
 
   // Batch upload
