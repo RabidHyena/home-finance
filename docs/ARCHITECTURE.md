@@ -154,7 +154,7 @@ home-finance/
 │   │       ├── learning_service.py  # Обучение категоризации
 │   │       └── merchant_normalization.py  # Нормализация названий
 │   ├── alembic/                 # Миграции БД
-│   ├── tests/                   # 158 тестов (pytest)
+│   ├── tests/                   # 157 тестов (pytest)
 │   │   ├── conftest.py          # Фикстуры (in-memory SQLite, auth)
 │   │   ├── test_auth.py         # Auth, registration, data isolation
 │   │   ├── test_transactions.py # CRUD, поиск, фильтры, валюта, CSV экспорт

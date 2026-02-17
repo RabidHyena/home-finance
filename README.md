@@ -101,7 +101,7 @@ npm run dev
 ### Тесты
 
 ```bash
-# Backend (158 тестов: auth, CRUD, доходы/расходы, аналитика, бюджеты, OCR, обучение, валидация, upload, rate limiter)
+# Backend (157 тестов: auth, CRUD, доходы/расходы, аналитика, бюджеты, OCR, обучение, валидация, upload, rate limiter)
 # Запуск в Docker контейнере:
 docker compose exec -e DEBUG=true backend python -m pytest tests/ -v
 
@@ -136,7 +136,7 @@ home-finance/
 │   │       ├── learning_service.py  # Обучение категоризации
 │   │       └── merchant_normalization.py
 │   ├── alembic/                 # Миграции БД
-│   ├── tests/                   # 158 тестов (pytest)
+│   ├── tests/                   # 157 тестов (pytest)
 │   │   ├── conftest.py          # Фикстуры (in-memory SQLite)
 │   │   ├── test_auth.py         # Auth, data isolation
 │   │   ├── test_transactions.py # CRUD, поиск, фильтры, CSV

@@ -32,7 +32,7 @@
 - [x] Сервис OCR (Gemini Vision через OpenRouter)
 - [x] Загрузка скриншотов
 - [x] Docker и docker-compose
-- [x] Комплексные тесты (158 тестов: auth, CRUD, доходы/расходы, аналитика, бюджеты, OCR, обучение, валидация)
+- [x] Комплексные тесты (157 тестов: auth, CRUD, доходы/расходы, аналитика, бюджеты, OCR, обучение, валидация)
 
 ### Frontend (Фаза 2)
 - [x] React + TypeScript + Vite
@@ -269,7 +269,7 @@ docker-compose down
 ## Прогресс
 
 **Завершено:** Фазы 0-6 (100% запланированной функциональности + безопасность + доходы + Excel импорт)
-**158 backend тестов** (pytest), strict Postman collection (55 запросов), TypeScript компилируется без ошибок
+**157 backend тестов** (pytest), strict Postman collection (55 запросов), TypeScript компилируется без ошибок
 
 ---
 
@@ -315,4 +315,4 @@ docker-compose down
 
 ---
 
-*Обновлено: 17 февраля 2026 — Фазы 0-6 завершены, 158 backend тестов, strict Postman collection*
+*Обновлено: 17 февраля 2026 — Фазы 0-6 завершены, 157 backend тестов, strict Postman collection*
