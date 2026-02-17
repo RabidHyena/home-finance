@@ -94,8 +94,9 @@ export function MultipleTransactionsForm({
           amount: Number(tx.amount),
           description: tx.description,
           category: edited?.category || tx.category || undefined,
-          date: new Date(date).toISOString(),
+          date: typeof date === 'string' && date.includes('T') ? date : `${date}T00:00:00`,
           currency: tx.currency as Currency,
+          type: tx.type || 'expense',
           raw_text: tx.raw_text,
           confidence: tx.confidence,
         };
@@ -214,8 +215,37 @@ export function MultipleTransactionsForm({
                       }}
                     />
                   </div>
-                  <div style={{ fontSize: '1.125rem', fontWeight: 700, color: 'var(--color-text)', textAlign: 'right' }}>
-                    {Number(tx.amount).toFixed(2)} {CURRENCY_SYMBOLS[tx.currency as Currency]}
+                  <div style={{ textAlign: 'right' }}>
+                    {tx.type === 'income' ? (
+                      <span style={{
+                        display: 'inline-block',
+                        padding: '0.125rem 0.5rem',
+                        borderRadius: '0.25rem',
+                        backgroundColor: 'rgba(34, 197, 94, 0.1)',
+                        color: '#16a34a',
+                        fontSize: '0.75rem',
+                        fontWeight: 600,
+                        marginBottom: '0.25rem',
+                      }}>
+                        Доход
+                      </span>
+                    ) : tx.type === 'expense' ? (
+                      <span style={{
+                        display: 'inline-block',
+                        padding: '0.125rem 0.5rem',
+                        borderRadius: '0.25rem',
+                        backgroundColor: 'rgba(239, 68, 68, 0.1)',
+                        color: 'var(--color-danger)',
+                        fontSize: '0.75rem',
+                        fontWeight: 600,
+                        marginBottom: '0.25rem',
+                      }}>
+                        Расход
+                      </span>
+                    ) : null}
+                    <div style={{ fontSize: '1.125rem', fontWeight: 700, color: tx.type === 'income' ? '#16a34a' : 'var(--color-text)' }}>
+                      {tx.type === 'income' ? '+' : ''}{Number(tx.amount).toFixed(2)} {CURRENCY_SYMBOLS[tx.currency as Currency]}
+                    </div>
                   </div>
                 </div>
                 <div style={{ marginTop: '0.5rem' }}>

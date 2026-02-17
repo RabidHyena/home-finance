@@ -57,7 +57,7 @@ export function TransactionForm({
       amount: parsedAmount,
       description,
       category: category || undefined,
-      date: new Date(date).toISOString(),
+      date: date.includes('T') ? date : `${date}T00:00:00`,
       currency,
     };
 

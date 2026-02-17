@@ -1,5 +1,11 @@
 import { useState, useCallback } from 'react';
-import { Upload, Image, X, Loader2 } from 'lucide-react';
+import { Upload, Image, X, Loader2, FileSpreadsheet } from 'lucide-react';
+
+const isExcelFile = (file: File) =>
+  file.name.toLowerCase().endsWith('.xlsx') ||
+  file.name.toLowerCase().endsWith('.xls') ||
+  file.type === 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet' ||
+  file.type === 'application/vnd.ms-excel';
 
 interface UploadZoneProps {
   onFileSelect: (files: File[]) => void;
@@ -11,7 +17,7 @@ interface UploadZoneProps {
 export function UploadZone({
   onFileSelect,
   isLoading,
-  accept = 'image/*',
+  accept = 'image/*,.xlsx,.xls,application/vnd.openxmlformats-officedocument.spreadsheetml.sheet,application/vnd.ms-excel',
   multiple = false,
 }: UploadZoneProps) {
   const [isDragging, setIsDragging] = useState(false);
@@ -22,10 +28,16 @@ export function UploadZone({
   const handleFiles = useCallback(
     (fileList: File[]) => {
       const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
-      const validFiles = fileList.filter(f => f.type.startsWith('image/'));
+      const EXCEL_TYPES = ['application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'application/vnd.ms-excel'];
+      const EXCEL_EXTENSIONS = ['.xlsx', '.xls'];
+      const isValidFile = (f: File) =>
+        f.type.startsWith('image/') ||
+        EXCEL_TYPES.includes(f.type) ||
+        EXCEL_EXTENSIONS.some(ext => f.name.toLowerCase().endsWith(ext));
+      const validFiles = fileList.filter(isValidFile);
 
       if (validFiles.length === 0) {
-        alert('Пожалуйста, выберите изображения');
+        alert('Пожалуйста, выберите изображения или Excel файлы');
         return;
       }
 
@@ -47,11 +59,15 @@ export function UploadZone({
         // Single file mode (backwards compatibility)
         const file = validFiles[0];
         setFileName(file.name);
-        const reader = new FileReader();
-        reader.onload = (e) => {
-          setPreview(e.target?.result as string);
-        };
-        reader.readAsDataURL(file);
+        if (isExcelFile(file)) {
+          setPreview('excel');
+        } else {
+          const reader = new FileReader();
+          reader.onload = (e) => {
+            setPreview(e.target?.result as string);
+          };
+          reader.readAsDataURL(file);
+        }
       }
 
       onFileSelect(validFiles);
@@ -118,7 +134,7 @@ export function UploadZone({
           }}
         />
         <p style={{ marginTop: '1rem', color: 'var(--color-text-secondary)' }}>
-          Распознавание изображения...
+          Распознавание файла...
         </p>
         <style>{`
           @keyframes spin {
@@ -147,11 +163,25 @@ export function UploadZone({
               padding: '0.5rem',
               backgroundColor: 'var(--color-surface)',
             }}>
-              <img
-                src={preview.url}
-                alt={preview.file.name}
-                style={{ width: '100%', height: '100px', objectFit: 'cover', borderRadius: '0.25rem' }}
-              />
+              {isExcelFile(preview.file) ? (
+                <div style={{
+                  width: '100%',
+                  height: '100px',
+                  display: 'flex',
+                  alignItems: 'center',
+                  justifyContent: 'center',
+                  backgroundColor: 'rgba(34, 197, 94, 0.1)',
+                  borderRadius: '0.25rem',
+                }}>
+                  <FileSpreadsheet size={40} color="var(--color-success)" />
+                </div>
+              ) : (
+                <img
+                  src={preview.url}
+                  alt={preview.file.name}
+                  style={{ width: '100%', height: '100px', objectFit: 'cover', borderRadius: '0.25rem' }}
+                />
+              )}
               <p style={{
                 fontSize: '0.75rem',
                 marginTop: '0.5rem',
@@ -210,16 +240,34 @@ export function UploadZone({
             <X size={20} />
           </button>
         </div>
-        <img
-          src={preview}
-          alt="Preview"
-          style={{
+        {preview === 'excel' ? (
+          <div style={{
             width: '100%',
-            maxHeight: '300px',
-            objectFit: 'contain',
+            height: '200px',
+            display: 'flex',
+            flexDirection: 'column',
+            alignItems: 'center',
+            justifyContent: 'center',
+            backgroundColor: 'rgba(34, 197, 94, 0.1)',
             borderRadius: '0.5rem',
-          }}
-        />
+          }}>
+            <FileSpreadsheet size={64} color="var(--color-success)" />
+            <p style={{ marginTop: '0.5rem', color: 'var(--color-text-secondary)', fontSize: '0.875rem' }}>
+              Excel файл
+            </p>
+          </div>
+        ) : (
+          <img
+            src={preview}
+            alt="Preview"
+            style={{
+              width: '100%',
+              maxHeight: '300px',
+              objectFit: 'contain',
+              borderRadius: '0.5rem',
+            }}
+          />
+        )}
       </div>
     );
   }
@@ -263,7 +311,7 @@ export function UploadZone({
           color: 'var(--color-text)',
         }}
       >
-        {multiple ? 'Перетащите несколько скриншотов сюда' : 'Перетащите скриншот сюда'}
+        {multiple ? 'Перетащите файлы сюда' : 'Перетащите файл сюда'}
       </p>
       <p
         style={{
@@ -281,7 +329,7 @@ export function UploadZone({
           color: 'var(--color-text-secondary)',
         }}
       >
-        Поддерживаются: JPG, PNG, GIF, WebP (до 10MB)
+        Поддерживаются: JPG, PNG, GIF, WebP, Excel (.xlsx, .xls) (до 10MB)
       </p>
     </label>
   );

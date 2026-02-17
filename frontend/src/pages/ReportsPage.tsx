@@ -2,29 +2,38 @@ import { useEffect, useState } from 'react';
 import { Calendar } from 'lucide-react';
 import { MonthlyChart, CategoryChart, MonthComparison, TrendsChart, ForecastChart, StatCardSkeleton, ChartSkeleton } from '../components';
 import { useMonthlyReports, useMonthComparison, useSpendingTrends, useForecast } from '../hooks/useApi';
-import { MONTH_NAMES, CATEGORY_LABELS, type Category } from '../types';
+import { MONTH_NAMES, CATEGORY_LABELS, INCOME_CATEGORY_LABELS, type Category, type IncomeCategory, type TransactionType } from '../types';
 import type { MonthlyReport } from '../types';
 
 export function ReportsPage() {
-  const { data: reports = [], isLoading, error } = useMonthlyReports();
+  const [activeTab, setActiveTab] = useState<TransactionType>('expense');
+  const { data: reports = [], isLoading, error } = useMonthlyReports(undefined, activeTab);
   const [selectedReport, setSelectedReport] = useState<MonthlyReport | null>(null);
 
-  // Get current month for comparison
-  const currentYear = new Date().getFullYear();
-  const currentMonth = new Date().getMonth() + 1;
-  const comparisonQuery = useMonthComparison(currentYear, currentMonth);
+  // Get comparison for selected month
+  const comparisonYear = selectedReport?.year ?? new Date().getFullYear();
+  const comparisonMonth = selectedReport?.month ?? (new Date().getMonth() + 1);
+  const comparisonQuery = useMonthComparison(comparisonYear, comparisonMonth, activeTab);
 
   // Get spending trends for last 6 months
-  const trendsQuery = useSpendingTrends(6);
+  const trendsQuery = useSpendingTrends(6, activeTab);
 
   // Get forecast for next 3 months based on last 6 months
-  const forecastQuery = useForecast(6, 3);
+  const forecastQuery = useForecast(6, 3, activeTab);
+
+  // Reset selected report when tab changes
+  useEffect(() => {
+    setSelectedReport(null);
+  }, [activeTab]);
 
   useEffect(() => {
     if (reports.length > 0 && !selectedReport) {
       setSelectedReport(reports[0]);
     }
   }, [reports, selectedReport]);
+
+  const categoryLabels = activeTab === 'income' ? INCOME_CATEGORY_LABELS : CATEGORY_LABELS;
+  const isIncome = activeTab === 'income';
 
   if (isLoading) {
     return (
@@ -54,9 +63,51 @@ export function ReportsPage() {
 
   return (
     <div>
-      <h1 style={{ fontSize: '1.5rem', fontWeight: 600, marginBottom: '1.5rem' }}>
+      <h1 style={{ fontSize: '1.5rem', fontWeight: 600, marginBottom: '1rem' }}>
         Отчёты
       </h1>
+
+      {/* Type Tab Switcher */}
+      <div style={{
+        display: 'flex',
+        gap: '0.5rem',
+        marginBottom: '1.5rem',
+        borderBottom: '2px solid var(--color-border)',
+        paddingBottom: '0.5rem',
+      }}>
+        <button
+          onClick={() => setActiveTab('expense')}
+          style={{
+            padding: '0.5rem 1.25rem',
+            borderRadius: '0.5rem 0.5rem 0 0',
+            border: 'none',
+            backgroundColor: activeTab === 'expense' ? 'var(--color-primary)' : 'transparent',
+            color: activeTab === 'expense' ? 'white' : 'var(--color-text-secondary)',
+            fontWeight: activeTab === 'expense' ? 600 : 400,
+            cursor: 'pointer',
+            fontSize: '0.9375rem',
+            transition: 'all 0.2s',
+          }}
+        >
+          Расходы
+        </button>
+        <button
+          onClick={() => setActiveTab('income')}
+          style={{
+            padding: '0.5rem 1.25rem',
+            borderRadius: '0.5rem 0.5rem 0 0',
+            border: 'none',
+            backgroundColor: activeTab === 'income' ? '#16a34a' : 'transparent',
+            color: activeTab === 'income' ? 'white' : 'var(--color-text-secondary)',
+            fontWeight: activeTab === 'income' ? 600 : 400,
+            cursor: 'pointer',
+            fontSize: '0.9375rem',
+            transition: 'all 0.2s',
+          }}
+        >
+          Доходы
+        </button>
+      </div>
 
       {error && (
         <div
@@ -136,14 +187,14 @@ export function ReportsPage() {
                     color: 'var(--color-text-secondary)',
                   }}
                 >
-                  Всего потрачено
+                  {isIncome ? 'Всего получено' : 'Всего потрачено'}
                 </p>
                 <p
                   style={{
                     margin: '0.25rem 0 0',
                     fontSize: '1.5rem',
                     fontWeight: 700,
-                    color: 'var(--color-danger)',
+                    color: isIncome ? '#16a34a' : 'var(--color-danger)',
                   }}
                 >
                   {selectedReport.total_amount.toLocaleString('ru-RU')} ₽
@@ -225,7 +276,7 @@ export function ReportsPage() {
                 fontWeight: 600,
               }}
             >
-              Расходы по месяцам
+              {isIncome ? 'Доходы по месяцам' : 'Расходы по месяцам'}
             </h2>
             <MonthlyChart data={reports} />
           </div>
@@ -240,7 +291,7 @@ export function ReportsPage() {
                   fontWeight: 600,
                 }}
               >
-                Расходы по категориям ({MONTH_NAMES[selectedReport.month - 1]})
+                {isIncome ? 'Доходы' : 'Расходы'} по категориям ({MONTH_NAMES[selectedReport.month - 1]})
               </h2>
               <CategoryChart data={selectedReport.by_category} />
             </div>
@@ -307,7 +358,7 @@ export function ReportsPage() {
                             borderBottom: '1px solid var(--color-border)',
                           }}
                         >
-                          {CATEGORY_LABELS[category as Category] || category}
+                          {categoryLabels[category as Category & IncomeCategory] || category}
                         </td>
                         <td
                           style={{

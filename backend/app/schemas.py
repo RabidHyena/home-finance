@@ -2,7 +2,7 @@ import re
 from pydantic import BaseModel, Field, ConfigDict, field_validator
 from datetime import datetime
 from decimal import Decimal
-from typing import Optional
+from typing import Literal, Optional
 
 # Matches null bytes, surrogate characters, and other problematic unicode
 _DANGEROUS_CHARS = re.compile(r'[\x00-\x08\x0b\x0c\x0e-\x1f\ud800-\udfff]')
@@ -65,6 +65,7 @@ class TransactionBase(BaseModel):
     category: Optional[str] = Field(None, description="Transaction category", max_length=100)
     date: datetime = Field(..., description="Transaction date")
     currency: str = Field(default='RUB', max_length=3, pattern=CURRENCY_PATTERN)
+    type: Literal['expense', 'income'] = Field(default='expense', description="Transaction type")
 
 
 class TransactionCreate(_InputValidationMixin, TransactionBase):
@@ -84,6 +85,7 @@ class TransactionUpdate(_InputValidationMixin, BaseModel):
     category: Optional[str] = Field(None, max_length=100)
     date: Optional[datetime] = None
     currency: Optional[str] = Field(None, max_length=3, pattern=CURRENCY_PATTERN)
+    type: Optional[Literal['expense', 'income']] = None
 
 
 class TransactionResponse(TransactionBase):
@@ -118,6 +120,7 @@ class ParsedTransaction(BaseModel):
     date: datetime
     category: Optional[str] = None
     currency: str = 'RUB'
+    type: Literal['expense', 'income'] = 'expense'
     raw_text: str
     confidence: float = Field(..., ge=0, le=1)
 

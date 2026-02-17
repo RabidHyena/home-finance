@@ -1,15 +1,18 @@
-from fastapi import APIRouter, Depends, HTTPException, Query
-from fastapi.responses import StreamingResponse
-from sqlalchemy.orm import Session
-from sqlalchemy import func, extract, or_
-from decimal import Decimal
-from datetime import datetime
-from typing import Optional
 import csv
+import logging
+from datetime import datetime
+from decimal import Decimal
 from io import StringIO
+from typing import Optional
 
 import numpy as np
 from dateutil.relativedelta import relativedelta
+from fastapi import APIRouter, Depends, HTTPException, Query
+from fastapi.responses import StreamingResponse
+from sqlalchemy import func, extract, or_
+from sqlalchemy.orm import Session
+
+logger = logging.getLogger(__name__)
 
 from app.database import get_db
 from app.dependencies import get_current_user
@@ -26,9 +29,11 @@ from app.services.learning_service import log_correction
 router = APIRouter(prefix="/api/transactions", tags=["transactions"])
 
 
-def _apply_filters(query, user_id: int, category=None, date_from=None, date_to=None, search=None):
+def _apply_filters(query, user_id: int, category=None, date_from=None, date_to=None, search=None, tx_type=None):
     """Apply common filters to a transaction query."""
     query = query.filter(Transaction.user_id == user_id)
+    if tx_type:
+        query = query.filter(Transaction.type == tx_type)
     if category:
         query = query.filter(Transaction.category == category)
     if date_from:
@@ -61,6 +66,7 @@ def create_transaction(
         category=transaction.category or "Other",
         date=transaction.date,
         currency=transaction.currency,
+        type=transaction.type,
         image_path=transaction.image_path,
         raw_text=transaction.raw_text,
         ai_category=transaction.ai_category,
@@ -85,13 +91,14 @@ def get_transactions(
     date_from: Optional[datetime] = None,
     date_to: Optional[datetime] = None,
     search: Optional[str] = None,
+    type: Optional[str] = Query(None, description="Filter by type: expense or income"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     """Get paginated list of transactions."""
     query = _apply_filters(
         db.query(Transaction), current_user.id,
-        category=category, date_from=date_from, date_to=date_to, search=search,
+        category=category, date_from=date_from, date_to=date_to, search=search, tx_type=type,
     )
 
     total = query.count()
@@ -116,13 +123,14 @@ def export_transactions(
     date_from: Optional[datetime] = None,
     date_to: Optional[datetime] = None,
     search: Optional[str] = None,
+    type: Optional[str] = Query(None, description="Filter by type: expense or income"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     """Export transactions as CSV with filters."""
     query = _apply_filters(
         db.query(Transaction), current_user.id,
-        category=category, date_from=date_from, date_to=date_to, search=search,
+        category=category, date_from=date_from, date_to=date_to, search=search, tx_type=type,
     ).order_by(Transaction.date.desc())
 
     # Safety limit to prevent memory issues
@@ -169,6 +177,7 @@ def export_transactions(
 @router.get("/reports/monthly", response_model=list[MonthlyReport])
 def get_monthly_reports(
     year: Optional[int] = None,
+    type: Optional[str] = Query(None, description="Filter by type: expense or income"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -180,7 +189,12 @@ def get_monthly_reports(
         func.count(Transaction.id).label("count"),
     ).filter(
         Transaction.user_id == current_user.id
-    ).group_by(
+    )
+
+    if type:
+        query = query.filter(Transaction.type == type)
+
+    query = query.group_by(
         extract("year", Transaction.date),
         extract("month", Transaction.date),
     )
@@ -202,6 +216,9 @@ def get_monthly_reports(
     ).filter(
         Transaction.user_id == current_user.id
     )
+
+    if type:
+        category_results = category_results.filter(Transaction.type == type)
 
     if year:
         category_results = category_results.filter(extract("year", Transaction.date) == year)
@@ -271,6 +288,7 @@ def get_ai_accuracy(
 def get_spending_forecast(
     history_months: int = Query(6, ge=3, le=12),
     forecast_months: int = Query(3, ge=1, le=6),
+    type: Optional[str] = Query(None, description="Filter by type: expense or income"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -280,14 +298,20 @@ def get_spending_forecast(
     start_date = end_date - relativedelta(months=history_months)
 
     # Aggregate by month in SQL instead of loading all transactions
+    base_filter = [
+        Transaction.user_id == current_user.id,
+        Transaction.date >= start_date,
+        Transaction.date <= end_date,
+    ]
+    if type:
+        base_filter.append(Transaction.type == type)
+
     monthly_rows = db.query(
         extract("year", Transaction.date).label("year"),
         extract("month", Transaction.date).label("month"),
         func.sum(Transaction.amount).label("total"),
     ).filter(
-        Transaction.user_id == current_user.id,
-        Transaction.date >= start_date,
-        Transaction.date <= end_date
+        *base_filter
     ).group_by(
         extract("year", Transaction.date),
         extract("month", Transaction.date),
@@ -367,6 +391,7 @@ def get_spending_forecast(
 @router.get("/analytics/trends")
 def get_spending_trends(
     months: int = Query(6, ge=3, le=24),
+    type: Optional[str] = Query(None, description="Filter by type: expense or income"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -377,15 +402,21 @@ def get_spending_trends(
     start_date = end_date - relativedelta(months=months)
 
     # Aggregate by month in SQL
+    base_filter = [
+        Transaction.user_id == current_user.id,
+        Transaction.date >= start_date,
+        Transaction.date <= end_date,
+    ]
+    if type:
+        base_filter.append(Transaction.type == type)
+
     monthly_rows = db.query(
         extract("year", Transaction.date).label("year"),
         extract("month", Transaction.date).label("month"),
         func.sum(Transaction.amount).label("total"),
         func.count(Transaction.id).label("count"),
     ).filter(
-        Transaction.user_id == current_user.id,
-        Transaction.date >= start_date,
-        Transaction.date <= end_date
+        *base_filter
     ).group_by(
         extract("year", Transaction.date),
         extract("month", Transaction.date),
@@ -449,6 +480,7 @@ def get_spending_trends(
 def get_month_comparison(
     year: int = Query(..., ge=2000, le=2100),
     month: int = Query(..., ge=1, le=12),
+    type: Optional[str] = Query(None, description="Filter by type: expense or income"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -465,6 +497,9 @@ def get_month_comparison(
     prev_start = current_start - relativedelta(months=1)
     prev_end = current_start - relativedelta(days=1)
 
+    # Build type filter
+    type_filter = [Transaction.type == type] if type else []
+
     # Aggregate current month totals in SQL
     current_agg = db.query(
         func.coalesce(func.sum(Transaction.amount), 0).label("total"),
@@ -473,6 +508,7 @@ def get_month_comparison(
         Transaction.user_id == current_user.id,
         Transaction.date >= current_start,
         Transaction.date <= current_end,
+        *type_filter,
     ).one()
 
     # Aggregate previous month totals in SQL
@@ -483,6 +519,7 @@ def get_month_comparison(
         Transaction.user_id == current_user.id,
         Transaction.date >= prev_start,
         Transaction.date <= prev_end,
+        *type_filter,
     ).one()
 
     current_total = Decimal(str(current_agg.total))
@@ -498,6 +535,7 @@ def get_month_comparison(
         Transaction.user_id == current_user.id,
         Transaction.date >= current_start,
         Transaction.date <= current_end,
+        *type_filter,
     ).group_by(func.coalesce(Transaction.category, 'Other')).all()
 
     prev_cat_rows = db.query(
@@ -507,6 +545,7 @@ def get_month_comparison(
         Transaction.user_id == current_user.id,
         Transaction.date >= prev_start,
         Transaction.date <= prev_end,
+        *type_filter,
     ).group_by(func.coalesce(Transaction.category, 'Other')).all()
 
     current_by_category = {row.cat: Decimal(str(row.total)) for row in current_cat_rows}
@@ -595,6 +634,23 @@ def update_transaction(
     db.commit()
     db.refresh(transaction)
     return transaction
+
+
+@router.delete("", status_code=204)
+def delete_all_transactions(
+    type: Optional[str] = Query(None, description="Filter by type: expense or income"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Delete all transactions for the current user."""
+    query = db.query(Transaction).filter(
+        Transaction.user_id == current_user.id,
+    )
+    if type:
+        query = query.filter(Transaction.type == type)
+    count = query.delete()
+    db.commit()
+    logger.info("Deleted %d transactions for user %d", count, current_user.id)
 
 
 @router.delete("/{transaction_id}", status_code=204)

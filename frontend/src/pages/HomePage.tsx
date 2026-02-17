@@ -1,20 +1,28 @@
 import { Link } from 'react-router-dom';
-import { TrendingDown, ArrowRight, Plus } from 'lucide-react';
+import { TrendingDown, TrendingUp, ArrowRight, Plus } from 'lucide-react';
 import { TransactionCard, StatCardSkeleton, TransactionCardSkeleton } from '../components';
 import { useTransactions, useMonthlyReports } from '../hooks/useApi';
 
 export function HomePage() {
-  const { data: txData, isLoading: txLoading, error: txError } = useTransactions(1, 5);
-  const { data: reports, isLoading: repLoading, error: repError } = useMonthlyReports();
+  const { data: txData, isLoading: txLoading, error: txError } = useTransactions(1, 5, undefined, 'expense');
+  const { data: expenseReports, isLoading: repLoading, error: repError } = useMonthlyReports(undefined, 'expense');
+  const { data: incomeReports, isLoading: incLoading, error: incError } = useMonthlyReports(undefined, 'income');
 
-  const isLoading = txLoading || repLoading;
-  const error = txError || repError;
+  const isLoading = txLoading || repLoading || incLoading;
+  const error = txError || repError || incError;
 
   const transactions = txData?.items ?? [];
   const now = new Date();
-  const currentMonth = reports?.find(
+  const currentExpenseMonth = expenseReports?.find(
     r => r.year === now.getFullYear() && r.month === now.getMonth() + 1
-  ) ?? reports?.[0] ?? null;
+  ) ?? expenseReports?.[0] ?? null;
+  const currentIncomeMonth = incomeReports?.find(
+    r => r.year === now.getFullYear() && r.month === now.getMonth() + 1
+  ) ?? null;
+
+  const expenseTotal = currentExpenseMonth?.total_amount ?? 0;
+  const incomeTotal = currentIncomeMonth?.total_amount ?? 0;
+  const netBalance = incomeTotal - expenseTotal;
 
   if (isLoading) {
     return (
@@ -57,39 +65,98 @@ export function HomePage() {
         </div>
       )}
 
-      {/* Summary Card */}
+      {/* Summary Cards */}
+      <div style={{
+        display: 'grid',
+        gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+        gap: '1rem',
+        marginBottom: '1.5rem',
+      }}>
+        {/* Expense Card */}
+        <div
+          className="card"
+          style={{
+            background: 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)',
+            color: 'white',
+          }}
+        >
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+            }}
+          >
+            <div>
+              <p style={{ margin: 0, fontSize: '0.875rem', opacity: 0.9 }}>
+                Расходы за месяц
+              </p>
+              <p style={{ margin: '0.5rem 0 0', fontSize: '1.75rem', fontWeight: 700 }}>
+                {expenseTotal.toLocaleString('ru-RU')} ₽
+              </p>
+              {currentExpenseMonth && (
+                <p style={{ margin: '0.25rem 0 0', fontSize: '0.875rem', opacity: 0.9 }}>
+                  {currentExpenseMonth.transaction_count} транзакций
+                </p>
+              )}
+            </div>
+            <TrendingDown size={40} style={{ opacity: 0.5 }} />
+          </div>
+        </div>
+
+        {/* Income Card */}
+        <div
+          className="card"
+          style={{
+            background: 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)',
+            color: 'white',
+          }}
+        >
+          <div
+            style={{
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'space-between',
+            }}
+          >
+            <div>
+              <p style={{ margin: 0, fontSize: '0.875rem', opacity: 0.9 }}>
+                Доходы за месяц
+              </p>
+              <p style={{ margin: '0.5rem 0 0', fontSize: '1.75rem', fontWeight: 700 }}>
+                {incomeTotal.toLocaleString('ru-RU')} ₽
+              </p>
+              {currentIncomeMonth && (
+                <p style={{ margin: '0.25rem 0 0', fontSize: '0.875rem', opacity: 0.9 }}>
+                  {currentIncomeMonth.transaction_count} транзакций
+                </p>
+              )}
+            </div>
+            <TrendingUp size={40} style={{ opacity: 0.5 }} />
+          </div>
+        </div>
+      </div>
+
+      {/* Net Balance */}
       <div
         className="card"
         style={{
           marginBottom: '1.5rem',
-          background: 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)',
-          color: 'white',
+          textAlign: 'center',
+          padding: '1rem',
         }}
       >
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-          }}
-        >
-          <div>
-            <p style={{ margin: 0, fontSize: '0.875rem', opacity: 0.9 }}>
-              Расходы за текущий месяц
-            </p>
-            <p style={{ margin: '0.5rem 0 0', fontSize: '2rem', fontWeight: 700 }}>
-              {currentMonth
-                ? `${currentMonth.total_amount.toLocaleString('ru-RU')} ₽`
-                : '0 ₽'}
-            </p>
-            {currentMonth && (
-              <p style={{ margin: '0.25rem 0 0', fontSize: '0.875rem', opacity: 0.9 }}>
-                {currentMonth.transaction_count} транзакций
-              </p>
-            )}
-          </div>
-          <TrendingDown size={48} style={{ opacity: 0.5 }} />
-        </div>
+        <p style={{ margin: 0, fontSize: '0.875rem', color: 'var(--color-text-secondary)' }}>
+          Баланс за месяц
+        </p>
+        <p style={{
+          margin: '0.25rem 0 0',
+          fontSize: '1.5rem',
+          fontWeight: 700,
+          color: netBalance >= 0 ? '#16a34a' : 'var(--color-danger)',
+        }}>
+          {netBalance >= 0 ? '+' : ''}{netBalance.toLocaleString('ru-RU')} ₽
+        </p>
       </div>
 
       {/* Quick Actions */}
@@ -135,7 +202,7 @@ export function HomePage() {
                 color: 'var(--color-text-secondary)',
               }}
             >
-              Загрузить скриншот
+              Загрузить скриншот или файл
             </p>
           </div>
         </Link>

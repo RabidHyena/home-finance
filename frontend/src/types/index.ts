@@ -17,6 +17,8 @@ export interface RegisterRequest {
   password: string;
 }
 
+export type TransactionType = 'expense' | 'income';
+
 export interface Transaction {
   id: number;
   amount: number;
@@ -24,6 +26,7 @@ export interface Transaction {
   category: string | null;
   date: string;
   currency: string;
+  type: TransactionType;
   image_path: string | null;
   raw_text: string | null;
   ai_category: string | null;
@@ -38,6 +41,7 @@ export interface TransactionCreate {
   category?: string;
   date: string;
   currency?: string;
+  type?: TransactionType;
   image_path?: string;
   raw_text?: string;
   ai_category?: string;
@@ -65,6 +69,7 @@ export interface ParsedTransaction {
   date: string;
   category: string | null;
   currency: string;
+  type?: TransactionType;
   raw_text: string;
   confidence: number;
 }
@@ -136,6 +141,37 @@ export const CATEGORY_LABELS: Record<Category, string> = {
   Bills: 'Счета',
   Health: 'Здоровье',
   Other: 'Другое',
+};
+
+export type IncomeCategory =
+  | 'Salary'
+  | 'Transfer'
+  | 'Cashback'
+  | 'Investment'
+  | 'OtherIncome';
+
+export const INCOME_CATEGORIES: IncomeCategory[] = [
+  'Salary',
+  'Transfer',
+  'Cashback',
+  'Investment',
+  'OtherIncome',
+];
+
+export const INCOME_CATEGORY_COLORS: Record<IncomeCategory, string> = {
+  Salary: '#22c55e',
+  Transfer: '#3b82f6',
+  Cashback: '#f59e0b',
+  Investment: '#a855f7',
+  OtherIncome: '#6b7280',
+};
+
+export const INCOME_CATEGORY_LABELS: Record<IncomeCategory, string> = {
+  Salary: 'Зарплата',
+  Transfer: 'Перевод',
+  Cashback: 'Кэшбэк',
+  Investment: 'Инвестиции',
+  OtherIncome: 'Другое',
 };
 
 export const MONTH_NAMES = [

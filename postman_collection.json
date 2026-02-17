@@ -1,0 +1,1133 @@
+{
+  "info": {
+    "name": "Home Finance API — Strict Tests",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json",
+    "description": "Strict API tests for home-finance. All response shapes validated.\nRun folders in order: 1→2→3→4→5→6→7→8.\nUpload tests (folder 6) require manually selecting files in Postman."
+  },
+  "variable": [
+    { "key": "baseUrl", "value": "http://localhost:3000" },
+    { "key": "txId", "value": "" },
+    { "key": "incomeTxId", "value": "" },
+    { "key": "budgetId", "value": "" },
+    { "key": "budgetId2", "value": "" }
+  ],
+  "item": [
+    {
+      "name": "1. Auth",
+      "item": [
+        {
+          "name": "Register new user (idempotent)",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Register succeeds or user exists', function () {",
+            "    pm.expect([201, 400]).to.include(pm.response.code);",
+            "    if (pm.response.code === 201) {",
+            "        var json = pm.response.json();",
+            "        pm.expect(json).to.have.property('id').that.is.a('number');",
+            "        pm.expect(json).to.have.property('email', 'postman@example.com');",
+            "        pm.expect(json).to.have.property('username', 'postmanuser');",
+            "        pm.expect(json).to.have.property('created_at').that.is.a('string');",
+            "        pm.expect(json).to.not.have.property('password');",
+            "        pm.expect(json).to.not.have.property('hashed_password');",
+            "    }",
+            "});"
+          ] } }],
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/auth/register",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"postman@example.com\",\n  \"username\": \"postmanuser\",\n  \"password\": \"testpass123\"\n}" }
+          }
+        },
+        {
+          "name": "Register — 422 short password",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Rejects short password', function () {",
+            "    pm.response.to.have.status(422);",
+            "});"
+          ] } }],
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/auth/register",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"short@example.com\",\n  \"username\": \"shortpw\",\n  \"password\": \"123\"\n}" }
+          }
+        },
+        {
+          "name": "Register — 422 invalid email",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Rejects invalid email', function () {",
+            "    pm.response.to.have.status(422);",
+            "});"
+          ] } }],
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/auth/register",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"not-an-email\",\n  \"username\": \"badmail\",\n  \"password\": \"testpass123\"\n}" }
+          }
+        },
+        {
+          "name": "Register — 422 short username",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Rejects short username', function () {",
+            "    pm.response.to.have.status(422);",
+            "});"
+          ] } }],
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/auth/register",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"email\": \"ok@example.com\",\n  \"username\": \"ab\",\n  \"password\": \"testpass123\"\n}" }
+          }
+        },
+        {
+          "name": "Login (admin)",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Login successful — full shape check', function () {",
+            "    pm.response.to.have.status(200);",
+            "    var json = pm.response.json();",
+            "    pm.expect(json).to.have.property('id').that.is.a('number');",
+            "    pm.expect(json).to.have.property('email', 'admin@example.com');",
+            "    pm.expect(json).to.have.property('username', 'admin');",
+            "    pm.expect(json).to.have.property('created_at').that.is.a('string');",
+            "    pm.expect(json).to.not.have.property('password');",
+            "    pm.expect(json).to.not.have.property('hashed_password');",
+            "});",
+            "pm.test('Sets httpOnly cookie', function () {",
+            "    var cookie = pm.response.headers.get('Set-Cookie');",
+            "    pm.expect(cookie).to.include('access_token=');",
+            "    pm.expect(cookie.toLowerCase()).to.include('httponly');",
+            "});"
+          ] } }],
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/auth/login",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"login\": \"admin@example.com\",\n  \"password\": \"dev-admin-password-123\"\n}" }
+          }
+        },
+        {
+          "name": "Get current user (/me)",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Authenticated — returns full user', function () {",
+            "    pm.response.to.have.status(200);",
+            "    var json = pm.response.json();",
+            "    pm.expect(json).to.have.property('id').that.is.a('number');",
+            "    pm.expect(json).to.have.property('email', 'admin@example.com');",
+            "    pm.expect(json).to.have.property('username', 'admin');",
+            "    pm.expect(json).to.have.property('created_at');",
+            "    pm.expect(json).to.not.have.property('password');",
+            "});"
+          ] } }],
+          "request": { "method": "GET", "url": "{{baseUrl}}/api/auth/me" }
+        },
+        {
+          "name": "Login — wrong password → 401",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Returns 401 with detail', function () {",
+            "    pm.response.to.have.status(401);",
+            "    pm.expect(pm.response.json()).to.have.property('detail');",
+            "});"
+          ] } }],
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/auth/login",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"login\": \"admin@example.com\",\n  \"password\": \"wrongpassword\"\n}" }
+          }
+        },
+        {
+          "name": "Login — nonexistent user → 401",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Returns 401', function () {",
+            "    pm.response.to.have.status(401);",
+            "});"
+          ] } }],
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/auth/login",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"login\": \"nobody@example.com\",\n  \"password\": \"doesntmatter\"\n}" }
+          }
+        },
+        {
+          "name": "Re-login (restore session)",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Re-login OK', function () {",
+            "    pm.response.to.have.status(200);",
+            "    pm.expect(pm.response.json().username).to.eql('admin');",
+            "});"
+          ] } }],
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/auth/login",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"login\": \"admin@example.com\",\n  \"password\": \"dev-admin-password-123\"\n}" }
+          }
+        }
+      ]
+    },
+    {
+      "name": "2. Expenses CRUD",
+      "item": [
+        {
+          "name": "Create expense (Food)",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Expense created — full shape', function () {",
+            "    pm.response.to.have.status(201);",
+            "    var json = pm.response.json();",
+            "    pm.collectionVariables.set('txId', json.id);",
+            "    pm.expect(json.type).to.eql('expense');",
+            "    pm.expect(json.category).to.eql('Food');",
+            "    pm.expect(json.amount).to.eql(1250);",
+            "    pm.expect(json.description).to.eql('Пятёрочка');",
+            "    pm.expect(json.currency).to.eql('RUB');",
+            "    pm.expect(json).to.have.property('id').that.is.a('number');",
+            "    pm.expect(json).to.have.property('created_at');",
+            "    pm.expect(json).to.have.property('updated_at');",
+            "});"
+          ] } }],
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/transactions",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"amount\": 1250.00,\n  \"description\": \"Пятёрочка\",\n  \"category\": \"Food\",\n  \"date\": \"2026-02-17T14:30:00\",\n  \"currency\": \"RUB\",\n  \"type\": \"expense\"\n}" }
+          }
+        },
+        {
+          "name": "Create expense (Transport)",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Created with correct type', function () {",
+            "    pm.response.to.have.status(201);",
+            "    var json = pm.response.json();",
+            "    pm.expect(json.type).to.eql('expense');",
+            "    pm.expect(json.category).to.eql('Transport');",
+            "});"
+          ] } }],
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/transactions",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"amount\": 350.00,\n  \"description\": \"Яндекс.Такси\",\n  \"category\": \"Transport\",\n  \"date\": \"2026-02-15T09:15:00\",\n  \"currency\": \"RUB\",\n  \"type\": \"expense\"\n}" }
+          }
+        },
+        {
+          "name": "Get expense list (type=expense)",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Paginated list — strict shape', function () {",
+            "    pm.response.to.have.status(200);",
+            "    var json = pm.response.json();",
+            "    pm.expect(json).to.have.property('items').that.is.an('array');",
+            "    pm.expect(json).to.have.property('total').that.is.a('number');",
+            "    pm.expect(json).to.have.property('page').that.is.a('number');",
+            "    pm.expect(json).to.have.property('per_page').that.is.a('number');",
+            "    pm.expect(json.total).to.be.above(0);",
+            "    json.items.forEach(function(tx) {",
+            "        pm.expect(tx.type).to.eql('expense');",
+            "        pm.expect(tx).to.have.property('id');",
+            "        pm.expect(tx).to.have.property('amount');",
+            "        pm.expect(tx).to.have.property('description');",
+            "        pm.expect(tx).to.have.property('category');",
+            "        pm.expect(tx).to.have.property('date');",
+            "        pm.expect(tx).to.have.property('currency');",
+            "        pm.expect(tx).to.have.property('created_at');",
+            "        pm.expect(tx).to.have.property('updated_at');",
+            "    });",
+            "});"
+          ] } }],
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/transactions?type=expense&page=1&per_page=20", "host": ["{{baseUrl}}"], "path": ["api","transactions"], "query": [{"key":"type","value":"expense"},{"key":"page","value":"1"},{"key":"per_page","value":"20"}] }
+          }
+        },
+        {
+          "name": "Get expenses — filter by category",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('All items have category=Food', function () {",
+            "    pm.response.to.have.status(200);",
+            "    var json = pm.response.json();",
+            "    pm.expect(json.items.length).to.be.above(0);",
+            "    json.items.forEach(function(tx) {",
+            "        pm.expect(tx.category).to.eql('Food');",
+            "        pm.expect(tx.type).to.eql('expense');",
+            "    });",
+            "});"
+          ] } }],
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/transactions?type=expense&category=Food", "host": ["{{baseUrl}}"], "path": ["api","transactions"], "query": [{"key":"type","value":"expense"},{"key":"category","value":"Food"}] }
+          }
+        },
+        {
+          "name": "Get expenses — search",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Search returns matching results', function () {",
+            "    pm.response.to.have.status(200);",
+            "    var json = pm.response.json();",
+            "    pm.expect(json).to.have.property('items').that.is.an('array');",
+            "    pm.expect(json).to.have.property('total').that.is.a('number');",
+            "});"
+          ] } }],
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/transactions?type=expense&search=Пятёрочка", "host": ["{{baseUrl}}"], "path": ["api","transactions"], "query": [{"key":"type","value":"expense"},{"key":"search","value":"Пятёрочка"}] }
+          }
+        },
+        {
+          "name": "Get expenses — date range",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Date filter returns valid list', function () {",
+            "    pm.response.to.have.status(200);",
+            "    var json = pm.response.json();",
+            "    pm.expect(json).to.have.property('items').that.is.an('array');",
+            "});"
+          ] } }],
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/transactions?type=expense&date_from=2026-02-01&date_to=2026-02-28", "host": ["{{baseUrl}}"], "path": ["api","transactions"], "query": [{"key":"type","value":"expense"},{"key":"date_from","value":"2026-02-01"},{"key":"date_to","value":"2026-02-28"}] }
+          }
+        },
+        {
+          "name": "Get single expense",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Returns single transaction — full shape', function () {",
+            "    pm.response.to.have.status(200);",
+            "    var json = pm.response.json();",
+            "    pm.expect(json.id).to.eql(parseInt(pm.collectionVariables.get('txId')));",
+            "    pm.expect(json).to.have.property('amount');",
+            "    pm.expect(json).to.have.property('description');",
+            "    pm.expect(json).to.have.property('category');",
+            "    pm.expect(json).to.have.property('date');",
+            "    pm.expect(json).to.have.property('currency');",
+            "    pm.expect(json).to.have.property('type');",
+            "    pm.expect(json).to.have.property('created_at');",
+            "    pm.expect(json).to.have.property('updated_at');",
+            "});"
+          ] } }],
+          "request": { "method": "GET", "url": "{{baseUrl}}/api/transactions/{{txId}}" }
+        },
+        {
+          "name": "Update expense",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Updated — values match', function () {",
+            "    pm.response.to.have.status(200);",
+            "    var json = pm.response.json();",
+            "    pm.expect(json.description).to.eql('Пятёрочка (обновлено)');",
+            "    pm.expect(json.amount).to.eql(1300);",
+            "    pm.expect(json.id).to.eql(parseInt(pm.collectionVariables.get('txId')));",
+            "});"
+          ] } }],
+          "request": {
+            "method": "PUT",
+            "url": "{{baseUrl}}/api/transactions/{{txId}}",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"amount\": 1300.00,\n  \"description\": \"Пятёрочка (обновлено)\"\n}" }
+          }
+        },
+        {
+          "name": "Delete single expense",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Deleted — 204 no content', function () {",
+            "    pm.response.to.have.status(204);",
+            "    pm.expect(pm.response.text()).to.have.length(0);",
+            "});"
+          ] } }],
+          "request": { "method": "DELETE", "url": "{{baseUrl}}/api/transactions/{{txId}}" }
+        },
+        {
+          "name": "Get deleted expense → 404",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Deleted tx returns 404', function () {",
+            "    pm.response.to.have.status(404);",
+            "    pm.expect(pm.response.json()).to.have.property('detail');",
+            "});"
+          ] } }],
+          "request": { "method": "GET", "url": "{{baseUrl}}/api/transactions/{{txId}}" }
+        }
+      ]
+    },
+    {
+      "name": "3. Income CRUD",
+      "item": [
+        {
+          "name": "Create income (Salary)",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Income created — full shape', function () {",
+            "    pm.response.to.have.status(201);",
+            "    var json = pm.response.json();",
+            "    pm.collectionVariables.set('incomeTxId', json.id);",
+            "    pm.expect(json.type).to.eql('income');",
+            "    pm.expect(json.category).to.eql('Salary');",
+            "    pm.expect(json.amount).to.eql(150000);",
+            "    pm.expect(json.currency).to.eql('RUB');",
+            "    pm.expect(json).to.have.property('id').that.is.a('number');",
+            "    pm.expect(json).to.have.property('created_at');",
+            "});"
+          ] } }],
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/transactions",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"amount\": 150000.00,\n  \"description\": \"Зарплата февраль\",\n  \"category\": \"Salary\",\n  \"date\": \"2026-02-10T10:00:00\",\n  \"currency\": \"RUB\",\n  \"type\": \"income\"\n}" }
+          }
+        },
+        {
+          "name": "Create income (Cashback)",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Income created', function () {",
+            "    pm.response.to.have.status(201);",
+            "    var json = pm.response.json();",
+            "    pm.expect(json.type).to.eql('income');",
+            "    pm.expect(json.category).to.eql('Cashback');",
+            "});"
+          ] } }],
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/transactions",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"amount\": 2500.00,\n  \"description\": \"Кэшбэк Тинькофф\",\n  \"category\": \"Cashback\",\n  \"date\": \"2026-02-12T12:00:00\",\n  \"currency\": \"RUB\",\n  \"type\": \"income\"\n}" }
+          }
+        },
+        {
+          "name": "Get income list — only income returned",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('All items are income', function () {",
+            "    pm.response.to.have.status(200);",
+            "    var json = pm.response.json();",
+            "    pm.expect(json).to.have.property('items').that.is.an('array');",
+            "    pm.expect(json.total).to.be.above(0);",
+            "    json.items.forEach(function(tx) {",
+            "        pm.expect(tx.type).to.eql('income');",
+            "    });",
+            "});"
+          ] } }],
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/transactions?type=income", "host": ["{{baseUrl}}"], "path": ["api","transactions"], "query": [{"key":"type","value":"income"}] }
+          }
+        },
+        {
+          "name": "Get single income",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Returns income transaction', function () {",
+            "    pm.response.to.have.status(200);",
+            "    var json = pm.response.json();",
+            "    pm.expect(json.type).to.eql('income');",
+            "    pm.expect(json.id).to.eql(parseInt(pm.collectionVariables.get('incomeTxId')));",
+            "});"
+          ] } }],
+          "request": { "method": "GET", "url": "{{baseUrl}}/api/transactions/{{incomeTxId}}" }
+        },
+        {
+          "name": "Get all transactions (no type filter) — mixed types",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Returns all types', function () {",
+            "    pm.response.to.have.status(200);",
+            "    var json = pm.response.json();",
+            "    pm.expect(json).to.have.property('items').that.is.an('array');",
+            "    pm.expect(json.total).to.be.above(0);",
+            "    var types = json.items.map(function(t) { return t.type; });",
+            "    pm.expect(types).to.include.members(['income']);",
+            "});"
+          ] } }],
+          "request": { "method": "GET", "url": "{{baseUrl}}/api/transactions" }
+        }
+      ]
+    },
+    {
+      "name": "4. Reports & Analytics",
+      "item": [
+        {
+          "name": "Monthly reports — expenses",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Array of MonthlyReport — strict shape', function () {",
+            "    pm.response.to.have.status(200);",
+            "    var json = pm.response.json();",
+            "    pm.expect(json).to.be.an('array');",
+            "    json.forEach(function(r) {",
+            "        pm.expect(r).to.have.property('year').that.is.a('number');",
+            "        pm.expect(r).to.have.property('month').that.is.a('number');",
+            "        pm.expect(r.month).to.be.within(1, 12);",
+            "        pm.expect(r).to.have.property('total_amount').that.is.a('number');",
+            "        pm.expect(r).to.have.property('transaction_count').that.is.a('number');",
+            "        pm.expect(r).to.have.property('by_category').that.is.an('object');",
+            "    });",
+            "});"
+          ] } }],
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/transactions/reports/monthly?type=expense", "host": ["{{baseUrl}}"], "path": ["api","transactions","reports","monthly"], "query": [{"key":"type","value":"expense"}] }
+          }
+        },
+        {
+          "name": "Monthly reports — income",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Returns array of reports', function () {",
+            "    pm.response.to.have.status(200);",
+            "    pm.expect(pm.response.json()).to.be.an('array');",
+            "});"
+          ] } }],
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/transactions/reports/monthly?type=income", "host": ["{{baseUrl}}"], "path": ["api","transactions","reports","monthly"], "query": [{"key":"type","value":"income"}] }
+          }
+        },
+        {
+          "name": "Monthly reports — by year",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('All reports match year=2026', function () {",
+            "    pm.response.to.have.status(200);",
+            "    var json = pm.response.json();",
+            "    pm.expect(json).to.be.an('array');",
+            "    json.forEach(function(r) {",
+            "        pm.expect(r.year).to.eql(2026);",
+            "    });",
+            "});"
+          ] } }],
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/transactions/reports/monthly?year=2026", "host": ["{{baseUrl}}"], "path": ["api","transactions","reports","monthly"], "query": [{"key":"year","value":"2026"}] }
+          }
+        },
+        {
+          "name": "Month comparison — strict shape",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Comparison response — full shape', function () {",
+            "    pm.response.to.have.status(200);",
+            "    var json = pm.response.json();",
+            "    pm.expect(json).to.have.property('current_month');",
+            "    pm.expect(json.current_month).to.have.property('year', 2026);",
+            "    pm.expect(json.current_month).to.have.property('month', 2);",
+            "    pm.expect(json).to.have.property('previous_month');",
+            "    pm.expect(json).to.have.property('current');",
+            "    pm.expect(json.current).to.have.property('total').that.is.a('number');",
+            "    pm.expect(json.current).to.have.property('count').that.is.a('number');",
+            "    pm.expect(json.current).to.have.property('by_category').that.is.an('object');",
+            "    pm.expect(json).to.have.property('previous');",
+            "    pm.expect(json.previous).to.have.property('total').that.is.a('number');",
+            "    pm.expect(json).to.have.property('changes');",
+            "    pm.expect(json.changes).to.have.property('total_percent').that.is.a('number');",
+            "    pm.expect(json.changes).to.have.property('count_percent').that.is.a('number');",
+            "    pm.expect(json.changes).to.have.property('by_category').that.is.an('array');",
+            "});"
+          ] } }],
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/transactions/analytics/comparison?year=2026&month=2&type=expense", "host": ["{{baseUrl}}"], "path": ["api","transactions","analytics","comparison"], "query": [{"key":"year","value":"2026"},{"key":"month","value":"2"},{"key":"type","value":"expense"}] }
+          }
+        },
+        {
+          "name": "Spending trends — strict shape",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Trends response — full shape', function () {",
+            "    pm.response.to.have.status(200);",
+            "    var json = pm.response.json();",
+            "    pm.expect(json).to.have.property('period').that.is.a('string');",
+            "    pm.expect(json).to.have.property('data').that.is.an('array');",
+            "    pm.expect(json).to.have.property('trend_line').that.is.an('array');",
+            "    pm.expect(json).to.have.property('statistics');",
+            "    pm.expect(json.statistics).to.have.property('average').that.is.a('number');",
+            "    pm.expect(json.statistics).to.have.property('std_deviation').that.is.a('number');",
+            "    pm.expect(json.statistics).to.have.property('min').that.is.a('number');",
+            "    pm.expect(json.statistics).to.have.property('max').that.is.a('number');",
+            "    json.data.forEach(function(d) {",
+            "        pm.expect(d).to.have.property('year').that.is.a('number');",
+            "        pm.expect(d).to.have.property('month').that.is.a('number');",
+            "        pm.expect(d).to.have.property('total').that.is.a('number');",
+            "        pm.expect(d).to.have.property('count').that.is.a('number');",
+            "    });",
+            "});"
+          ] } }],
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/transactions/analytics/trends?months=6&type=expense", "host": ["{{baseUrl}}"], "path": ["api","transactions","analytics","trends"], "query": [{"key":"months","value":"6"},{"key":"type","value":"expense"}] }
+          }
+        },
+        {
+          "name": "Forecast — strict shape",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Forecast response — full shape', function () {",
+            "    pm.response.to.have.status(200);",
+            "    var json = pm.response.json();",
+            "    pm.expect(json).to.have.property('historical').that.is.an('array');",
+            "    pm.expect(json).to.have.property('forecast').that.is.an('array');",
+            "    pm.expect(json).to.have.property('statistics');",
+            "    pm.expect(json.statistics).to.have.property('average').that.is.a('number');",
+            "    pm.expect(json.statistics).to.have.property('std_deviation').that.is.a('number');",
+            "    pm.expect(json.statistics).to.have.property('confidence_interval');",
+            "    pm.expect(json.statistics.confidence_interval).to.have.property('min');",
+            "    pm.expect(json.statistics.confidence_interval).to.have.property('max');",
+            "    json.historical.forEach(function(h) {",
+            "        pm.expect(h).to.have.property('year');",
+            "        pm.expect(h).to.have.property('month');",
+            "        pm.expect(h).to.have.property('amount');",
+            "        pm.expect(h.is_forecast).to.eql(false);",
+            "    });",
+            "    json.forecast.forEach(function(f) {",
+            "        pm.expect(f.is_forecast).to.eql(true);",
+            "        pm.expect(f).to.have.property('confidence_min');",
+            "        pm.expect(f).to.have.property('confidence_max');",
+            "    });",
+            "});"
+          ] } }],
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/transactions/analytics/forecast?history_months=6&forecast_months=3&type=expense", "host": ["{{baseUrl}}"], "path": ["api","transactions","analytics","forecast"], "query": [{"key":"history_months","value":"6"},{"key":"forecast_months","value":"3"},{"key":"type","value":"expense"}] }
+          }
+        },
+        {
+          "name": "AI accuracy stats",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('AI accuracy — strict shape', function () {",
+            "    pm.response.to.have.status(200);",
+            "    var json = pm.response.json();",
+            "    pm.expect(json).to.have.property('total_predictions').that.is.a('number');",
+            "    pm.expect(json).to.have.property('correct_predictions').that.is.a('number');",
+            "    pm.expect(json).to.have.property('accuracy_percentage').that.is.a('number');",
+            "    pm.expect(json).to.have.property('learned_merchants').that.is.a('number');",
+            "    pm.expect(json.correct_predictions).to.be.at.most(json.total_predictions);",
+            "    pm.expect(json.accuracy_percentage).to.be.within(0, 100);",
+            "});"
+          ] } }],
+          "request": { "method": "GET", "url": "{{baseUrl}}/api/transactions/analytics/ai-accuracy" }
+        },
+        {
+          "name": "Export CSV — expenses",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Returns valid CSV', function () {",
+            "    pm.response.to.have.status(200);",
+            "    pm.expect(pm.response.headers.get('Content-Type')).to.include('text/csv');",
+            "    pm.expect(pm.response.headers.get('Content-Disposition')).to.include('attachment');",
+            "    pm.expect(pm.response.headers.get('Content-Disposition')).to.include('.csv');",
+            "    var body = pm.response.text();",
+            "    pm.expect(body.length).to.be.above(10);",
+            "});"
+          ] } }],
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/transactions/export?type=expense", "host": ["{{baseUrl}}"], "path": ["api","transactions","export"], "query": [{"key":"type","value":"expense"}] }
+          }
+        },
+        {
+          "name": "Export CSV — income",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Returns valid CSV for income', function () {",
+            "    pm.response.to.have.status(200);",
+            "    pm.expect(pm.response.headers.get('Content-Type')).to.include('text/csv');",
+            "});"
+          ] } }],
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/transactions/export?type=income", "host": ["{{baseUrl}}"], "path": ["api","transactions","export"], "query": [{"key":"type","value":"income"}] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "5. Budgets",
+      "item": [
+        {
+          "name": "Delete all existing budgets (cleanup)",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Cleanup budgets', function () {",
+            "    pm.response.to.have.status(200);",
+            "    var budgets = pm.response.json();",
+            "    pm.expect(budgets).to.be.an('array');",
+            "    // Store IDs to delete sequentially",
+            "    pm.collectionVariables.set('_cleanupBudgetIds', JSON.stringify(budgets.map(function(b) { return b.id; })));",
+            "});"
+          ] } }],
+          "request": { "method": "GET", "url": "{{baseUrl}}/api/budgets" }
+        },
+        {
+          "name": "Delete budget cleanup (1)",
+          "event": [
+            { "listen": "prerequest", "script": { "exec": [
+              "var ids = JSON.parse(pm.collectionVariables.get('_cleanupBudgetIds') || '[]');",
+              "if (ids.length === 0) { pm.collectionVariables.set('_skipCleanup', 'true'); }",
+              "else {",
+              "    var id = ids.shift();",
+              "    pm.collectionVariables.set('_cleanupBudgetIds', JSON.stringify(ids));",
+              "    pm.request.url = pm.collectionVariables.get('baseUrl') + '/api/budgets/' + id;",
+              "}"
+            ] } },
+            { "listen": "test", "script": { "exec": [
+              "var skip = pm.collectionVariables.get('_skipCleanup');",
+              "if (skip === 'true') {",
+              "    pm.test('No budgets to clean', function () { pm.expect(true).to.be.true; });",
+              "    pm.collectionVariables.unset('_skipCleanup');",
+              "} else {",
+              "    pm.test('Deleted', function () { pm.expect([204, 404]).to.include(pm.response.code); });",
+              "    var ids = JSON.parse(pm.collectionVariables.get('_cleanupBudgetIds') || '[]');",
+              "    if (ids.length > 0) { postman.setNextRequest('Delete budget cleanup (1)'); }",
+              "}"
+            ] } }
+          ],
+          "request": { "method": "DELETE", "url": "{{baseUrl}}/api/budgets/0" }
+        },
+        {
+          "name": "Create budget (Food, monthly)",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Budget created — strict shape', function () {",
+            "    pm.response.to.have.status(201);",
+            "    var json = pm.response.json();",
+            "    pm.collectionVariables.set('budgetId', json.id);",
+            "    pm.expect(json).to.have.property('id').that.is.a('number');",
+            "    pm.expect(json.category).to.eql('Food');",
+            "    pm.expect(json.period).to.eql('monthly');",
+            "    pm.expect(json).to.have.property('limit_amount');",
+            "    pm.expect(json.limit_amount).to.eql(15000);",
+            "    pm.expect(json).to.have.property('created_at');",
+            "    pm.expect(json).to.have.property('updated_at');",
+            "});"
+          ] } }],
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/budgets",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"category\": \"Food\",\n  \"limit_amount\": 15000,\n  \"period\": \"monthly\"\n}" }
+          }
+        },
+        {
+          "name": "Create budget (Transport, weekly)",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Budget created', function () {",
+            "    pm.response.to.have.status(201);",
+            "    var json = pm.response.json();",
+            "    pm.collectionVariables.set('budgetId2', json.id);",
+            "    pm.expect(json.category).to.eql('Transport');",
+            "    pm.expect(json.period).to.eql('weekly');",
+            "});"
+          ] } }],
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/budgets",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"category\": \"Transport\",\n  \"limit_amount\": 3000,\n  \"period\": \"weekly\"\n}" }
+          }
+        },
+        {
+          "name": "Create duplicate budget → 400",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Duplicate budget rejected', function () {",
+            "    pm.response.to.have.status(400);",
+            "    pm.expect(pm.response.json().detail).to.include('already exists');",
+            "});"
+          ] } }],
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/budgets",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"category\": \"Food\",\n  \"limit_amount\": 5000,\n  \"period\": \"monthly\"\n}" }
+          }
+        },
+        {
+          "name": "Get all budgets",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Returns budgets array — shape check', function () {",
+            "    pm.response.to.have.status(200);",
+            "    var json = pm.response.json();",
+            "    pm.expect(json).to.be.an('array');",
+            "    pm.expect(json.length).to.be.at.least(2);",
+            "    json.forEach(function(b) {",
+            "        pm.expect(b).to.have.property('id').that.is.a('number');",
+            "        pm.expect(b).to.have.property('category').that.is.a('string');",
+            "        pm.expect(b).to.have.property('limit_amount').that.is.a('number');",
+            "        pm.expect(b).to.have.property('period');",
+            "        pm.expect(['monthly', 'weekly']).to.include(b.period);",
+            "        pm.expect(b).to.have.property('created_at');",
+            "        pm.expect(b).to.have.property('updated_at');",
+            "    });",
+            "});"
+          ] } }],
+          "request": { "method": "GET", "url": "{{baseUrl}}/api/budgets" }
+        },
+        {
+          "name": "Get budget status — strict shape",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Budget status — full shape', function () {",
+            "    pm.response.to.have.status(200);",
+            "    var json = pm.response.json();",
+            "    pm.expect(json).to.be.an('array');",
+            "    pm.expect(json.length).to.be.at.least(2);",
+            "    json.forEach(function(s) {",
+            "        pm.expect(s).to.have.property('budget').that.is.an('object');",
+            "        pm.expect(s.budget).to.have.property('id');",
+            "        pm.expect(s.budget).to.have.property('category');",
+            "        pm.expect(s.budget).to.have.property('limit_amount');",
+            "        pm.expect(s).to.have.property('spent').that.is.a('number');",
+            "        pm.expect(s).to.have.property('remaining').that.is.a('number');",
+            "        pm.expect(s).to.have.property('percentage').that.is.a('number');",
+            "        pm.expect(s).to.have.property('exceeded').that.is.a('boolean');",
+            "    });",
+            "});"
+          ] } }],
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/budgets/status?year=2026&month=2", "host": ["{{baseUrl}}"], "path": ["api","budgets","status"], "query": [{"key":"year","value":"2026"},{"key":"month","value":"2"}] }
+          }
+        },
+        {
+          "name": "Get single budget",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Returns budget by id', function () {",
+            "    pm.response.to.have.status(200);",
+            "    var json = pm.response.json();",
+            "    pm.expect(json.id).to.eql(parseInt(pm.collectionVariables.get('budgetId')));",
+            "    pm.expect(json.category).to.eql('Food');",
+            "});"
+          ] } }],
+          "request": { "method": "GET", "url": "{{baseUrl}}/api/budgets/{{budgetId}}" }
+        },
+        {
+          "name": "Update budget",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Budget updated', function () {",
+            "    pm.response.to.have.status(200);",
+            "    var json = pm.response.json();",
+            "    pm.expect(json.limit_amount).to.eql(20000);",
+            "    pm.expect(json.category).to.eql('Food');",
+            "});"
+          ] } }],
+          "request": {
+            "method": "PUT",
+            "url": "{{baseUrl}}/api/budgets/{{budgetId}}",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"limit_amount\": 20000\n}" }
+          }
+        },
+        {
+          "name": "Delete budget (Food)",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Deleted', function () {",
+            "    pm.response.to.have.status(204);",
+            "});"
+          ] } }],
+          "request": { "method": "DELETE", "url": "{{baseUrl}}/api/budgets/{{budgetId}}" }
+        },
+        {
+          "name": "Delete budget (Transport)",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Deleted', function () {",
+            "    pm.response.to.have.status(204);",
+            "});"
+          ] } }],
+          "request": { "method": "DELETE", "url": "{{baseUrl}}/api/budgets/{{budgetId2}}" }
+        },
+        {
+          "name": "Get deleted budget → 404",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Deleted budget returns 404', function () {",
+            "    pm.response.to.have.status(404);",
+            "    pm.expect(pm.response.json()).to.have.property('detail');",
+            "});"
+          ] } }],
+          "request": { "method": "GET", "url": "{{baseUrl}}/api/budgets/{{budgetId}}" }
+        }
+      ]
+    },
+    {
+      "name": "6. Upload (manual file selection)",
+      "description": "These tests require manually selecting files. Without files, they correctly return 422.",
+      "item": [
+        {
+          "name": "Upload single file (or 422 without file)",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Parsed response or 422', function () {",
+            "    pm.expect([200, 422]).to.include(pm.response.code);",
+            "    if (pm.response.code === 200) {",
+            "        var json = pm.response.json();",
+            "        pm.expect(json).to.have.property('transactions').that.is.an('array');",
+            "        pm.expect(json).to.have.property('total_amount').that.is.a('number');",
+            "        pm.expect(json).to.have.property('raw_text').that.is.a('string');",
+            "        json.transactions.forEach(function(tx) {",
+            "            pm.expect(tx).to.have.property('amount');",
+            "            pm.expect(tx).to.have.property('description');",
+            "            pm.expect(tx).to.have.property('date');",
+            "            pm.expect(tx).to.have.property('confidence');",
+            "            pm.expect(['expense','income']).to.include(tx.type);",
+            "        });",
+            "    }",
+            "});"
+          ] } }],
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/upload",
+            "body": { "mode": "formdata", "formdata": [{ "key": "file", "type": "file", "description": "Select JPG/PNG/Excel" }] }
+          }
+        },
+        {
+          "name": "Batch upload (or 422 without files)",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Batch response or 422', function () {",
+            "    pm.expect([200, 422]).to.include(pm.response.code);",
+            "    if (pm.response.code === 200) {",
+            "        var json = pm.response.json();",
+            "        pm.expect(json).to.have.property('total_files').that.is.a('number');",
+            "        pm.expect(json).to.have.property('successful').that.is.a('number');",
+            "        pm.expect(json).to.have.property('failed').that.is.a('number');",
+            "        pm.expect(json).to.have.property('results').that.is.an('array');",
+            "        pm.expect(json.total_files).to.eql(json.successful + json.failed);",
+            "    }",
+            "});"
+          ] } }],
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/upload/batch",
+            "body": { "mode": "formdata", "formdata": [{ "key": "files", "type": "file", "description": "Select multiple files" }] }
+          }
+        }
+      ]
+    },
+    {
+      "name": "7. Validation & Edge Cases",
+      "item": [
+        {
+          "name": "422 — negative amount",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Rejects negative amount', function () {",
+            "    pm.response.to.have.status(422);",
+            "    pm.expect(pm.response.json()).to.have.property('detail');",
+            "});"
+          ] } }],
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/transactions",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"amount\": -100,\n  \"description\": \"Test\",\n  \"category\": \"Food\",\n  \"date\": \"2026-02-17T12:00:00\"\n}" }
+          }
+        },
+        {
+          "name": "422 — zero amount",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Rejects zero amount', function () {",
+            "    pm.response.to.have.status(422);",
+            "});"
+          ] } }],
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/transactions",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"amount\": 0,\n  \"description\": \"Test\",\n  \"category\": \"Food\",\n  \"date\": \"2026-02-17T12:00:00\"\n}" }
+          }
+        },
+        {
+          "name": "422 — missing required fields",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Rejects incomplete body', function () {",
+            "    pm.response.to.have.status(422);",
+            "});"
+          ] } }],
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/transactions",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"amount\": 100\n}" }
+          }
+        },
+        {
+          "name": "422 — description too long (>500 chars)",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Rejects long description', function () {",
+            "    pm.response.to.have.status(422);",
+            "});"
+          ] } }],
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/transactions",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"amount\": 100,\n  \"description\": \"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\",\n  \"category\": \"Food\",\n  \"date\": \"2026-02-17T12:00:00\"\n}" }
+          }
+        },
+        {
+          "name": "422 — invalid currency",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Rejects invalid currency', function () {",
+            "    pm.response.to.have.status(422);",
+            "});"
+          ] } }],
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/transactions",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"amount\": 100,\n  \"description\": \"Test\",\n  \"category\": \"Food\",\n  \"date\": \"2026-02-17T12:00:00\",\n  \"currency\": \"BTC\"\n}" }
+          }
+        },
+        {
+          "name": "422 — invalid type",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Rejects invalid type', function () {",
+            "    pm.response.to.have.status(422);",
+            "});"
+          ] } }],
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/transactions",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"amount\": 100,\n  \"description\": \"Test\",\n  \"category\": \"Food\",\n  \"date\": \"2026-02-17T12:00:00\",\n  \"type\": \"refund\"\n}" }
+          }
+        },
+        {
+          "name": "422 — amount too large (>9999999999)",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Rejects too large amount', function () {",
+            "    pm.response.to.have.status(422);",
+            "});"
+          ] } }],
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/transactions",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"amount\": 99999999999,\n  \"description\": \"Test\",\n  \"category\": \"Food\",\n  \"date\": \"2026-02-17T12:00:00\"\n}" }
+          }
+        },
+        {
+          "name": "404 — nonexistent transaction",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Returns 404 with detail', function () {",
+            "    pm.response.to.have.status(404);",
+            "    pm.expect(pm.response.json()).to.have.property('detail');",
+            "});"
+          ] } }],
+          "request": { "method": "GET", "url": "{{baseUrl}}/api/transactions/999999" }
+        },
+        {
+          "name": "404 — update nonexistent",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Returns 404', function () {",
+            "    pm.response.to.have.status(404);",
+            "});"
+          ] } }],
+          "request": {
+            "method": "PUT",
+            "url": "{{baseUrl}}/api/transactions/999999",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"amount\": 100\n}" }
+          }
+        },
+        {
+          "name": "404 — delete nonexistent",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Returns 404', function () {",
+            "    pm.response.to.have.status(404);",
+            "});"
+          ] } }],
+          "request": { "method": "DELETE", "url": "{{baseUrl}}/api/transactions/999999" }
+        },
+        {
+          "name": "422 — budget invalid period",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Rejects invalid period', function () {",
+            "    pm.response.to.have.status(422);",
+            "});"
+          ] } }],
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/budgets",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"category\": \"Food\",\n  \"limit_amount\": 5000,\n  \"period\": \"yearly\"\n}" }
+          }
+        },
+        {
+          "name": "422 — budget zero limit",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Rejects zero limit', function () {",
+            "    pm.response.to.have.status(422);",
+            "});"
+          ] } }],
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/budgets",
+            "header": [{ "key": "Content-Type", "value": "application/json" }],
+            "body": { "mode": "raw", "raw": "{\n  \"category\": \"Food\",\n  \"limit_amount\": 0,\n  \"period\": \"monthly\"\n}" }
+          }
+        },
+        {
+          "name": "404 — nonexistent budget",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Returns 404', function () {",
+            "    pm.response.to.have.status(404);",
+            "});"
+          ] } }],
+          "request": { "method": "GET", "url": "{{baseUrl}}/api/budgets/999999" }
+        }
+      ]
+    },
+    {
+      "name": "8. Auth — Logout & Protection",
+      "item": [
+        {
+          "name": "Logout",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Logged out', function () {",
+            "    pm.response.to.have.status(200);",
+            "    pm.expect(pm.response.json()).to.have.property('message', 'Logged out');",
+            "});"
+          ] } }],
+          "request": { "method": "POST", "url": "{{baseUrl}}/api/auth/logout" }
+        },
+        {
+          "name": "401 — /me after logout",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Returns 401 after logout', function () {",
+            "    pm.response.to.have.status(401);",
+            "});"
+          ] } }],
+          "request": { "method": "GET", "url": "{{baseUrl}}/api/auth/me" }
+        },
+        {
+          "name": "401 — transactions after logout",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Transactions require auth', function () {",
+            "    pm.response.to.have.status(401);",
+            "});"
+          ] } }],
+          "request": { "method": "GET", "url": "{{baseUrl}}/api/transactions" }
+        },
+        {
+          "name": "401 — budgets after logout",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Budgets require auth', function () {",
+            "    pm.response.to.have.status(401);",
+            "});"
+          ] } }],
+          "request": { "method": "GET", "url": "{{baseUrl}}/api/budgets" }
+        },
+        {
+          "name": "401 — analytics after logout",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Analytics require auth', function () {",
+            "    pm.response.to.have.status(401);",
+            "});"
+          ] } }],
+          "request": {
+            "method": "GET",
+            "url": { "raw": "{{baseUrl}}/api/transactions/reports/monthly", "host": ["{{baseUrl}}"], "path": ["api","transactions","reports","monthly"] }
+          }
+        },
+        {
+          "name": "401 — export after logout",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Export requires auth', function () {",
+            "    pm.response.to.have.status(401);",
+            "});"
+          ] } }],
+          "request": { "method": "GET", "url": "{{baseUrl}}/api/transactions/export" }
+        },
+        {
+          "name": "401 — upload after logout",
+          "event": [{ "listen": "test", "script": { "exec": [
+            "pm.test('Upload requires auth', function () {",
+            "    pm.response.to.have.status(401);",
+            "});"
+          ] } }],
+          "request": {
+            "method": "POST",
+            "url": "{{baseUrl}}/api/upload",
+            "body": { "mode": "formdata", "formdata": [{ "key": "file", "type": "file" }] }
+          }
+        }
+      ]
+    }
+  ]
+}

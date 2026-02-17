@@ -33,6 +33,7 @@ class Transaction(Base):
     category = Column(String(100), nullable=True, index=True)
     date = Column(DateTime, nullable=False, index=True)
     currency = Column(String(3), nullable=False, default='RUB')
+    type = Column(String(10), nullable=False, default='expense', index=True)
     image_path = Column(String(500), nullable=True)
     raw_text = Column(Text, nullable=True)
     ai_category = Column(String(100), nullable=True)  # Original AI prediction

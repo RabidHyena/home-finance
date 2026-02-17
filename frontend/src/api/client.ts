@@ -3,6 +3,7 @@ import type {
   TransactionCreate,
   TransactionUpdate,
   TransactionList,
+  TransactionType,
   ParsedTransactions,
   MonthlyReport,
   MonthComparisonData,
@@ -95,7 +96,8 @@ export const api = {
     category?: string,
     search?: string,
     dateFrom?: string,
-    dateTo?: string
+    dateTo?: string,
+    type?: TransactionType
   ): Promise<TransactionList> {
     if (USE_MOCK) {
       await delay(300);
@@ -142,6 +144,7 @@ export const api = {
     if (search) params.append('search', search);
     if (dateFrom) params.append('date_from', dateFrom);
     if (dateTo) params.append('date_to', dateTo);
+    if (type) params.append('type', type);
 
     const response = await fetch(`${API_BASE}/api/transactions?${params}`, {
       credentials: 'include',
@@ -174,6 +177,7 @@ export const api = {
         category: data.category || null,
         date: data.date,
         currency: data.currency || 'RUB',
+        type: data.type || 'expense',
         image_path: data.image_path || null,
         raw_text: data.raw_text || null,
         ai_category: data.ai_category || null,
@@ -236,8 +240,25 @@ export const api = {
     await handleResponse<void>(response);
   },
 
+  async deleteAllTransactions(type?: TransactionType): Promise<void> {
+    if (USE_MOCK) {
+      await delay(200);
+      transactions.length = 0;
+      return;
+    }
+
+    const params = new URLSearchParams();
+    if (type) params.append('type', type);
+    const qs = params.toString();
+    const response = await fetch(`${API_BASE}/api/transactions${qs ? `?${qs}` : ''}`, {
+      method: 'DELETE',
+      credentials: 'include',
+    });
+    await handleResponse<void>(response);
+  },
+
   // Reports
-  async getMonthlyReports(year?: number): Promise<MonthlyReport[]> {
+  async getMonthlyReports(year?: number, type?: TransactionType): Promise<MonthlyReport[]> {
     if (USE_MOCK) {
       await delay(300);
       if (year) {
@@ -246,9 +267,12 @@ export const api = {
       return mockMonthlyReports;
     }
 
-    const params = year ? `?year=${year}` : '';
+    const params = new URLSearchParams();
+    if (year) params.append('year', String(year));
+    if (type) params.append('type', type);
+    const qs = params.toString();
     const response = await fetch(
-      `${API_BASE}/api/transactions/reports/monthly${params}`,
+      `${API_BASE}/api/transactions/reports/monthly${qs ? `?${qs}` : ''}`,
       { credentials: 'include' }
     );
     return handleResponse<MonthlyReport[]>(response);
@@ -278,7 +302,8 @@ export const api = {
     category?: string,
     dateFrom?: string,
     dateTo?: string,
-    search?: string
+    search?: string,
+    type?: TransactionType
   ): Promise<Blob> {
     if (USE_MOCK) {
       await delay(500);
@@ -308,6 +333,7 @@ export const api = {
     if (dateFrom) params.append('date_from', dateFrom);
     if (dateTo) params.append('date_to', dateTo);
     if (search) params.append('search', search);
+    if (type) params.append('type', type);
 
     const response = await fetch(`${API_BASE}/api/transactions/export?${params}`, {
       credentials: 'include',
@@ -324,7 +350,7 @@ export const api = {
   },
 
   // Month comparison
-  async getMonthComparison(year: number, month: number): Promise<MonthComparisonData> {
+  async getMonthComparison(year: number, month: number, type?: TransactionType): Promise<MonthComparisonData> {
     if (USE_MOCK) {
       await delay(300);
       // Mock comparison data
@@ -367,15 +393,17 @@ export const api = {
       };
     }
 
+    const params = new URLSearchParams({ year: String(year), month: String(month) });
+    if (type) params.append('type', type);
     const response = await fetch(
-      `${API_BASE}/api/transactions/analytics/comparison?year=${year}&month=${month}`,
+      `${API_BASE}/api/transactions/analytics/comparison?${params}`,
       { credentials: 'include' }
     );
     return handleResponse<MonthComparisonData>(response);
   },
 
   // Spending trends
-  async getSpendingTrends(months = 6): Promise<TrendsData> {
+  async getSpendingTrends(months = 6, type?: TransactionType): Promise<TrendsData> {
     if (USE_MOCK) {
       await delay(300);
       // Mock trends data
@@ -408,8 +436,10 @@ export const api = {
       };
     }
 
+    const params = new URLSearchParams({ months: String(months) });
+    if (type) params.append('type', type);
     const response = await fetch(
-      `${API_BASE}/api/transactions/analytics/trends?months=${months}`,
+      `${API_BASE}/api/transactions/analytics/trends?${params}`,
       { credentials: 'include' }
     );
     return handleResponse<TrendsData>(response);
@@ -565,7 +595,7 @@ export const api = {
   },
 
   // Forecast
-  async getForecast(historyMonths = 6, forecastMonths = 3): Promise<ForecastData> {
+  async getForecast(historyMonths = 6, forecastMonths = 3, type?: TransactionType): Promise<ForecastData> {
     if (USE_MOCK) {
       await delay(300);
       const now = new Date();
@@ -612,8 +642,13 @@ export const api = {
       };
     }
 
+    const params = new URLSearchParams({
+      history_months: String(historyMonths),
+      forecast_months: String(forecastMonths),
+    });
+    if (type) params.append('type', type);
     const response = await fetch(
-      `${API_BASE}/api/transactions/analytics/forecast?history_months=${historyMonths}&forecast_months=${forecastMonths}`,
+      `${API_BASE}/api/transactions/analytics/forecast?${params}`,
       { credentials: 'include' }
     );
     return handleResponse<ForecastData>(response);

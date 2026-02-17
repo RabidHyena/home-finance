@@ -15,7 +15,8 @@ from app.schemas import ParsedTransaction
 
 logger = logging.getLogger(__name__)
 
-VALID_CATEGORIES = {"Food", "Transport", "Entertainment", "Shopping", "Bills", "Health", "Other"}
+VALID_CATEGORIES = {"Food", "Transport", "Entertainment", "Shopping", "Bills", "Health", "Other",
+                     "Salary", "Transfer", "Cashback", "Investment", "OtherIncome"}
 
 DATE_FORMATS = [
     lambda s: datetime.fromisoformat(s),
@@ -218,21 +219,8 @@ If you cannot extract some information, make reasonable assumptions and lower th
 
     def _apply_learned_category(self, description: str, category: str, confidence: float) -> tuple[str, float]:
         """Override category with learned mapping if available and more confident."""
-        if not self.db or not self.user_id:
-            return category, confidence
-
-        from app.services.learning_service import get_learned_category
-        learned = get_learned_category(self.db, description, self.user_id)
-        if learned:
-            learned_category, learned_confidence = learned
-            if float(learned_confidence) > confidence:
-                logger.debug(
-                    "Overriding category '%s' (%.2f) with learned '%s' (%.2f) for '%s'",
-                    category, confidence, learned_category, float(learned_confidence), description,
-                )
-                return learned_category, float(learned_confidence)
-
-        return category, confidence
+        from app.services.learning_service import apply_learned_category
+        return apply_learned_category(self.db, self.user_id, description, category, confidence)
 
     def _parse_single_tx(self, data: dict) -> ParsedTransaction | None:
         """Parse a single transaction dict into ParsedTransaction."""

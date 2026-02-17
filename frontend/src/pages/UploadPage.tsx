@@ -67,10 +67,10 @@ export function UploadPage() {
         if (result) {
           setStep('review');
           storeOriginalPredictions(result.transactions);
-          toast.success('Скриншот распознан');
+          toast.success('Файл распознан');
         }
       } catch (e) {
-        toast.error(e instanceof Error ? e.message : 'Не удалось распознать скриншот');
+        toast.error(e instanceof Error ? e.message : 'Не удалось распознать файл');
       }
     }
   };
@@ -86,6 +86,7 @@ export function UploadPage() {
           category: tx.category,
           date: tx.date,
           currency: tx.currency,
+          type: tx.type || 'expense' as const,
           image_path: tx.image_path,
           raw_text: tx.raw_text,
           ai_category: original?.category ?? tx.category,
@@ -166,7 +167,7 @@ export function UploadPage() {
     <ErrorBoundary>
       <div>
         <h1 style={{ fontSize: '1.5rem', fontWeight: 600, marginBottom: '1.5rem' }}>
-          {step === 'upload' && 'Загрузить скриншот'}
+          {step === 'upload' && 'Загрузить файл'}
           {step === 'review' && 'Проверьте данные'}
           {step === 'success' && 'Готово!'}
         </h1>
@@ -214,8 +215,8 @@ export function UploadPage() {
                 color: 'var(--color-text-secondary)',
               }}
             >
-              <li>Загрузите один или несколько скриншотов из банковского приложения</li>
-              <li>AI распознает сумму, описание и дату</li>
+              <li>Загрузите скриншоты или Excel-выписки из банковского приложения</li>
+              <li>AI распознает сумму, описание и категорию</li>
               <li>Проверьте и при необходимости исправьте данные</li>
               <li>Сохраните транзакции</li>
             </ol>
@@ -351,7 +352,7 @@ export function UploadPage() {
               color: 'var(--color-text-secondary)',
             }}
           >
-            Вы можете загрузить ещё скриншот или перейти к списку транзакций
+            Вы можете загрузить ещё файл или перейти к списку транзакций
           </p>
           <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
             <button className="btn btn-secondary" onClick={handleReset}>

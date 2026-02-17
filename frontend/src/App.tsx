@@ -2,7 +2,7 @@ import { BrowserRouter, Routes, Route } from 'react-router-dom';
 import { QueryClient, QueryClientProvider } from '@tanstack/react-query';
 import { Layout, ToastProvider, ProtectedRoute, ErrorBoundary } from './components';
 import { AuthProvider } from './contexts/AuthContext';
-import { HomePage, UploadPage, TransactionsPage, ReportsPage, BudgetsPage, LoginPage, RegisterPage } from './pages';
+import { HomePage, UploadPage, TransactionsPage, IncomePage, ReportsPage, BudgetsPage, LoginPage, RegisterPage } from './pages';
 
 export const queryClient = new QueryClient({
   defaultOptions: {
@@ -49,6 +49,16 @@ function App() {
                   <ProtectedRoute>
                     <Layout>
                       <TransactionsPage />
+                    </Layout>
+                  </ProtectedRoute>
+                }
+              />
+              <Route
+                path="/income"
+                element={
+                  <ProtectedRoute>
+                    <Layout>
+                      <IncomePage />
                     </Layout>
                   </ProtectedRoute>
                 }

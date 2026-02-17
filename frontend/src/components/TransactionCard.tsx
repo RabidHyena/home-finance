@@ -1,8 +1,8 @@
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import { Trash2, Edit2 } from 'lucide-react';
-import type { Transaction, Category, Currency } from '../types';
-import { CATEGORY_COLORS, CATEGORY_LABELS, CURRENCY_SYMBOLS } from '../types';
+import type { Transaction, Category, IncomeCategory, Currency } from '../types';
+import { CATEGORY_COLORS, CATEGORY_LABELS, INCOME_CATEGORY_COLORS, INCOME_CATEGORY_LABELS, CURRENCY_SYMBOLS } from '../types';
 
 interface TransactionCardProps {
   transaction: Transaction;
@@ -15,9 +15,14 @@ export function TransactionCard({
   onEdit,
   onDelete,
 }: TransactionCardProps) {
-  const category = transaction.category as Category | null;
-  const categoryColor = category ? CATEGORY_COLORS[category] : '#6b7280';
-  const categoryLabel = category ? CATEGORY_LABELS[category] : 'Без категории';
+  const isIncome = transaction.type === 'income';
+  const category = transaction.category as (Category & IncomeCategory) | null;
+  const categoryColor = category
+    ? (isIncome ? INCOME_CATEGORY_COLORS[category as IncomeCategory] : CATEGORY_COLORS[category as Category]) || '#6b7280'
+    : '#6b7280';
+  const categoryLabel = category
+    ? (isIncome ? INCOME_CATEGORY_LABELS[category as IncomeCategory] : CATEGORY_LABELS[category as Category]) || category
+    : 'Без категории';
 
   return (
     <div
@@ -92,10 +97,10 @@ export function TransactionCard({
                 margin: 0,
                 fontWeight: 600,
                 fontSize: '1.125rem',
-                color: 'var(--color-danger)',
+                color: isIncome ? '#16a34a' : 'var(--color-danger)',
               }}
             >
-              -{transaction.amount.toLocaleString('ru-RU')} {CURRENCY_SYMBOLS[transaction.currency as Currency] || '₽'}
+              {isIncome ? '+' : '-'}{transaction.amount.toLocaleString('ru-RU')} {CURRENCY_SYMBOLS[transaction.currency as Currency] || '₽'}
             </p>
           </div>
         </div>

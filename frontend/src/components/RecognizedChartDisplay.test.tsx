@@ -26,9 +26,11 @@ describe('RecognizedChartDisplay', () => {
         />
       );
 
-      const dateInput = screen.getByDisplayValue(/2024-01/);
-      expect(dateInput).toHaveAttribute('type', 'datetime-local');
-      expect((dateInput as HTMLInputElement).value).toMatch(/^2024-01-01/);
+      // Component now renders two date inputs (start and end)
+      const dateInputs = screen.getAllByDisplayValue(/2024-01/);
+      expect(dateInputs.length).toBeGreaterThanOrEqual(1);
+      expect(dateInputs[0]).toHaveAttribute('type', 'date');
+      expect((dateInputs[0] as HTMLInputElement).value).toBe('2024-01-01');
     });
 
     it('parses Russian month "Ноябрь 2025"', () => {
@@ -40,8 +42,9 @@ describe('RecognizedChartDisplay', () => {
         />
       );
 
-      const dateInput = screen.getByDisplayValue(/2025-11/);
-      expect((dateInput as HTMLInputElement).value).toMatch(/^2025-11-01/);
+      const dateInputs = screen.getAllByDisplayValue(/2025-11/);
+      expect(dateInputs.length).toBeGreaterThanOrEqual(1);
+      expect((dateInputs[0] as HTMLInputElement).value).toMatch(/^2025-11/);
     });
 
     it('parses Russian genitive "ноября 2025"', () => {
@@ -53,8 +56,9 @@ describe('RecognizedChartDisplay', () => {
         />
       );
 
-      const dateInput = screen.getByDisplayValue(/2025-11/);
-      expect((dateInput as HTMLInputElement).value).toMatch(/^2025-11-01/);
+      const dateInputs = screen.getAllByDisplayValue(/2025-11/);
+      expect(dateInputs.length).toBeGreaterThanOrEqual(1);
+      expect((dateInputs[0] as HTMLInputElement).value).toMatch(/^2025-11/);
     });
 
     it('parses English month "January 2024" via Date fallback', () => {
@@ -66,8 +70,8 @@ describe('RecognizedChartDisplay', () => {
         />
       );
 
-      const dateInput = screen.getByDisplayValue(/2024-01/);
-      expect(dateInput).toBeInTheDocument();
+      const dateInputs = screen.getAllByDisplayValue(/2024-01/);
+      expect(dateInputs.length).toBeGreaterThanOrEqual(1);
     });
 
     it('defaults to today when period is undefined', () => {
@@ -81,8 +85,8 @@ describe('RecognizedChartDisplay', () => {
 
       const today = new Date();
       const yearMonth = `${today.getFullYear()}-${String(today.getMonth() + 1).padStart(2, '0')}`;
-      const dateInput = screen.getByDisplayValue(new RegExp(yearMonth));
-      expect(dateInput).toBeInTheDocument();
+      const dateInputs = screen.getAllByDisplayValue(new RegExp(yearMonth));
+      expect(dateInputs.length).toBeGreaterThanOrEqual(1);
     });
   });
 
@@ -95,17 +99,17 @@ describe('RecognizedChartDisplay', () => {
         />
       );
 
-      expect(screen.getByText('Дата:')).toBeInTheDocument();
-      expect(screen.getByDisplayValue(/2024-03-01/)).toBeInTheDocument();
+      expect(screen.getByText('Период:')).toBeInTheDocument();
+      expect(screen.getByDisplayValue('2024-03-01')).toBeInTheDocument();
     });
 
     it('does not show date picker when onCreateTransactions is not provided', () => {
       render(<RecognizedChartDisplay chart={makeChart({ period: 'Март 2024' })} />);
 
-      expect(screen.queryByText('Дата:')).not.toBeInTheDocument();
+      expect(screen.queryByText('Период:')).not.toBeInTheDocument();
     });
 
-    it('allows changing the date', () => {
+    it('allows changing the start date', () => {
       render(
         <RecognizedChartDisplay
           chart={makeChart({ period: 'Июнь 2024' })}
@@ -113,9 +117,9 @@ describe('RecognizedChartDisplay', () => {
         />
       );
 
-      const dateInput = screen.getByDisplayValue(/2024-06-01/);
-      fireEvent.change(dateInput, { target: { value: '2024-07-15T10:00' } });
-      expect(screen.getByDisplayValue('2024-07-15T10:00')).toBeInTheDocument();
+      const startInput = screen.getByDisplayValue('2024-06-01');
+      fireEvent.change(startInput, { target: { value: '2024-07-15' } });
+      expect(screen.getByDisplayValue('2024-07-15')).toBeInTheDocument();
     });
   });
 
@@ -154,8 +158,12 @@ describe('RecognizedChartDisplay', () => {
         />
       );
 
-      const dateInput = screen.getByDisplayValue(/2024-02-01/);
-      fireEvent.change(dateInput, { target: { value: '2024-12-31T23:59' } });
+      const startInput = screen.getByDisplayValue('2024-02-01');
+      fireEvent.change(startInput, { target: { value: '2024-12-31' } });
+
+      // Also set end date to match so distribution stays in Dec
+      const endInput = screen.getByDisplayValue(/2024-02/);
+      fireEvent.change(endInput, { target: { value: '2024-12-31' } });
 
       fireEvent.click(screen.getByText(/Создать транзакции/));
 

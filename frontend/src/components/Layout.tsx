@@ -1,5 +1,5 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
-import { Home, Upload, List, BarChart3, Wallet, PiggyBank, LogOut } from 'lucide-react';
+import { Home, Upload, List, TrendingUp, BarChart3, Wallet, PiggyBank, LogOut } from 'lucide-react';
 import { OfflineIndicator } from './OfflineIndicator';
 import { useAuth } from '../contexts/AuthContext';
 
@@ -10,7 +10,8 @@ interface LayoutProps {
 const navItems = [
   { path: '/', icon: Home, label: 'Главная' },
   { path: '/upload', icon: Upload, label: 'Загрузить' },
-  { path: '/transactions', icon: List, label: 'Транзакции' },
+  { path: '/transactions', icon: List, label: 'Расходы' },
+  { path: '/income', icon: TrendingUp, label: 'Доходы' },
   { path: '/reports', icon: BarChart3, label: 'Отчёты' },
   { path: '/budgets', icon: PiggyBank, label: 'Бюджеты' },
 ];

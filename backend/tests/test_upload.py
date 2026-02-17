@@ -69,7 +69,7 @@ class TestUploadValidation:
             files={"file": ("test.txt", b"hello", "text/plain")},
         )
         assert resp.status_code == 400
-        assert "Invalid file type" in resp.json()["detail"]
+        assert "Unsupported file type" in resp.json()["detail"]
 
     def test_rejects_invalid_magic_bytes(self, auth_client):
         resp = auth_client.post(
@@ -77,7 +77,7 @@ class TestUploadValidation:
             files={"file": ("test.jpg", b"\x00\x01\x02\x03" * 100, "image/jpeg")},
         )
         assert resp.status_code == 400
-        assert "not a valid image" in resp.json()["detail"]
+        assert "Unsupported file type" in resp.json()["detail"]
 
     @patch("app.routers.upload.get_settings")
     def test_rejects_oversized_file(self, mock_settings, auth_client):

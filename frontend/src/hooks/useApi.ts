@@ -1,6 +1,6 @@
 import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { api } from '../api/client';
-import type { TransactionCreate, TransactionUpdate, BudgetCreate, BudgetUpdate } from '../types';
+import type { TransactionCreate, TransactionUpdate, TransactionType, BudgetCreate, BudgetUpdate } from '../types';
 
 // Query keys
 const keys = {
@@ -10,10 +10,10 @@ const keys = {
 
 // --- Queries ---
 
-export function useTransactions(page = 1, perPage = 20, category?: string) {
+export function useTransactions(page = 1, perPage = 20, category?: string, type?: TransactionType) {
   return useQuery({
-    queryKey: [...keys.transactions, page, perPage, category],
-    queryFn: () => api.getTransactions(page, perPage, category),
+    queryKey: [...keys.transactions, page, perPage, category, type],
+    queryFn: () => api.getTransactions(page, perPage, category, undefined, undefined, undefined, type),
   });
 }
 
@@ -22,12 +22,13 @@ export function useInfiniteTransactions(
   category?: string,
   search?: string,
   dateFrom?: string,
-  dateTo?: string
+  dateTo?: string,
+  type?: TransactionType
 ) {
   return useInfiniteQuery({
-    queryKey: [...keys.transactions, 'infinite', perPage, category, search, dateFrom, dateTo],
+    queryKey: [...keys.transactions, 'infinite', perPage, category, search, dateFrom, dateTo, type],
     queryFn: ({ pageParam = 1 }) =>
-      api.getTransactions(pageParam, perPage, category, search, dateFrom, dateTo),
+      api.getTransactions(pageParam, perPage, category, search, dateFrom, dateTo, type),
     initialPageParam: 1,
     getNextPageParam: (lastPage) => {
       const totalPages = Math.ceil(lastPage.total / lastPage.per_page);
@@ -43,24 +44,24 @@ export function useTransaction(id: number) {
   });
 }
 
-export function useMonthlyReports(year?: number) {
+export function useMonthlyReports(year?: number, type?: TransactionType) {
   return useQuery({
-    queryKey: [...keys.reports, year],
-    queryFn: () => api.getMonthlyReports(year),
+    queryKey: [...keys.reports, year, type],
+    queryFn: () => api.getMonthlyReports(year, type),
   });
 }
 
-export function useMonthComparison(year: number, month: number) {
+export function useMonthComparison(year: number, month: number, type?: TransactionType) {
   return useQuery({
-    queryKey: ['month-comparison', year, month],
-    queryFn: () => api.getMonthComparison(year, month),
+    queryKey: ['month-comparison', year, month, type],
+    queryFn: () => api.getMonthComparison(year, month, type),
   });
 }
 
-export function useSpendingTrends(months = 6) {
+export function useSpendingTrends(months = 6, type?: TransactionType) {
   return useQuery({
-    queryKey: ['spending-trends', months],
-    queryFn: () => api.getSpendingTrends(months),
+    queryKey: ['spending-trends', months, type],
+    queryFn: () => api.getSpendingTrends(months, type),
   });
 }
 
@@ -116,10 +117,10 @@ export function useDeleteBudget() {
 
 // --- Forecast ---
 
-export function useForecast(historyMonths = 6, forecastMonths = 3) {
+export function useForecast(historyMonths = 6, forecastMonths = 3, type?: TransactionType) {
   return useQuery({
-    queryKey: ['forecast', historyMonths, forecastMonths],
-    queryFn: () => api.getForecast(historyMonths, forecastMonths),
+    queryKey: ['forecast', historyMonths, forecastMonths, type],
+    queryFn: () => api.getForecast(historyMonths, forecastMonths, type),
   });
 }
 
@@ -152,6 +153,17 @@ export function useDeleteTransaction() {
   const qc = useQueryClient();
   return useMutation({
     mutationFn: (id: number) => api.deleteTransaction(id),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: keys.transactions });
+      qc.invalidateQueries({ queryKey: keys.reports });
+    },
+  });
+}
+
+export function useDeleteAllTransactions() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (type?: TransactionType) => api.deleteAllTransactions(type),
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: keys.transactions });
       qc.invalidateQueries({ queryKey: keys.reports });

@@ -244,7 +244,7 @@ class TestUploadValidation:
             files={"file": ("test.txt", file, "text/plain")},
         )
         assert resp.status_code == 400
-        assert "Invalid file type" in resp.json()["detail"]
+        assert "Unsupported file type" in resp.json()["detail"]
 
     def test_upload_invalid_file_type_pdf(self, auth_client):
         file = io.BytesIO(b"%PDF-1.4 fake pdf content")
