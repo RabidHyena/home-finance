@@ -7,12 +7,10 @@ export function OfflineIndicator() {
   useEffect(() => {
     const handleOnline = () => {
       setIsOnline(true);
-      console.log('🟢 Online');
     };
 
     const handleOffline = () => {
       setIsOnline(false);
-      console.log('🔴 Offline');
     };
 
     window.addEventListener('online', handleOnline);

@@ -41,6 +41,10 @@ uploads/*
 .DS_Store
 Thumbs.db
 
+# Caches
+.cache/
+.local/
+
 # Testing
 .coverage
 htmlcov/

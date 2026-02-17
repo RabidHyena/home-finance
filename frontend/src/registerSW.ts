@@ -7,11 +7,8 @@ export function registerServiceWorker() {
         updateSW(true);
       }
     },
-    onOfflineReady() {
-      console.log('App ready to work offline');
-    },
-    onRegisteredSW(swUrl, registration) {
-      console.log('SW registered:', swUrl);
+    onOfflineReady() {},
+    onRegisteredSW(_swUrl, registration) {
       // Check for updates every hour
       if (registration) {
         setInterval(() => {
@@ -19,8 +16,6 @@ export function registerServiceWorker() {
         }, 60 * 60 * 1000);
       }
     },
-    onRegisterError(error) {
-      console.error('SW registration failed:', error);
-    },
+    onRegisterError() {},
   });
 }

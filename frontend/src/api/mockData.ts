@@ -1,4 +1,4 @@
-import type { Transaction, MonthlyReport, ParsedTransaction, ParsedTransactions, ParsedChart } from '../types';
+import type { Transaction, MonthlyReport, ParsedTransactions, ParsedChart } from '../types';
 
 // Mock transactions data
 export const mockTransactions: Transaction[] = [
@@ -200,19 +200,8 @@ export const mockMonthlyReports: MonthlyReport[] = [
   },
 ];
 
-// Mock parsed transaction (simulates AI response)
-export const mockParsedTransaction: ParsedTransaction = {
-  amount: 1599.00,
-  description: 'Лента',
-  date: new Date().toISOString(),
-  category: 'Food',
-  currency: 'RUB',
-  raw_text: 'Распознано: Лента, 1599.00 руб',
-  confidence: 0.92,
-};
-
 // Mock parsed chart (chart data from screenshot)
-export const mockParsedChart: ParsedChart = {
+const mockParsedChart: ParsedChart = {
   type: 'pie',
   categories: [
     { name: 'Еда', value: 12500.50, percentage: 45.2 },

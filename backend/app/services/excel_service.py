@@ -1,5 +1,4 @@
 import io
-import json
 import logging
 import re
 from datetime import datetime
@@ -12,12 +11,9 @@ from sqlalchemy.orm import Session
 from app.config import get_settings
 from app.schemas import ParsedTransaction
 from app.services.ocr_service import (
-    VALID_CATEGORIES,
-    _clamp_confidence,
     _extract_json,
     _normalize_category,
     _parse_date,
-    _strip_markdown_fences,
 )
 
 logger = logging.getLogger(__name__)
