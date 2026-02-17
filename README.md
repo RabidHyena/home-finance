@@ -7,10 +7,12 @@
 - **Аутентификация**: регистрация, вход, JWT-токены в httpOnly cookies (bcrypt + PyJWT)
 - **Мультипользовательность**: изоляция данных между пользователями (user_id FK)
 - **Безопасность**: CORS, CSP headers, rate limiting (auth, configurable), magic byte валидация файлов, CSV sanitization, SECRET_KEY enforcement, input sanitization (null bytes, HTML, control chars), amount/date range validation
+- **Расходы и доходы**: тип транзакции (expense/income) с раздельными категориями и фильтрацией
 - Загрузка скриншотов банковских приложений (одиночная и пакетная до 10 штук)
+- Импорт выписок из Excel (.xlsx, .xls)
 - AI-распознавание транзакций и диаграмм (Gemini 3 Flash через OpenRouter)
 - Авто-категоризация с обучением на исправлениях пользователя
-- CRUD транзакций с поиском, фильтрами по датам и категориям
+- CRUD транзакций с поиском, фильтрами по датам, категориям и типу
 - Мультивалютность (RUB, USD, EUR, GBP)
 - Экспорт в CSV
 - Бюджеты по категориям (месячные/недельные) с уведомлениями о превышении
@@ -99,7 +101,7 @@ npm run dev
 ### Тесты
 
 ```bash
-# Backend (157 тестов: auth, CRUD, аналитика, бюджеты, OCR, обучение, валидация, upload, rate limiter)
+# Backend (158 тестов: auth, CRUD, доходы/расходы, аналитика, бюджеты, OCR, обучение, валидация, upload, rate limiter)
 # Запуск в Docker контейнере:
 docker compose exec -e DEBUG=true backend python -m pytest tests/ -v
 
@@ -122,18 +124,19 @@ home-finance/
 │   │   ├── schemas.py           # Pydantic схемы (sanitization, validation)
 │   │   ├── routers/
 │   │   │   ├── auth.py          # Регистрация, вход, выход, configurable rate limiter
-│   │   │   ├── transactions.py  # CRUD + аналитика + экспорт
-│   │   │   ├── upload.py        # Загрузка скриншотов (magic byte validation)
+│   │   │   ├── transactions.py  # CRUD + аналитика + экспорт (expense/income)
+│   │   │   ├── upload.py        # Загрузка скриншотов и Excel (magic byte validation)
 │   │   │   └── budgets.py       # Бюджеты (bulk SQL queries)
 │   │   ├── dependencies.py      # get_current_user
 │   │   ├── schemas_auth.py      # Auth схемы
 │   │   └── services/
 │   │       ├── auth_service.py  # JWT (PyJWT), bcrypt
 │   │       ├── ocr_service.py   # Gemini Vision через OpenRouter
+│   │       ├── excel_service.py # Парсинг банковских выписок Excel
 │   │       ├── learning_service.py  # Обучение категоризации
 │   │       └── merchant_normalization.py
 │   ├── alembic/                 # Миграции БД
-│   ├── tests/                   # 157 тестов (pytest)
+│   ├── tests/                   # 158 тестов (pytest)
 │   │   ├── conftest.py          # Фикстуры (in-memory SQLite)
 │   │   ├── test_auth.py         # Auth, data isolation
 │   │   ├── test_transactions.py # CRUD, поиск, фильтры, CSV
@@ -166,8 +169,7 @@ home-finance/
 ├── docs/
 │   ├── REQUIREMENTS.md
 │   ├── ARCHITECTURE.md
-│   ├── API.md
-│   └── Home_Finance_API.postman_collection.json
+│   └── API.md
 ├── docker-compose.yml
 ├── ROADMAP.md
 └── README.md
@@ -188,11 +190,12 @@ home-finance/
 
 | Метод | URL | Описание |
 |-------|-----|----------|
-| POST | `/api/transactions` | Создать транзакцию |
-| GET | `/api/transactions` | Список (пагинация, поиск, фильтры) |
+| POST | `/api/transactions` | Создать транзакцию (expense/income) |
+| GET | `/api/transactions` | Список (пагинация, поиск, фильтры, type) |
 | GET | `/api/transactions/{id}` | Получить по ID |
 | PUT | `/api/transactions/{id}` | Обновить |
 | DELETE | `/api/transactions/{id}` | Удалить |
+| DELETE | `/api/transactions` | Удалить все (с фильтром по type) |
 | GET | `/api/transactions/reports/monthly` | Отчёт по месяцам |
 | GET | `/api/transactions/analytics/comparison` | Сравнение месяцев |
 | GET | `/api/transactions/analytics/trends` | Тренды расходов |
@@ -204,7 +207,7 @@ home-finance/
 
 | Метод | URL | Описание |
 |-------|-----|----------|
-| POST | `/api/upload` | Загрузить и распознать скриншот (транзакции + диаграммы) |
+| POST | `/api/upload` | Загрузить и распознать скриншот или Excel выписку |
 | POST | `/api/upload/parse-only` | Только распознать |
 | POST | `/api/upload/batch` | Пакетная загрузка (до 10) |
 
@@ -220,31 +223,16 @@ home-finance/
 
 ## Тестирование API (Postman)
 
-### Быстрый старт
+Strict Postman collection: `postman_collection.json` в корне проекта.
 
-1. **Импортируйте collection:**
-   ```
-   Postman → File → Import → docs/Home_Finance_API.postman_collection.json
-   ```
-
-2. **Выполните Login:**
-   ```
-   Auth → Login → Send
-   ```
-   В консоли Postman должно появиться: `✅ Access token saved`
-
-3. **Тестируйте API:**
-   - Create Transaction → Send (201 Created)
-   - Get Transactions → Send (200 OK)
-   - И т.д.
+1. **Импортируйте:** Postman → File → Import → `postman_collection.json`
+2. **Запускайте папки 1→8 по порядку**
 
 **Collection включает:**
-- 21 защищённых endpoint с автоматической аутентификацией
-- Pre-request scripts для автоматической передачи JWT токенов
-- Автоматические тесты для всех запросов
-- Проверки безопасности (httpOnly cookies, headers)
-
-Подробнее: [POSTMAN_GUIDE.md](docs/POSTMAN_GUIDE.md)
+- 55 запросов в 8 папках
+- Strict response shape validation на каждый endpoint
+- Idempotent — безопасно запускать многократно
+- Покрытие: auth, CRUD (расходы + доходы), аналитика, бюджеты, upload, валидация (422/404), auth protection (401)
 
 ## Документация
 
@@ -253,9 +241,8 @@ home-finance/
 | [REQUIREMENTS.md](docs/REQUIREMENTS.md) | Функциональные и нефункциональные требования |
 | [ARCHITECTURE.md](docs/ARCHITECTURE.md) | Архитектура, стек, схемы потоков данных |
 | [API.md](docs/API.md) | REST API с примерами |
-| [POSTMAN_GUIDE.md](docs/POSTMAN_GUIDE.md) | Гайд по тестированию API в Postman |
 | [ROADMAP.md](ROADMAP.md) | План развития |
-| [Postman Collection](docs/Home_Finance_API.postman_collection.json) | Полный набор API запросов с тестами |
+| [Postman Collection](postman_collection.json) | 55 запросов с strict validation |
 
 ## Лицензия
 

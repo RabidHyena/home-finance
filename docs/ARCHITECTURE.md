@@ -66,7 +66,7 @@
 │  ┌──────────────────────────────────────────────────────────┐  │
 │  │  users (email, username, hashed_password, ...)           │  │
 │  ├──────────────────────────────────────────────────────────┤  │
-│  │  transactions (user_id FK, amount, description, ...)     │  │
+│  │  transactions (user_id FK, amount, type, description, ...)│  │
 │  ├──────────────────────────────────────────────────────────┤  │
 │  │  budgets (user_id FK, category, limit_amount, period)    │  │
 │  ├──────────────────────────────────────────────────────────┤  │
@@ -115,6 +115,8 @@
 | OpenAI SDK | 1.x | OpenRouter API (совместимый клиент) |
 | PyJWT | 2.9.x | JWT токены |
 | bcrypt | 4.2.x | Хеширование паролей |
+| openpyxl | 3.1.x | Парсинг Excel (.xlsx) |
+| xlrd | 2.0.x | Парсинг Excel (.xls) |
 
 ### 2.3 Infrastructure
 
@@ -140,18 +142,19 @@ home-finance/
 │   │   ├── schemas.py           # Pydantic схемы (sanitization, validation)
 │   │   ├── routers/
 │   │   │   ├── auth.py          # Регистрация, вход, выход, configurable rate limiter
-│   │   │   ├── transactions.py  # CRUD + аналитика + экспорт
-│   │   │   ├── upload.py        # Загрузка скриншотов
+│   │   │   ├── transactions.py  # CRUD + аналитика + экспорт (expense/income)
+│   │   │   ├── upload.py        # Загрузка скриншотов и Excel выписок
 │   │   │   └── budgets.py       # Бюджеты
 │   │   ├── dependencies.py      # get_current_user
 │   │   ├── schemas_auth.py      # Auth Pydantic схемы
 │   │   └── services/
 │   │       ├── auth_service.py  # JWT, bcrypt, user CRUD
 │   │       ├── ocr_service.py   # Gemini Vision через OpenRouter
+│   │       ├── excel_service.py # Парсинг банковских выписок Excel
 │   │       ├── learning_service.py  # Обучение категоризации
 │   │       └── merchant_normalization.py  # Нормализация названий
 │   ├── alembic/                 # Миграции БД
-│   ├── tests/                   # 157 тестов (pytest)
+│   ├── tests/                   # 158 тестов (pytest)
 │   │   ├── conftest.py          # Фикстуры (in-memory SQLite, auth)
 │   │   ├── test_auth.py         # Auth, registration, data isolation
 │   │   ├── test_transactions.py # CRUD, поиск, фильтры, валюта, CSV экспорт
@@ -186,8 +189,7 @@ home-finance/
 │   ├── REQUIREMENTS.md          # Функциональные требования
 │   ├── ARCHITECTURE.md          # Архитектура (этот файл)
 │   ├── API.md                   # REST API документация
-│   ├── PHASE_4.5_PLAN.md       # План PWA (завершён)
-│   └── Home_Finance_API.postman_collection.json  # Postman (64 запроса, 163 assertion)
+│   └── API.md                   # REST API документация
 │
 ├── docker-compose.yml           # Оркестрация контейнеров
 ├── .env.example                 # Шаблон переменных окружения
@@ -327,7 +329,7 @@ home-finance/
 | CORS | Ограниченные методы (GET, POST, PUT, DELETE, OPTIONS) и заголовки (Content-Type, Authorization) |
 | CSRF | SameSite=Lax cookies |
 | Валидация | Pydantic schemas, EmailStr, amount 0.01–9999999999, date range 2000–2100 |
-| File Upload | Magic byte валидация + MIME type + расширение (.jpg, .jpeg, .png, .gif, .webp), ограничение 10MB |
+| File Upload | Magic byte валидация + MIME type + расширение (.jpg, .jpeg, .png, .gif, .webp, .xlsx, .xls), ограничение 10MB |
 | JWT Secret | RuntimeError при запуске, если SECRET_KEY не задан в production |
 | nginx Headers | X-Content-Type-Options, X-Frame-Options, X-XSS-Protection, Referrer-Policy, server_tokens off |
 | CSV Sanitization | Защита от formula injection в CSV export (экранирование =, +, -, @, \t, \r) |
@@ -407,5 +409,5 @@ home-finance/
 
 ---
 
-*Версия документа: 5.0*
-*Дата: 13 февраля 2026*
+*Версия документа: 6.0*
+*Дата: 17 февраля 2026*

@@ -16,6 +16,7 @@
 | Фаза 4.6 | ✅ Готово | Аутентификация и мультипользовательность |
 | Фаза 5 | ✅ Готово | Безопасность и код-ревью |
 | Фаза 5.1 | ✅ Готово | Security testing, input sanitization, Postman collection |
+| Фаза 6 | ✅ Готово | Доходы (income), Excel импорт, strict Postman collection |
 
 ---
 
@@ -31,11 +32,11 @@
 - [x] Сервис OCR (Gemini Vision через OpenRouter)
 - [x] Загрузка скриншотов
 - [x] Docker и docker-compose
-- [x] Комплексные тесты (157 тестов: auth, CRUD, аналитика, бюджеты, OCR, обучение, валидация)
+- [x] Комплексные тесты (158 тестов: auth, CRUD, доходы/расходы, аналитика, бюджеты, OCR, обучение, валидация)
 
 ### Frontend (Фаза 2)
 - [x] React + TypeScript + Vite
-- [x] TailwindCSS стили
+- [x] Inline Styles (CSS Variables)
 - [x] React Router навигация
 - [x] Mock API для разработки
 - [x] Страницы:
@@ -163,7 +164,7 @@ cd frontend && npm run test:e2e
 - [x] Автоматическое обновление SW с уведомлением пользователя
 
 ### 4.6 Аутентификация и мультипользовательность ✅ ЗАВЕРШЕНО
-- [x] JWT токены в httpOnly cookies (bcrypt + python-jose)
+- [x] JWT токены в httpOnly cookies (bcrypt + PyJWT)
 - [x] Регистрация, вход, выход (/api/auth/*)
 - [x] Модель User (email, username, hashed_password)
 - [x] Миграции Alembic: users таблица, user_id FK на всех моделях
@@ -261,15 +262,14 @@ docker-compose down
 - [React Docs](https://react.dev/)
 - [FastAPI Docs](https://fastapi.tiangolo.com/)
 - [Recharts](https://recharts.org/)
-- [TailwindCSS](https://tailwindcss.com/)
 - [OpenRouter API](https://openrouter.ai/docs)
 
 ---
 
 ## Прогресс
 
-**Завершено:** Фазы 0-5.1 (100% запланированной функциональности + безопасность + API testing)
-**157 backend тестов** (pytest), **163 API assertions** (Postman/Newman), TypeScript компилируется без ошибок
+**Завершено:** Фазы 0-6 (100% запланированной функциональности + безопасность + доходы + Excel импорт)
+**158 backend тестов** (pytest), strict Postman collection (55 запросов), TypeScript компилируется без ошибок
 
 ---
 
@@ -288,13 +288,31 @@ docker-compose down
 - [x] Рефакторинг rate limiter для чтения из config
 
 ### 5.1.3 Postman Collection
-- [x] 64 запроса покрывающих все 26 endpoints
-- [x] 163 автоматических assertion (pm.test)
-- [x] Security & Edge Cases (26 тестов): overflow, XSS, injection, IDOR, mass assignment
-- [x] Setup/Cleanup для идемпотентных прогонов
-- [x] Cascade skip guards для зависимых тестов
-- [x] Newman: 67 requests, 163 assertions, 0 failures
+- [x] Strict Postman collection (55 запросов, 8 папок)
+- [x] Response shape validation на каждый endpoint
+- [x] Idempotent — безопасно запускать многократно
 
 ---
 
-*Обновлено: 13 февраля 2026 — Фазы 0-5.1 завершены, 157 backend тестов, 163 API assertions, код-ревью пройдено*
+## Фаза 6: Доходы, Excel импорт ✅ ЗАВЕРШЕНО
+
+### 6.1 Доходы (income)
+- [x] Тип транзакции: `expense` / `income` (поле `type` в модели и схемах)
+- [x] Раздельные категории доходов: Salary, Transfer, Cashback, Investment, OtherIncome
+- [x] Фильтрация по типу на всех endpoint'ах (CRUD, отчёты, аналитика, экспорт)
+- [x] `DELETE /api/transactions` — массовое удаление (с фильтром по type)
+- [x] Frontend: переключатель расходы/доходы, раздельные графики
+
+### 6.2 Excel импорт
+- [x] Загрузка банковских выписок (.xlsx, .xls) через `POST /api/upload`
+- [x] `ExcelParsingService` — парсинг выписок (openpyxl + xlrd)
+- [x] Magic byte валидация для Excel файлов
+
+### 6.3 Рефакторинг
+- [x] Cleanup архитектуры: упрощены curl examples, убраны устаревшие ссылки
+- [x] Strict Postman collection: 55 запросов с валидацией response shape
+- [x] Обновлена вся документация
+
+---
+
+*Обновлено: 17 февраля 2026 — Фазы 0-6 завершены, 158 backend тестов, strict Postman collection*

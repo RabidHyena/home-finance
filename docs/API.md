@@ -1,6 +1,6 @@
 # API Documentation
 
-Base URL: `http://localhost:8000`
+Base URL: `http://localhost:3000` (nginx proxy → backend :8000)
 
 Swagger UI: `http://localhost:8000/docs`
 
@@ -32,6 +32,11 @@ Create a new user account.
 }
 ```
 
+**Validation:**
+- `email`: valid email, max 255 chars
+- `username`: 3–100 chars
+- `password`: min 8 chars
+
 **Response:** `201 Created`
 ```json
 {
@@ -43,8 +48,9 @@ Create a new user account.
 ```
 
 **Errors:**
-- `400 Bad Request` - Email or username already exists
-- `422 Unprocessable Entity` - Password too short (min 8 chars)
+- `400 Bad Request` — Email or username already exists
+- `422 Unprocessable Entity` — Validation error (short password, invalid email, etc.)
+- `429 Too Many Requests` — Rate limit exceeded
 
 ---
 
@@ -73,7 +79,8 @@ The `login` field accepts either email or username.
 ```
 
 **Errors:**
-- `401 Unauthorized` - Invalid credentials
+- `401 Unauthorized` — Invalid credentials
+- `429 Too Many Requests` — Rate limit exceeded
 
 ---
 
@@ -105,7 +112,7 @@ Get the current authenticated user.
 ```
 
 **Errors:**
-- `401 Unauthorized` - Not authenticated
+- `401 Unauthorized` — Not authenticated
 
 ---
 
@@ -130,6 +137,8 @@ Check the health status of the API and database connection.
 
 ### Transactions
 
+All transaction endpoints support a `type` filter: `expense` or `income`. When omitted, returns all types.
+
 #### POST /api/transactions
 
 Create a new transaction.
@@ -142,12 +151,18 @@ Create a new transaction.
   "category": "Food",
   "date": "2026-01-15T14:30:00",
   "currency": "RUB",
-  "ai_category": "Food",
-  "ai_confidence": 0.95,
-  "image_path": null,
-  "raw_text": null
+  "type": "expense"
 }
 ```
+
+| Field | Type | Required | Default | Description |
+|-------|------|----------|---------|-------------|
+| amount | decimal | Yes | — | 0.01–9,999,999,999 |
+| description | string | Yes | — | Max 500 chars |
+| category | string | No | "Other" | Max 100 chars |
+| date | datetime | Yes | — | Between year 2000–2100 |
+| currency | string | No | "RUB" | RUB, USD, EUR, GBP |
+| type | string | No | "expense" | "expense" or "income" |
 
 **Response:** `201 Created`
 ```json
@@ -157,9 +172,10 @@ Create a new transaction.
   "description": "Пятёрочка",
   "category": "Food",
   "currency": "RUB",
-  "ai_category": "Food",
-  "ai_confidence": 0.95,
+  "type": "expense",
   "date": "2026-01-15T14:30:00",
+  "ai_category": null,
+  "ai_confidence": null,
   "image_path": null,
   "raw_text": null,
   "created_at": "2026-01-15T14:35:00",
@@ -178,15 +194,11 @@ Get a paginated list of transactions.
 |-----------|------|---------|-------------|
 | page | integer | 1 | Page number (1-based) |
 | per_page | integer | 20 | Items per page (1-100) |
+| type | string | null | Filter: "expense" or "income" |
 | category | string | null | Filter by category |
 | search | string | null | Search in description and raw_text (case-insensitive) |
 | date_from | datetime | null | Filter by start date |
 | date_to | datetime | null | Filter by end date |
-
-**Example:**
-```
-GET /api/transactions?page=1&per_page=10&category=Food&search=пятёрочка
-```
 
 **Response:** `200 OK`
 ```json
@@ -198,9 +210,8 @@ GET /api/transactions?page=1&per_page=10&category=Food&search=пятёрочка
       "description": "Пятёрочка",
       "category": "Food",
       "currency": "RUB",
+      "type": "expense",
       "date": "2026-01-15T14:30:00",
-      "image_path": null,
-      "raw_text": null,
       "created_at": "2026-01-15T14:35:00",
       "updated_at": "2026-01-15T14:35:00"
     }
@@ -231,7 +242,8 @@ Update an existing transaction. All fields are optional.
   "amount": 1600.00,
   "description": "Магнит",
   "category": "Food",
-  "currency": "USD"
+  "currency": "USD",
+  "type": "income"
 }
 ```
 
@@ -247,14 +259,28 @@ Delete a transaction.
 
 ---
 
+#### DELETE /api/transactions
+
+Delete all transactions for the current user.
+
+**Query Parameters:**
+| Parameter | Type | Description |
+|-----------|------|-------------|
+| type | string | Optional: delete only "expense" or "income" |
+
+**Response:** `204 No Content`
+
+---
+
 #### GET /api/transactions/reports/monthly
 
-Get monthly spending reports with category breakdown.
+Get monthly reports with category breakdown.
 
 **Query Parameters:**
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
 | year | integer | null | Filter by year |
+| type | string | null | Filter: "expense" or "income" |
 
 **Response:** `200 OK`
 ```json
@@ -277,11 +303,12 @@ Get monthly spending reports with category breakdown.
 
 #### GET /api/transactions/export
 
-Export transactions to CSV. Supports the same filters as GET /api/transactions.
+Export transactions to CSV. Supports all filters from GET /api/transactions plus `type`.
 
 **Query Parameters:**
 | Parameter | Type | Description |
 |-----------|------|-------------|
+| type | string | Filter: "expense" or "income" |
 | category | string | Filter by category |
 | search | string | Search in description |
 | date_from | datetime | Start date |
@@ -289,32 +316,35 @@ Export transactions to CSV. Supports the same filters as GET /api/transactions.
 
 **Response:** `200 OK`
 - Content-Type: `text/csv; charset=utf-8`
-- Content-Disposition: `attachment; filename=transactions_YYYY-MM-DD.csv`
+- Content-Disposition: `attachment; filename=transactions_YYYYMMDD_HHMMSS.csv`
 - Includes UTF-8 BOM for Excel compatibility
 
 ---
 
 ### Analytics
 
+All analytics endpoints accept an optional `type` query parameter (`expense` or `income`).
+
 #### GET /api/transactions/analytics/comparison
 
 Compare spending between two consecutive months.
 
-**Query Parameters (required):**
-| Parameter | Type | Description |
-|-----------|------|-------------|
-| year | integer | Year of the target month |
-| month | integer | Target month (1-12) |
+**Query Parameters:**
+| Parameter | Type | Required | Description |
+|-----------|------|----------|-------------|
+| year | integer | Yes | Year (2000-2100) |
+| month | integer | Yes | Month (1-12) |
+| type | string | No | "expense" or "income" |
 
 **Response:** `200 OK`
 ```json
 {
-  "current_month": {"year": 2026, "month": 1},
-  "previous_month": {"year": 2025, "month": 12},
+  "current_month": {"year": 2026, "month": 2},
+  "previous_month": {"year": 2026, "month": 1},
   "current": {
     "total": 10000,
     "count": 3,
-    "by_category": {"Food": 7000, "Transport": 2000, "Shopping": 1000}
+    "by_category": {"Food": 7000, "Transport": 2000}
   },
   "previous": {
     "total": 8000,
@@ -322,7 +352,11 @@ Compare spending between two consecutive months.
     "by_category": {"Food": 5000, "Transport": 3000}
   },
   "changes": {
-    "total_percent": 25.0
+    "total_percent": 25.0,
+    "count_percent": 50.0,
+    "by_category": [
+      {"category": "Food", "current": 7000, "previous": 5000, "change_percent": 40.0}
+    ]
   }
 }
 ```
@@ -331,19 +365,22 @@ Compare spending between two consecutive months.
 
 #### GET /api/transactions/analytics/trends
 
-Get spending trends over time with linear regression.
+Get spending trends with linear regression.
 
 **Query Parameters:**
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| months | integer | 6 | Number of months to analyze |
+| months | integer | 6 | Number of months (3-24) |
+| type | string | null | "expense" or "income" |
 
 **Response:** `200 OK`
 ```json
 {
   "period": "6 months",
-  "data": [...],
-  "trend_line": [...],
+  "data": [
+    {"year": 2026, "month": 1, "total": 5000, "count": 10}
+  ],
+  "trend_line": [5000, 5200, 5400],
   "statistics": {
     "average": 5500,
     "std_deviation": 1000,
@@ -362,16 +399,19 @@ Forecast future spending based on historical data.
 **Query Parameters:**
 | Parameter | Type | Default | Description |
 |-----------|------|---------|-------------|
-| history_months | integer | 6 | Months of history to use |
-| forecast_months | integer | 3 | Months to forecast |
+| history_months | integer | 6 | Months of history (3-12) |
+| forecast_months | integer | 3 | Months to forecast (1-6) |
+| type | string | null | "expense" or "income" |
 
 **Response:** `200 OK`
 ```json
 {
-  "historical": [...],
+  "historical": [
+    {"year": 2026, "month": 1, "amount": 5000, "is_forecast": false}
+  ],
   "forecast": [
     {
-      "year": 2026, "month": 2,
+      "year": 2026, "month": 3,
       "amount": 5500,
       "is_forecast": true,
       "confidence_min": 4500,
@@ -380,6 +420,7 @@ Forecast future spending based on historical data.
   ],
   "statistics": {
     "average": 5500,
+    "std_deviation": 1000,
     "confidence_interval": {"min": 4500, "max": 6500}
   }
 }
@@ -407,20 +448,20 @@ Get AI categorization accuracy statistics.
 
 #### POST /api/upload
 
-Upload a bank screenshot and parse transaction data using AI.
+Upload a bank screenshot or Excel statement and parse transaction data using AI.
 
 **Request:**
 - Content-Type: `multipart/form-data`
-- Body: `file` (image file)
+- Body: `file` (image or Excel file)
 
-**Supported formats:** JPEG, PNG, GIF, WebP
+**Supported formats:** JPEG, PNG, GIF, WebP, Excel (.xlsx, .xls)
 
 **Max file size:** 10 MB
 
 **Validation:**
-- Content-Type must be `image/jpeg`, `image/png`, `image/gif`, or `image/webp`
 - Magic byte validation (file content verified, not just extension)
-- Max file size: 10 MB
+- Excel: PK or OLE2 magic bytes
+- Images: JPEG/PNG/GIF/WebP signatures
 
 **Response:** `200 OK`
 ```json
@@ -431,11 +472,14 @@ Upload a bank screenshot and parse transaction data using AI.
       "description": "Лента",
       "date": "2026-01-15T14:30:00",
       "category": "Food",
+      "type": "expense",
+      "currency": "RUB",
       "raw_text": "...",
       "confidence": 0.92
     }
   ],
   "total_amount": 1599.00,
+  "raw_text": "...",
   "chart": null
 }
 ```
@@ -444,17 +488,17 @@ Upload a bank screenshot and parse transaction data using AI.
 
 #### POST /api/upload/parse-only
 
-Parse a bank screenshot without saving the file. Same format as `/api/upload`.
+Parse a bank screenshot without saving it (image only).
 
 ---
 
 #### POST /api/upload/batch
 
-Upload multiple screenshots at once (up to 10).
+Upload multiple files at once (up to 10).
 
 **Request:**
 - Content-Type: `multipart/form-data`
-- Body: `files` (multiple image files)
+- Body: `files` (multiple files)
 
 **Response:** `200 OK`
 ```json
@@ -463,21 +507,7 @@ Upload multiple screenshots at once (up to 10).
     {
       "filename": "screen1.png",
       "status": "success",
-      "data": {
-        "transactions": [...],
-        "total_amount": 5000.00,
-        "chart": {
-          "type": "pie",
-          "categories": [
-            {"name": "Food", "value": 3000, "percentage": 60},
-            {"name": "Transport", "value": 2000, "percentage": 40}
-          ],
-          "total": 5000.00,
-          "period": "2026-01",
-          "period_type": "month",
-          "confidence": 0.85
-        }
-      }
+      "data": { "transactions": [...], "total_amount": 5000.00, "raw_text": "..." }
     }
   ],
   "total_files": 1,
@@ -503,17 +533,13 @@ Create a budget for a category.
 }
 ```
 
+| Field | Type | Required | Description |
+|-------|------|----------|-------------|
+| category | string | Yes | Max 100 chars |
+| limit_amount | decimal | Yes | Must be > 0 |
+| period | string | No | "monthly" (default) or "weekly" |
+
 **Response:** `201 Created`
-```json
-{
-  "id": 1,
-  "category": "Food",
-  "limit_amount": 15000,
-  "period": "monthly",
-  "created_at": "2026-01-15T10:00:00",
-  "updated_at": "2026-01-15T10:00:00"
-}
-```
 
 **Error:** `400 Bad Request` if budget for category already exists.
 
@@ -523,17 +549,7 @@ Create a budget for a category.
 
 Get all budgets.
 
-**Response:** `200 OK`
-```json
-[
-  {
-    "id": 1,
-    "category": "Food",
-    "limit_amount": 15000,
-    "period": "monthly"
-  }
-]
-```
+**Response:** `200 OK` — array of BudgetResponse
 
 ---
 
@@ -552,7 +568,8 @@ Update a budget. All fields are optional.
 **Request Body:**
 ```json
 {
-  "limit_amount": 20000
+  "limit_amount": 20000,
+  "period": "weekly"
 }
 ```
 
@@ -582,10 +599,14 @@ Get budget status with current spending for a given month.
 ```json
 [
   {
-    "id": 1,
-    "category": "Food",
-    "limit_amount": 15000,
-    "period": "monthly",
+    "budget": {
+      "id": 1,
+      "category": "Food",
+      "limit_amount": 15000,
+      "period": "monthly",
+      "created_at": "...",
+      "updated_at": "..."
+    },
     "spent": 8500,
     "remaining": 6500,
     "percentage": 56.7,
@@ -603,10 +624,11 @@ Get budget status with current spending for a given month.
 | Field | Type | Nullable | Description |
 |-------|------|----------|-------------|
 | id | integer | No | Unique identifier |
-| amount | decimal | No | Transaction amount (0.01 — 9,999,999,999) |
-| description | string | No | Merchant name or description |
+| amount | decimal | No | Transaction amount (0.01–9,999,999,999) |
+| description | string | No | Merchant name or description (max 500) |
 | category | string | No | Category (default: "Other") |
-| currency | string | No | Currency code: RUB, USD, EUR, GBP (default: "RUB") |
+| currency | string | No | Currency code: RUB, USD, EUR, GBP |
+| type | string | No | "expense" or "income" (default: "expense") |
 | date | datetime | No | Transaction date and time |
 | ai_category | string | Yes | AI-suggested category |
 | ai_confidence | float | Yes | AI confidence (0.0-1.0) |
@@ -620,41 +642,37 @@ Get budget status with current spending for a given month.
 | Field | Type | Nullable | Description |
 |-------|------|----------|-------------|
 | id | integer | No | Unique identifier |
-| category | string | No | Category (unique) |
-| limit_amount | decimal | No | Spending limit (must be > 0) |
+| category | string | No | Category (unique per user) |
+| limit_amount | decimal | No | Spending limit (> 0) |
 | period | string | No | "monthly" or "weekly" |
 | created_at | datetime | No | Record creation time |
 | updated_at | datetime | No | Last update time |
 
-### ParsedTransaction
+### Expense Categories
 
-| Field | Type | Description |
-|-------|------|-------------|
-| amount | decimal | Recognized amount |
-| description | string | Recognized merchant |
-| date | datetime | Recognized date |
-| category | string | Suggested category |
-| raw_text | string | Raw AI response |
-| confidence | float | Recognition confidence (0-1) |
+| Code | Label (RU) | Color |
+|------|-----------|-------|
+| Food | Еда | #22c55e |
+| Transport | Транспорт | #3b82f6 |
+| Entertainment | Развлечения | #a855f7 |
+| Shopping | Покупки | #f59e0b |
+| Bills | Счета | #ef4444 |
+| Health | Здоровье | #ec4899 |
+| Other | Другое | #6b7280 |
 
-### Category
+### Income Categories
 
-Valid category values:
-- `Food` - Еда
-- `Transport` - Транспорт
-- `Entertainment` - Развлечения
-- `Shopping` - Покупки
-- `Bills` - Счета
-- `Health` - Здоровье
-- `Other` - Другое
+| Code | Label (RU) | Color |
+|------|-----------|-------|
+| Salary | Зарплата | #16a34a |
+| Transfer | Переводы | #2563eb |
+| Cashback | Кэшбэк | #d97706 |
+| Investment | Инвестиции | #7c3aed |
+| OtherIncome | Другое | #6b7280 |
 
 ### Currency
 
-Valid currency codes:
-- `RUB` - Российский рубль (default)
-- `USD` - Доллар США
-- `EUR` - Евро
-- `GBP` - Фунт стерлингов
+Valid currency codes: `RUB` (default), `USD`, `EUR`, `GBP`
 
 ---
 
@@ -676,9 +694,9 @@ All errors follow this format:
 | 201 | Created |
 | 204 | No Content (successful delete) |
 | 400 | Bad Request (business logic error) |
+| 401 | Unauthorized (not authenticated) |
 | 404 | Not Found |
 | 422 | Unprocessable Entity (validation error) |
-| 401 | Unauthorized (not authenticated) |
 | 429 | Too Many Requests (rate limited) |
 | 500 | Internal Server Error |
 
@@ -687,9 +705,10 @@ All errors follow this format:
 ## Input Validation & Sanitization
 
 All transaction inputs are validated and sanitized:
-- **Amount**: must be between `0.01` and `9,999,999,999` (Numeric(12,2) in DB)
+- **Amount**: must be between `0.01` and `9,999,999,999`
+- **Type**: must be `expense` or `income`
 - **Date range**: must be between year 2000 and 2100
-- **String sanitization**: null bytes, control characters (U+0000–U+001F), surrogate characters, and HTML tags are automatically stripped from `description` and `category` fields
+- **String sanitization**: null bytes, control characters, surrogates, and HTML tags are stripped from `description` and `category`
 - **Currency**: must be one of `RUB`, `USD`, `EUR`, `GBP`
 
 ---
@@ -700,7 +719,6 @@ Authentication endpoints (`/api/auth/register`, `/api/auth/login`) are rate limi
 - **Window**: configurable via `RATE_LIMIT_WINDOW` env var (default: 60 seconds)
 - **Max requests**: configurable via `RATE_LIMIT_MAX_REQUESTS` env var (default: 10 per IP; 100 in docker-compose)
 - **Response**: `429 Too Many Requests` when exceeded
-- **Cleanup**: Automatic every 5 minutes, forced at 10,000 tracked IPs
 
 ---
 
@@ -708,108 +726,90 @@ Authentication endpoints (`/api/auth/register`, `/api/auth/login`) are rate limi
 
 ### cURL
 
-**Register:**
-```bash
-curl -X POST http://localhost:8000/api/auth/register \
-  -H "Content-Type: application/json" \
-  -c cookies.txt \
-  -d '{"email": "user@example.com", "username": "myuser", "password": "password123"}'
-```
-
 **Login:**
 ```bash
-curl -X POST http://localhost:8000/api/auth/login \
+curl -X POST http://localhost:3000/api/auth/login \
   -H "Content-Type: application/json" \
   -c cookies.txt \
-  -d '{"login": "user@example.com", "password": "password123"}'
+  -d '{"login": "admin@example.com", "password": "dev-admin-password-123"}'
 ```
 
-**Create transaction (authenticated):**
+**Create expense:**
 ```bash
-curl -X POST http://localhost:8000/api/transactions \
+curl -X POST http://localhost:3000/api/transactions \
   -H "Content-Type: application/json" \
   -b cookies.txt \
   -d '{
     "amount": 1500.00,
     "description": "Пятёрочка",
     "category": "Food",
-    "currency": "RUB",
-    "date": "2026-01-15T14:30:00"
+    "date": "2026-02-17T14:30:00",
+    "type": "expense"
   }'
 ```
 
-**Search transactions:**
+**Create income:**
 ```bash
-curl -b cookies.txt \
-  "http://localhost:8000/api/transactions?search=пятёрочка&category=Food&page=1&per_page=10"
+curl -X POST http://localhost:3000/api/transactions \
+  -H "Content-Type: application/json" \
+  -b cookies.txt \
+  -d '{
+    "amount": 150000,
+    "description": "Зарплата",
+    "category": "Salary",
+    "date": "2026-02-10T10:00:00",
+    "type": "income"
+  }'
+```
+
+**Get expenses only:**
+```bash
+curl -b cookies.txt "http://localhost:3000/api/transactions?type=expense"
+```
+
+**Get income only:**
+```bash
+curl -b cookies.txt "http://localhost:3000/api/transactions?type=income"
+```
+
+**Monthly reports for income:**
+```bash
+curl -b cookies.txt "http://localhost:3000/api/transactions/reports/monthly?type=income"
 ```
 
 **Upload screenshot:**
 ```bash
-curl -X POST http://localhost:8000/api/upload \
+curl -X POST http://localhost:3000/api/upload \
   -b cookies.txt \
   -F "file=@screenshot.png"
 ```
 
-**Batch upload:**
+**Upload Excel statement:**
 ```bash
-curl -X POST http://localhost:8000/api/upload/batch \
+curl -X POST http://localhost:3000/api/upload \
   -b cookies.txt \
-  -F "files=@screen1.png" \
-  -F "files=@screen2.png"
+  -F "file=@statement.xlsx"
 ```
 
-**Export CSV:**
+**Export expenses CSV:**
 ```bash
 curl -b cookies.txt \
-  -o transactions.csv "http://localhost:8000/api/transactions/export?category=Food"
-```
-
-**Create budget:**
-```bash
-curl -X POST http://localhost:8000/api/budgets \
-  -H "Content-Type: application/json" \
-  -b cookies.txt \
-  -d '{"category": "Food", "limit_amount": 15000, "period": "monthly"}'
-```
-
-**Get budget status:**
-```bash
-curl -b cookies.txt \
-  "http://localhost:8000/api/budgets/status?year=2026&month=1"
-```
-
-**Analytics - comparison:**
-```bash
-curl -b cookies.txt \
-  "http://localhost:8000/api/transactions/analytics/comparison?year=2026&month=1"
-```
-
-**Analytics - trends:**
-```bash
-curl -b cookies.txt \
-  "http://localhost:8000/api/transactions/analytics/trends?months=6"
-```
-
-**Analytics - forecast:**
-```bash
-curl -b cookies.txt \
-  "http://localhost:8000/api/transactions/analytics/forecast?history_months=6&forecast_months=3"
+  -o expenses.csv "http://localhost:3000/api/transactions/export?type=expense"
 ```
 
 ---
 
 ## Postman Collection
 
-A comprehensive Postman collection is available at [`docs/Home_Finance_API.postman_collection.json`](Home_Finance_API.postman_collection.json):
-- **64 requests** covering all endpoints
-- **163 auto-assertions** (pm.test scripts)
-- **Security & Edge Cases** folder: amount overflow/precision, XSS, null bytes, SQL injection, IDOR, date range, mass assignment
-- **Setup/Cleanup** folder for idempotent runs
-- **Cascade skip guards** for dependent tests
-- Import into Postman or run with Newman: `newman run docs/Home_Finance_API.postman_collection.json`
+A strict Postman collection is available at [`postman_collection.json`](../postman_collection.json) in the project root:
+- **55 requests** across 8 folders
+- Strict response shape validation on every endpoint
+- Idempotent — safe to run multiple times
+- Covers: auth, CRUD (expenses + income), analytics, budgets, upload, validation (422/404), auth protection (401 after logout)
+
+Import into Postman and run folders 1→8 in order.
 
 ---
 
-*Version: 5.0*
-*Date: 13 February 2026*
+*Version: 6.0*
+*Date: 17 February 2026*
