@@ -58,6 +58,52 @@ class TestMerchantNormalization:
         result = normalize_merchant_name("оплата покупка")
         assert result.strip() == ""
 
+    def test_removes_new_russian_noise_words(self):
+        result = normalize_merchant_name("списание Магнит по карте")
+        assert "списание" not in result
+        assert "по карте" not in result
+        assert "магнит" in result
+
+    def test_removes_zachislenie(self):
+        result = normalize_merchant_name("зачисление от Иванов И.И.")
+        assert "зачисление" not in result
+
+    def test_strips_legal_prefixes(self):
+        assert "ооо" not in normalize_merchant_name("ООО Пятёрочка")
+        assert "ип" not in normalize_merchant_name("ИП Иванов")
+        assert "пао" not in normalize_merchant_name("ПАО Сбербанк")
+        assert "ао" not in normalize_merchant_name("АО Тинькофф")
+
+    def test_strips_legal_prefix_keeps_name(self):
+        result = normalize_merchant_name("ООО Яндекс.Еда")
+        assert "ооо" not in result
+        assert "яндекс" in result
+        assert "еда" in result
+
+    def test_normalizes_dots_between_words(self):
+        result = normalize_merchant_name("Яндекс.Еда")
+        assert result == "яндекс еда"
+
+    def test_normalizes_slashes_between_words(self):
+        result = normalize_merchant_name("Delivery/Club")
+        assert result == "delivery club"
+
+    def test_removes_trailing_reference_hash(self):
+        result = normalize_merchant_name("Магазин #12345")
+        assert "#12345" not in result
+        assert "12345" not in result
+        assert "магазин" in result
+
+    def test_removes_trailing_reference_numero(self):
+        result = normalize_merchant_name("Магазин №67890")
+        assert "67890" not in result
+        assert "магазин" in result
+
+    def test_removes_beznalichnaya_oplata(self):
+        result = normalize_merchant_name("безналичная оплата Перекрёсток")
+        assert "безналичная" not in result
+        assert "перекрёсток" in result
+
 
 class TestOCRResponseParsing:
     """Tests for OCR service response parsing (without API calls)."""
@@ -200,6 +246,7 @@ class TestOCRResponseParsing:
         assert float(result["total_amount"]) == 600
 
     def test_parse_multiple_with_chart(self):
+        """When chart is present, transactions are dropped (chart takes priority)."""
         svc = self._make_service()
         response = json.dumps({
             "transactions": [
@@ -221,6 +268,9 @@ class TestOCRResponseParsing:
         assert result["chart"] is not None
         assert result["chart"]["type"] == "pie"
         assert len(result["chart"]["categories"]) == 2
+        # Chart present → transactions ignored
+        assert len(result["transactions"]) == 0
+        assert result["total_amount"] == 10000
 
     def test_parse_multiple_skips_invalid_transactions(self):
         svc = self._make_service()
@@ -247,6 +297,154 @@ class TestOCRResponseParsing:
         })
         result = svc._parse_multiple_response(response)
         assert result["chart"] is None
+
+    def test_parse_type_expense(self):
+        svc = self._make_service()
+        response = json.dumps({
+            "amount": 500,
+            "description": "Пятёрочка",
+            "date": "2026-01-15",
+            "category": "Food",
+            "type": "expense",
+            "confidence": 0.9,
+        })
+        result = svc._parse_response(response)
+        assert result.type == "expense"
+
+    def test_parse_type_income(self):
+        svc = self._make_service()
+        response = json.dumps({
+            "amount": 50000,
+            "description": "Зарплата",
+            "date": "2026-01-10",
+            "category": "Salary",
+            "type": "income",
+            "confidence": 0.95,
+        })
+        result = svc._parse_response(response)
+        assert result.type == "income"
+        assert result.category == "Salary"
+
+    def test_parse_type_defaults_to_expense(self):
+        svc = self._make_service()
+        response = json.dumps({
+            "amount": 100,
+            "description": "Test",
+            "date": "2026-01-15",
+            "category": "Food",
+            "confidence": 0.5,
+        })
+        result = svc._parse_response(response)
+        assert result.type == "expense"
+
+    def test_parse_type_invalid_defaults_to_expense(self):
+        svc = self._make_service()
+        response = json.dumps({
+            "amount": 100,
+            "description": "Test",
+            "date": "2026-01-15",
+            "category": "Food",
+            "type": "refund",
+            "confidence": 0.5,
+        })
+        result = svc._parse_response(response)
+        assert result.type == "expense"
+
+    def test_parse_currency(self):
+        svc = self._make_service()
+        response = json.dumps({
+            "amount": 100,
+            "description": "Test",
+            "date": "2026-01-15",
+            "category": "Shopping",
+            "currency": "USD",
+            "confidence": 0.9,
+        })
+        result = svc._parse_response(response)
+        assert result.currency == "USD"
+
+    def test_parse_currency_defaults_to_rub(self):
+        svc = self._make_service()
+        response = json.dumps({
+            "amount": 100,
+            "description": "Test",
+            "date": "2026-01-15",
+            "category": "Food",
+            "confidence": 0.9,
+        })
+        result = svc._parse_response(response)
+        assert result.currency == "RUB"
+
+    def test_parse_amount_russian_format_spaces_and_comma(self):
+        svc = self._make_service()
+        assert svc._parse_amount("1 500,50") == Decimal("1500.50")
+
+    def test_parse_amount_plain_number(self):
+        svc = self._make_service()
+        assert svc._parse_amount(1500.50) == Decimal("1500.5")
+
+    def test_parse_amount_with_ruble_symbol(self):
+        svc = self._make_service()
+        assert svc._parse_amount("1500 ₽") == Decimal("1500")
+
+    def test_parse_amount_with_rub_word(self):
+        svc = self._make_service()
+        assert svc._parse_amount("1500 руб") == Decimal("1500")
+
+    def test_parse_amount_negative_becomes_positive(self):
+        svc = self._make_service()
+        assert svc._parse_amount("-1500.50") == Decimal("1500.50")
+        assert svc._parse_amount("−1 500,50") == Decimal("1500.50")
+
+    def test_parse_amount_with_plus_sign(self):
+        svc = self._make_service()
+        assert svc._parse_amount("+5000") == Decimal("5000")
+
+    def test_parse_amount_with_dollar_sign(self):
+        svc = self._make_service()
+        assert svc._parse_amount("$99.99") == Decimal("99.99")
+
+    def test_parse_amount_with_euro_sign(self):
+        svc = self._make_service()
+        assert svc._parse_amount("€49,99") == Decimal("49.99")
+
+    def test_parse_amount_nbsp_as_thousands_separator(self):
+        svc = self._make_service()
+        assert svc._parse_amount("1\u00a0500,50") == Decimal("1500.50")
+
+    def test_retry_on_parse_failure(self):
+        """Retry once when JSON parsing fails on first attempt."""
+        svc = self._make_service()
+        good_response = json.dumps({
+            "transactions": [
+                {"amount": 100, "description": "Store", "date": "2026-01-15", "category": "Food", "confidence": 0.9},
+            ],
+            "total_amount": 100,
+        })
+        call_count = 0
+
+        def mock_call_api(image_data, media_type):
+            nonlocal call_count
+            call_count += 1
+            if call_count == 1:
+                return "This is not valid JSON at all"
+            return good_response
+
+        svc._call_vision_api = mock_call_api
+        result = svc._call_with_retry("base64data", "image/png", svc._parse_multiple_response)
+        assert call_count == 2
+        assert len(result["transactions"]) == 1
+
+    def test_retry_exhausted_raises(self):
+        """Raises after all retries exhausted."""
+        svc = self._make_service()
+
+        def mock_call_api(image_data, media_type):
+            return "Not JSON"
+
+        svc._call_vision_api = mock_call_api
+        with pytest.raises(ValueError, match="No valid JSON"):
+            svc._call_with_retry("base64data", "image/png", svc._parse_multiple_response)
 
     def test_media_type_detection(self):
         svc = self._make_service()

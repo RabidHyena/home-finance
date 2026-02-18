@@ -254,6 +254,14 @@ export function ReportsPage() {
           )}
 
           {/* Spending Trends */}
+          {trendsQuery.isError && (
+            <div className="card" style={{ marginBottom: '1.5rem', color: 'var(--color-danger)' }}>
+              Ошибка загрузки трендов: {trendsQuery.error?.message}
+            </div>
+          )}
+          {trendsQuery.isLoading && (
+            <div style={{ marginBottom: '1.5rem' }}><ChartSkeleton height="300px" /></div>
+          )}
           {trendsQuery.data && (
             <div style={{ marginBottom: '1.5rem' }}>
               <TrendsChart data={trendsQuery.data} />
@@ -261,6 +269,14 @@ export function ReportsPage() {
           )}
 
           {/* Forecast */}
+          {forecastQuery.isError && (
+            <div className="card" style={{ marginBottom: '1.5rem', color: 'var(--color-danger)' }}>
+              Ошибка загрузки прогноза: {forecastQuery.error?.message}
+            </div>
+          )}
+          {forecastQuery.isLoading && (
+            <div style={{ marginBottom: '1.5rem' }}><ChartSkeleton height="350px" /></div>
+          )}
           {forecastQuery.data && (
             <div style={{ marginBottom: '1.5rem' }}>
               <ForecastChart data={forecastQuery.data} />

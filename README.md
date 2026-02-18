@@ -6,7 +6,7 @@
 
 - **Аутентификация**: регистрация, вход, JWT-токены в httpOnly cookies (bcrypt + PyJWT)
 - **Мультипользовательность**: изоляция данных между пользователями (user_id FK)
-- **Безопасность**: CORS, CSP headers, rate limiting (auth, configurable), magic byte валидация файлов, CSV sanitization, SECRET_KEY enforcement, input sanitization (null bytes, HTML, control chars), amount/date range validation
+- **Безопасность**: CORS, CSP headers, rate limiting (auth, configurable), magic byte валидация файлов, CSV sanitization, SECRET_KEY enforcement, input sanitization (null bytes, HTML, control chars), amount/date range validation, password max 72 bytes (bcrypt), username pattern validation, budget category sanitization
 - **Расходы и доходы**: тип транзакции (expense/income) с раздельными категориями и фильтрацией
 - Загрузка скриншотов банковских приложений (одиночная и пакетная до 10 штук)
 - Импорт выписок из Excel (.xlsx, .xls)
@@ -27,7 +27,7 @@
 | Компонент | Технология |
 |-----------|------------|
 | Frontend | React 19, TypeScript, Vite, Recharts, Inline Styles (CSS Variables), vite-plugin-pwa |
-| Backend | Python 3.12, FastAPI, SQLAlchemy, Alembic, PyJWT, bcrypt |
+| Backend | Python 3.12, FastAPI, SQLAlchemy (pool_pre_ping), Alembic, PyJWT, bcrypt |
 | Database | PostgreSQL 16 |
 | AI | Google Gemini 3 Flash Preview через OpenRouter |
 | Containers | Docker, Docker Compose, nginx |
@@ -101,7 +101,7 @@ npm run dev
 ### Тесты
 
 ```bash
-# Backend (157 тестов: auth, CRUD, доходы/расходы, аналитика, бюджеты, OCR, обучение, валидация, upload, rate limiter)
+# Backend тесты (auth, CRUD, доходы/расходы, аналитика, бюджеты, OCR, обучение, валидация, upload, rate limiter)
 # Запуск в Docker контейнере:
 docker compose exec -e DEBUG=true backend python -m pytest tests/ -v
 
@@ -119,7 +119,7 @@ home-finance/
 │   ├── app/
 │   │   ├── main.py              # FastAPI приложение
 │   │   ├── config.py            # Настройки (env, auto cookie_secure)
-│   │   ├── database.py          # Подключение к БД
+│   │   ├── database.py          # Подключение к БД (pool_pre_ping, pool_size)
 │   │   ├── models.py            # SQLAlchemy модели
 │   │   ├── schemas.py           # Pydantic схемы (sanitization, validation)
 │   │   ├── routers/
@@ -128,7 +128,7 @@ home-finance/
 │   │   │   ├── upload.py        # Загрузка скриншотов и Excel (magic byte validation)
 │   │   │   └── budgets.py       # Бюджеты (bulk SQL queries)
 │   │   ├── dependencies.py      # get_current_user
-│   │   ├── schemas_auth.py      # Auth схемы
+│   │   ├── schemas_auth.py      # Auth схемы (password max 72, username pattern)
 │   │   └── services/
 │   │       ├── auth_service.py  # JWT (PyJWT), bcrypt
 │   │       ├── ocr_service.py   # Gemini Vision через OpenRouter
@@ -136,7 +136,7 @@ home-finance/
 │   │       ├── learning_service.py  # Обучение категоризации
 │   │       └── merchant_normalization.py
 │   ├── alembic/                 # Миграции БД
-│   ├── tests/                   # 157 тестов (pytest)
+│   ├── tests/                   # pytest
 │   │   ├── conftest.py          # Фикстуры (in-memory SQLite)
 │   │   ├── test_auth.py         # Auth, data isolation
 │   │   ├── test_transactions.py # CRUD, поиск, фильтры, CSV
@@ -158,6 +158,7 @@ home-finance/
 │   │   ├── pages/               # Страницы
 │   │   ├── types/               # TypeScript типы, MONTH_NAMES
 │   │   ├── registerSW.ts        # PWA Service Worker
+│   │   ├── queryClient.ts       # React Query клиент (отдельный модуль)
 │   │   ├── App.tsx
 │   │   └── main.tsx
 │   ├── public/
@@ -223,15 +224,16 @@ home-finance/
 
 ## Тестирование API (Postman)
 
-Strict Postman collection: `postman_collection.json` в корне проекта.
+Два Postman collection в папке `postman/`:
+- `Home_Finance_Strict_Tests.postman_collection.json` — 55 запросов, strict validation
+- `Home_Finance_Brutal_Tests.postman_collection.json` — расширенная версия с edge-case тестами
 
-1. **Импортируйте:** Postman → File → Import → `postman_collection.json`
-2. **Запускайте папки 1→8 по порядку**
+1. **Импортируйте:** Postman → File → Import → выбрать collection
+2. **Запускайте папки по порядку**
 
 **Collection включает:**
-- 55 запросов в 8 папках
 - Strict response shape validation на каждый endpoint
-- Idempotent — безопасно запускать многократно
+- Idempotent — безопасно запускать многократно (уникальные credentials на каждый запуск)
 - Покрытие: auth, CRUD (расходы + доходы), аналитика, бюджеты, upload, валидация (422/404), auth protection (401)
 
 ## Документация
@@ -242,7 +244,7 @@ Strict Postman collection: `postman_collection.json` в корне проект�
 | [ARCHITECTURE.md](docs/ARCHITECTURE.md) | Архитектура, стек, схемы потоков данных |
 | [API.md](docs/API.md) | REST API с примерами |
 | [ROADMAP.md](ROADMAP.md) | План развития |
-| [Postman Collection](postman_collection.json) | 55 запросов с strict validation |
+| [Postman Collections](postman/) | Strict + Brutal тесты API |
 
 ## Лицензия
 

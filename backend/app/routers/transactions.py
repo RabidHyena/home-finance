@@ -3,9 +3,9 @@ import logging
 from datetime import datetime
 from decimal import Decimal
 from io import StringIO
-from typing import Optional
+from typing import Literal, Optional
 
-import numpy as np
+from statistics import mean, pstdev
 from dateutil.relativedelta import relativedelta
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
@@ -91,7 +91,7 @@ def get_transactions(
     date_from: Optional[datetime] = None,
     date_to: Optional[datetime] = None,
     search: Optional[str] = None,
-    type: Optional[str] = Query(None, description="Filter by type: expense or income"),
+    type: Optional[Literal['expense', 'income']] = Query(None, description="Filter by type: expense or income"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -123,7 +123,7 @@ def export_transactions(
     date_from: Optional[datetime] = None,
     date_to: Optional[datetime] = None,
     search: Optional[str] = None,
-    type: Optional[str] = Query(None, description="Filter by type: expense or income"),
+    type: Optional[Literal['expense', 'income']] = Query(None, description="Filter by type: expense or income"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -177,7 +177,7 @@ def export_transactions(
 @router.get("/reports/monthly", response_model=list[MonthlyReport])
 def get_monthly_reports(
     year: Optional[int] = None,
-    type: Optional[str] = Query(None, description="Filter by type: expense or income"),
+    type: Optional[Literal['expense', 'income']] = Query(None, description="Filter by type: expense or income"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -288,7 +288,7 @@ def get_ai_accuracy(
 def get_spending_forecast(
     history_months: int = Query(6, ge=3, le=12),
     forecast_months: int = Query(3, ge=1, le=6),
-    type: Optional[str] = Query(None, description="Filter by type: expense or income"),
+    type: Optional[Literal['expense', 'income']] = Query(None, description="Filter by type: expense or income"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -350,8 +350,8 @@ def get_spending_forecast(
             }
         }
 
-    avg = float(np.mean(amounts))
-    std = float(np.std(amounts))
+    avg = float(mean(amounts))
+    std = float(pstdev(amounts)) if len(amounts) > 1 else 0.0
 
     # Generate forecast (simple moving average)
     forecast = []
@@ -391,7 +391,7 @@ def get_spending_forecast(
 @router.get("/analytics/trends")
 def get_spending_trends(
     months: int = Query(6, ge=3, le=24),
-    type: Optional[str] = Query(None, description="Filter by type: expense or income"),
+    type: Optional[Literal['expense', 'income']] = Query(None, description="Filter by type: expense or income"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -444,22 +444,28 @@ def get_spending_trends(
     # Calculate trend (linear regression)
     trend_line = []
     if len(series) >= 2:
-        x = np.array(range(len(series)))
-        y = np.array([s["total"] for s in series])
+        x = list(range(len(series)))
+        y = [s["total"] for s in series]
 
         # Simple linear regression
         n = len(x)
-        if n > 0 and np.sum(x**2) - (np.sum(x))**2 / n != 0:
-            slope = (n * np.sum(x * y) - np.sum(x) * np.sum(y)) / (n * np.sum(x**2) - (np.sum(x))**2)
-            intercept = (np.sum(y) - slope * np.sum(x)) / n
-            trend_line = [float(slope * i + intercept) for i in range(len(series))]
+        sum_x = sum(x)
+        sum_y = sum(y)
+        sum_xy = sum(xi * yi for xi, yi in zip(x, y))
+        sum_x2 = sum(xi * xi for xi in x)
+        denom = n * sum_x2 - sum_x * sum_x
+        if denom != 0:
+            slope = (n * sum_xy - sum_x * sum_y) / denom
+            intercept = (sum_y - slope * sum_x) / n
+            trend_line = [float(slope * i + intercept) for i in range(n)]
         else:
-            trend_line = [float(np.mean(y))] * len(series) if len(y) > 0 else []
+            avg_y = sum_y / n if n > 0 else 0
+            trend_line = [float(avg_y)] * n
 
     # Calculate statistics
     totals = [s["total"] for s in series if s["total"] > 0]
-    avg = float(np.mean(totals)) if totals else 0
-    std = float(np.std(totals)) if totals else 0
+    avg = float(mean(totals)) if totals else 0
+    std = float(pstdev(totals)) if len(totals) > 1 else 0
     min_val = float(min(totals)) if totals else 0
     max_val = float(max(totals)) if totals else 0
 
@@ -480,7 +486,7 @@ def get_spending_trends(
 def get_month_comparison(
     year: int = Query(..., ge=2000, le=2100),
     month: int = Query(..., ge=1, le=12),
-    type: Optional[str] = Query(None, description="Filter by type: expense or income"),
+    type: Optional[Literal['expense', 'income']] = Query(None, description="Filter by type: expense or income"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -638,7 +644,7 @@ def update_transaction(
 
 @router.delete("", status_code=204)
 def delete_all_transactions(
-    type: Optional[str] = Query(None, description="Filter by type: expense or income"),
+    type: Optional[Literal['expense', 'income']] = Query(None, description="Filter by type: expense or income"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):

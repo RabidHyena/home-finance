@@ -34,8 +34,8 @@ Create a new user account.
 
 **Validation:**
 - `email`: valid email, max 255 chars
-- `username`: 3–100 chars
-- `password`: min 8 chars
+- `username`: 3–100 chars, alphanumeric + `_`, `.`, `-` only (pattern: `^[a-zA-Z0-9_.-]+$`)
+- `password`: 8–72 chars (bcrypt truncates at 72 bytes)
 
 **Response:** `201 Created`
 ```json
@@ -706,9 +706,9 @@ All errors follow this format:
 
 All transaction inputs are validated and sanitized:
 - **Amount**: must be between `0.01` and `9,999,999,999`
-- **Type**: must be `expense` or `income`
+- **Type**: must be `expense` or `income` (validated via `Literal` on all endpoints)
 - **Date range**: must be between year 2000 and 2100
-- **String sanitization**: null bytes, control characters, surrogates, and HTML tags are stripped from `description` and `category`
+- **String sanitization**: null bytes, control characters, surrogates, and HTML tags are stripped from `description` and `category` (transactions and budgets)
 - **Currency**: must be one of `RUB`, `USD`, `EUR`, `GBP`
 
 ---
@@ -801,15 +801,15 @@ curl -b cookies.txt \
 
 ## Postman Collection
 
-A strict Postman collection is available at [`postman_collection.json`](../postman_collection.json) in the project root:
-- **55 requests** across 8 folders
-- Strict response shape validation on every endpoint
-- Idempotent — safe to run multiple times
-- Covers: auth, CRUD (expenses + income), analytics, budgets, upload, validation (422/404), auth protection (401 after logout)
+Two Postman collections are available in the `postman/` directory:
+- **Strict Tests** — 55 requests across 8 folders, strict response shape validation
+- **Brutal Tests** — extended edge-case testing (rate limits, XSS, overflow, etc.)
 
-Import into Postman and run folders 1→8 in order.
+Both collections are **idempotent** — safe to run multiple times (unique credentials generated per run via `Date.now()`).
+
+Import into Postman and run folders in order.
 
 ---
 
-*Version: 6.0*
-*Date: 17 February 2026*
+*Version: 7.0*
+*Date: 18 February 2026*

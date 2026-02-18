@@ -71,13 +71,15 @@ def _extract_json(text: str) -> dict | list:
     except json.JSONDecodeError:
         pass
 
-    # Fallback: find the largest JSON object in the text
-    json_match = re.search(r"\{[\s\S]*\}", text)
-    if json_match:
-        try:
-            return json.loads(json_match.group())
-        except json.JSONDecodeError:
-            pass
+    # Fallback: try parsing from each '{' position, tolerating trailing text
+    decoder = json.JSONDecoder()
+    for i, ch in enumerate(text):
+        if ch == '{':
+            try:
+                obj, _ = decoder.raw_decode(text, i)
+                return obj
+            except json.JSONDecodeError:
+                continue
 
     raise ValueError(f"No valid JSON found in AI response: {text[:200]}")
 
@@ -85,20 +87,41 @@ def _extract_json(text: str) -> dict | list:
 class OCRService:
     """Service for parsing bank screenshots using Gemini 3 Flash Preview via OpenRouter."""
 
-    SYSTEM_PROMPT = """You are a financial data extraction assistant.
+    SYSTEM_PROMPT = """You are a financial data extraction assistant specialized in Russian bank app screenshots.
 Your task is to extract ALL financial information from bank app screenshots, including transactions AND charts/diagrams.
 
 ## Extract transactions:
 For EACH transaction visible in a list, extract:
-- amount: The transaction amount (numeric value only, without currency symbol)
-- description: The merchant name or transaction description
+- amount: The transaction amount as a positive number (no currency symbols, no spaces). Examples: 1500.50, 250, 49999.99
+- description: The merchant name or transaction description (clean name only, no amounts or dates)
 - date: The EXACT date shown for THIS specific transaction in ISO 8601 format: YYYY-MM-DDTHH:MM:SS (e.g. 2026-01-15T14:30:00). If time is unknown, use 12:00:00.
-- category: One of EXACTLY these values: Food, Transport, Entertainment, Shopping, Bills, Health, Other
+- category: One of EXACTLY these values:
+  - Expense categories: Food, Transport, Entertainment, Shopping, Bills, Health, Other
+  - Income categories: Salary, Transfer, Cashback, Investment, OtherIncome
+- type: "expense" or "income". Use "income" for salary, cashback, refunds, incoming transfers, top-ups. Use "expense" for purchases, payments, outgoing transfers, fees.
+- currency: Three-letter code if visible: "RUB", "USD", "EUR". Default to "RUB".
 - confidence: Your confidence level (0.0 to 1.0)
+
+## Amount extraction rules:
+- Russian format uses spaces as thousand separators and comma for decimals: "1 500,50" → 1500.50
+- Strip currency symbols: ₽, руб., $, €, р.
+- Always return a POSITIVE number regardless of sign shown on screen
+- If amount shows "−1 500 ₽" or "- 1500 руб" → amount=1500, type="expense"
+- If amount shows "+5 000 ₽" or "Зачисление 5000" → amount=5000, type="income"
+- Common formats: "1500", "1 500", "1500,00", "1 500,50 ₽", "1500.00 руб"
+
+## Russian bank app patterns:
+- Sberbank (Сбербанк): green UI, shows "Списание"/"Зачисление", dates like "15 янв", amounts with ₽
+- Tinkoff (Тинькофф): black/yellow UI, shows merchant name prominently, amounts with ₽ or руб
+- Alfa-Bank (Альфа-Банк): red UI, shows "Покупка"/"Перевод", card last 4 digits
+- VTB (ВТБ): blue UI, dates in DD.MM format
+- Raiffeisen: yellow UI, similar to European format
 
 CRITICAL DATE RULES:
 - Each transaction MUST have its OWN date as shown on the screenshot
-- Look for dates next to each transaction (e.g. "15 янв", "3 февраля", "2026-01-20")
+- Russian date formats: "15 янв", "3 февраля 2026", "15.01.2026", "15.01", "вчера", "сегодня", "позавчера"
+- Month abbreviations: янв, фев, мар, апр, май, июн, июл, авг, сен, окт, ноя, дек
+- "вчера" (yesterday), "сегодня" (today), "позавчера" (day before yesterday) — convert to actual dates relative to the current screenshot context
 - If a group header shows a date like "15 января" and several transactions follow, all those transactions have that date
 - If the screenshot shows transactions from different days, each MUST have the correct day
 - NEVER assign the same date to all transactions unless they truly occurred on the same day
@@ -125,24 +148,32 @@ CRITICAL PERIOD RULES:
 - If you see monthly data spanning multiple months (e.g. Jan-Dec), that's a YEAR — use period_type="year"
 - NEVER return Russian text as the period value — always use structured YYYY or YYYY-MM format
 
-IMPORTANT:
-- Extract ALL visible transactions from lists
+## Partial/cropped screenshots:
+- If the image is cropped or partially visible, extract what you CAN see
+- Set confidence lower (0.3-0.6) for partially visible text or amounts
+- If a transaction is cut off, skip it rather than guessing
+
+## ACCURACY RULES:
+- Do NOT hallucinate or invent data that is not visible in the screenshot
+- If text is blurry or unclear, lower the confidence instead of guessing
+- Extract ALL visible transactions — do not skip any
 - If a chart/diagram is present, extract its data too
-- Categories should match: Food, Transport, Entertainment, Shopping, Bills, Health, Other
 - If the image shows ONLY a chart (no transaction list), return empty transactions array
 
 Respond with a JSON object in this exact format:
 {
     "transactions": [
         {
-            "amount": 123.45,
-            "description": "Store Name",
+            "amount": 1500.50,
+            "description": "Пятёрочка",
             "date": "2026-01-15T14:30:00",
-            "category": "Shopping",
+            "category": "Food",
+            "type": "expense",
+            "currency": "RUB",
             "confidence": 0.95
         }
     ],
-    "total_amount": 123.45,
+    "total_amount": 1500.50,
     "chart": {
         "type": "pie",
         "categories": [
@@ -157,8 +188,7 @@ Respond with a JSON object in this exact format:
     }
 }
 
-If no chart is visible, omit the "chart" field or set it to null.
-If you cannot extract some information, make reasonable assumptions and lower the confidence score."""
+If no chart is visible, omit the "chart" field or set it to null."""
 
     MEDIA_TYPES = {
         ".jpg": "image/jpeg",
@@ -191,7 +221,8 @@ If you cannot extract some information, make reasonable assumptions and lower th
         logger.info("Calling vision API with model=%s", self.model)
         response = self.client.chat.completions.create(
             model=self.model,
-            max_tokens=4096,
+            max_tokens=8192,
+            temperature=0,
             messages=[
                 {"role": "system", "content": self.SYSTEM_PROMPT},
                 {
@@ -225,8 +256,8 @@ If you cannot extract some information, make reasonable assumptions and lower th
     def _parse_single_tx(self, data: dict) -> ParsedTransaction | None:
         """Parse a single transaction dict into ParsedTransaction."""
         try:
-            amount = Decimal(str(data["amount"]))
-        except (KeyError, InvalidOperation, TypeError):
+            amount = self._parse_amount(data["amount"])
+        except (KeyError, InvalidOperation, TypeError, ValueError):
             logger.warning("Skipping transaction with invalid amount: %s", data.get("amount"))
             return None
 
@@ -237,6 +268,16 @@ If you cannot extract some information, make reasonable assumptions and lower th
         confidence = _clamp_confidence(data.get("confidence", 0.5))
         description = data.get("description", "Unknown")
 
+        # Extract type (expense/income), default to expense
+        tx_type = data.get("type", "expense")
+        if tx_type not in ("expense", "income"):
+            tx_type = "expense"
+
+        # Extract currency if provided
+        currency = data.get("currency", "RUB")
+        if not isinstance(currency, str) or len(currency) != 3:
+            currency = "RUB"
+
         category, confidence = self._apply_learned_category(description, category, confidence)
 
         return ParsedTransaction(
@@ -244,9 +285,39 @@ If you cannot extract some information, make reasonable assumptions and lower th
             description=description,
             date=parsed_date,
             category=category,
+            type=tx_type,
+            currency=currency.upper(),
             raw_text="",  # filled by caller
             confidence=confidence,
         )
+
+    @staticmethod
+    def _parse_amount(raw_amount) -> Decimal:
+        """Parse amount from AI response, handling Russian formats.
+
+        Handles: "1 500,50", "1500.50", "₽1500", "1500 руб", negative signs.
+        Always returns a positive Decimal.
+        """
+        text = str(raw_amount).strip()
+
+        # Strip currency symbols and words
+        for symbol in ("₽", "$", "€", "руб.", "руб", "р."):
+            text = text.replace(symbol, "")
+
+        # Strip sign characters (we determine expense/income from the type field)
+        text = text.lstrip("−-+").strip()
+
+        # Handle Russian format: spaces as thousand separators, comma as decimal
+        # Detect: if comma is present and dot is not, treat comma as decimal separator
+        if "," in text and "." not in text:
+            # "1 500,50" → "1500.50"
+            text = text.replace(" ", "").replace("\u00a0", "").replace(",", ".")
+        else:
+            # Remove spaces used as thousand separators
+            text = text.replace(" ", "").replace("\u00a0", "")
+
+        amount = Decimal(text)
+        return abs(amount)
 
     def _parse_response(self, response_text: str) -> ParsedTransaction:
         """Parse the AI response text into a ParsedTransaction."""
@@ -292,20 +363,30 @@ If you cannot extract some information, make reasonable assumptions and lower th
 
         logger.info("Parsed %d/%d transactions", len(parsed_transactions), len(transactions_data))
 
-        # Parse total amount
+        # Parse chart data if present
+        chart_data = self._parse_chart(data.get("chart"))
+
+        # If chart is present, prioritize it — drop transactions to avoid duplicates
+        if chart_data:
+            logger.info("Chart detected — ignoring %d transactions, using chart data only", len(parsed_transactions))
+            return {
+                "transactions": [],
+                "total_amount": chart_data.get("total", Decimal("0")),
+                "chart": chart_data,
+                "raw_text": response_text,
+            }
+
+        # No chart — return transactions
         total_amount = Decimal("0")
         try:
             total_amount = Decimal(str(data.get("total_amount", 0)))
         except (InvalidOperation, TypeError):
             total_amount = sum(tx.amount for tx in parsed_transactions)
 
-        # Parse chart data if present
-        chart_data = self._parse_chart(data.get("chart"))
-
         return {
             "transactions": parsed_transactions,
             "total_amount": total_amount,
-            "chart": chart_data,
+            "chart": None,
             "raw_text": response_text,
         }
 
@@ -343,6 +424,22 @@ If you cannot extract some information, make reasonable assumptions and lower th
             logger.warning("Failed to parse chart data", exc_info=True)
             return None
 
+    MAX_RETRIES = 1  # retry once on parse failure
+
+    def _call_with_retry(self, image_data_b64: str, media_type: str, parser):
+        """Call vision API and parse response, retrying once on parse failure."""
+        last_error = None
+        for attempt in range(1 + self.MAX_RETRIES):
+            response_text = self._call_vision_api(image_data_b64, media_type)
+            try:
+                return parser(response_text)
+            except (ValueError, KeyError) as e:
+                last_error = e
+                if attempt < self.MAX_RETRIES:
+                    logger.warning("Parse failed (attempt %d), retrying: %s", attempt + 1, e)
+                    continue
+        raise last_error
+
     def parse_image(self, image_path: str) -> ParsedTransaction:
         """Parse a bank screenshot and extract transaction data."""
         path = Path(image_path)
@@ -353,21 +450,18 @@ If you cannot extract some information, make reasonable assumptions and lower th
             image_data = base64.standard_b64encode(f.read()).decode("utf-8")
 
         media_type = self._get_media_type(image_path)
-        response_text = self._call_vision_api(image_data, media_type)
-        return self._parse_response(response_text)
+        return self._call_with_retry(image_data, media_type, self._parse_response)
 
     def parse_image_bytes(self, image_bytes: bytes, filename: str) -> ParsedTransaction:
         """Parse image from bytes (single transaction - legacy)."""
         image_data = base64.standard_b64encode(image_bytes).decode("utf-8")
         media_type = self._get_media_type(filename)
-        response_text = self._call_vision_api(image_data, media_type)
-        return self._parse_response(response_text)
+        return self._call_with_retry(image_data, media_type, self._parse_response)
 
     def parse_image_bytes_multiple(self, image_bytes: bytes, filename: str) -> dict:
         """Parse image from bytes and extract multiple transactions."""
         image_data = base64.standard_b64encode(image_bytes).decode("utf-8")
         media_type = self._get_media_type(filename)
-        response_text = self._call_vision_api(image_data, media_type)
-        return self._parse_multiple_response(response_text)
+        return self._call_with_retry(image_data, media_type, self._parse_multiple_response)
 
 

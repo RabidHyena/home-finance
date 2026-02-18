@@ -55,4 +55,9 @@ def get_settings() -> Settings:
             "Using default SECRET_KEY — not safe for production!",
             stacklevel=2,
         )
+    if not settings.openrouter_api_key:
+        warnings.warn(
+            "OPENROUTER_API_KEY is not set — OCR features will not work!",
+            stacklevel=2,
+        )
     return settings

@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useEffect, useCallback, type ReactNode } from 'react';
 import { api } from '../api/client';
-import { queryClient } from '../App';
+import { queryClient } from '../queryClient';
 import type { User, LoginRequest, RegisterRequest } from '../types';
 
 interface AuthContextType {

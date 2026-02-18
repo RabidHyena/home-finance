@@ -1,0 +1,1922 @@
+{
+	"info": {
+		"name": "Home Finance — Brutal API Tests",
+		"description": "Максимально жёсткая коллекция для тестирования всех эндпоинтов. Покрывает: auth, CRUD, валидацию, edge cases, security, OCR, бюджеты, аналитику, экспорт.\n\n## Порядок запуска\n1. Setup → Register + Login (автоматически сохраняет cookie)\n2. Все папки можно запускать через Collection Runner\n3. Cleanup в конце удаляет тестовые данные\n\n## Переменные\n- `base_url` — адрес API (default: http://localhost:8000)\n- `test_email`, `test_password`, `test_username` — генерируются автоматически при каждом запуске\n- `tx_id`, `budget_id` — автозаполняются из ответов",
+		"schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+	},
+	"variable": [
+		{"key": "base_url", "value": "http://localhost:8000"},
+		{"key": "test_email", "value": "brutal_test@example.com"},
+		{"key": "test_username", "value": "brutal_tester"},
+		{"key": "test_password", "value": "SuperStr0ng!Pass"},
+		{"key": "tx_id", "value": ""},
+		{"key": "tx_id_2", "value": ""},
+		{"key": "budget_id", "value": ""},
+		{"key": "second_email", "value": "second_user@example.com"},
+		{"key": "second_username", "value": "second_user"},
+		{"key": "second_password", "value": "AnotherP@ss123"}
+	],
+	"item": [
+		{
+			"name": "00 — Health & Root",
+			"item": [
+				{
+					"name": "Health Check",
+					"request": {
+						"method": "GET",
+						"url": "{{base_url}}/health"
+					},
+					"event": [{
+						"listen": "test",
+						"script": {
+							"exec": [
+								"pm.test('Status 200', () => pm.response.to.have.status(200));",
+								"pm.test('DB healthy', () => {",
+								"  const j = pm.response.json();",
+								"  pm.expect(j.status).to.eql('healthy');",
+								"  pm.expect(j.database).to.eql('healthy');",
+								"  pm.expect(j.version).to.be.a('string');",
+								"});"
+							]
+						}
+					}]
+				},
+				{
+					"name": "Root endpoint",
+					"request": {
+						"method": "GET",
+						"url": "{{base_url}}/"
+					},
+					"event": [{
+						"listen": "test",
+						"script": {
+							"exec": [
+								"pm.test('Status 200', () => pm.response.to.have.status(200));",
+								"pm.test('Has message and docs', () => {",
+								"  const j = pm.response.json();",
+								"  pm.expect(j.message).to.include('Home Finance');",
+								"  pm.expect(j.docs).to.eql('/docs');",
+								"});"
+							]
+						}
+					}]
+				},
+				{
+					"name": "404 — nonexistent route",
+					"request": {
+						"method": "GET",
+						"url": "{{base_url}}/api/nonexistent"
+					},
+					"event": [{
+						"listen": "test",
+						"script": {
+							"exec": [
+								"pm.test('Status 404', () => pm.response.to.have.status(404));"
+							]
+						}
+					}]
+				}
+			]
+		},
+		{
+			"name": "01 — Auth: Registration",
+			"item": [
+				{
+					"name": "Register — success",
+					"request": {
+						"method": "POST",
+						"url": "{{base_url}}/api/auth/register",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"email\": \"{{test_email}}\", \"username\": \"{{test_username}}\", \"password\": \"{{test_password}}\"}"
+						}
+					},
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"// Generate unique credentials per run for idempotency",
+									"const ts = Date.now();",
+									"pm.collectionVariables.set('test_email', 'brutal_' + ts + '@example.com');",
+									"pm.collectionVariables.set('test_username', 'tester_' + ts);"
+								]
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"exec": [
+									"pm.test('Status 201', () => pm.response.to.have.status(201));",
+									"pm.test('Returns user data', () => {",
+									"  const j = pm.response.json();",
+									"  pm.expect(j.id).to.be.a('number');",
+									"  pm.expect(j.email).to.eql(pm.collectionVariables.get('test_email'));",
+									"  pm.expect(j.username).to.eql(pm.collectionVariables.get('test_username'));",
+									"  pm.expect(j.created_at).to.be.a('string');",
+									"  pm.expect(j).to.not.have.property('password');",
+									"  pm.expect(j).to.not.have.property('hashed_password');",
+									"});",
+									"pm.test('Sets httpOnly cookie', () => {",
+									"  const cookie = pm.response.headers.get('Set-Cookie');",
+									"  pm.expect(cookie).to.include('access_token=');",
+									"  pm.expect(cookie.toLowerCase()).to.include('httponly');",
+									"  pm.expect(cookie).to.include('Path=/');",
+									"});"
+								]
+							}
+						}
+					]
+				},
+				{
+					"name": "Register — duplicate email",
+					"request": {
+						"method": "POST",
+						"url": "{{base_url}}/api/auth/register",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"email\": \"{{test_email}}\", \"username\": \"different_user\", \"password\": \"Password123!\"}"
+						}
+					},
+					"event": [{
+						"listen": "test",
+						"script": {
+							"exec": [
+								"pm.test('Status 400', () => pm.response.to.have.status(400));",
+								"pm.test('Error message', () => {",
+								"  pm.expect(pm.response.json().detail).to.include('already be in use');",
+								"});"
+							]
+						}
+					}]
+				},
+				{
+					"name": "Register — duplicate username",
+					"request": {
+						"method": "POST",
+						"url": "{{base_url}}/api/auth/register",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"email\": \"other@example.com\", \"username\": \"{{test_username}}\", \"password\": \"Password123!\"}"
+						}
+					},
+					"event": [{
+						"listen": "test",
+						"script": {
+							"exec": [
+								"pm.test('Status 400', () => pm.response.to.have.status(400));"
+							]
+						}
+					}]
+				},
+				{
+					"name": "Register — password too short (<8)",
+					"request": {
+						"method": "POST",
+						"url": "{{base_url}}/api/auth/register",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"email\": \"short@example.com\", \"username\": \"shortpw\", \"password\": \"1234567\"}"
+						}
+					},
+					"event": [{
+						"listen": "test",
+						"script": {
+							"exec": [
+								"pm.test('Status 422', () => pm.response.to.have.status(422));"
+							]
+						}
+					}]
+				},
+				{
+					"name": "Register — username too short (<3)",
+					"request": {
+						"method": "POST",
+						"url": "{{base_url}}/api/auth/register",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"email\": \"ab@example.com\", \"username\": \"ab\", \"password\": \"Password123!\"}"
+						}
+					},
+					"event": [{
+						"listen": "test",
+						"script": {
+							"exec": [
+								"pm.test('Status 422', () => pm.response.to.have.status(422));"
+							]
+						}
+					}]
+				},
+				{
+					"name": "Register — invalid email",
+					"request": {
+						"method": "POST",
+						"url": "{{base_url}}/api/auth/register",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"email\": \"not-an-email\", \"username\": \"valuser\", \"password\": \"Password123!\"}"
+						}
+					},
+					"event": [{
+						"listen": "test",
+						"script": {
+							"exec": [
+								"pm.test('Status 422', () => pm.response.to.have.status(422));"
+							]
+						}
+					}]
+				},
+				{
+					"name": "Register — empty body",
+					"request": {
+						"method": "POST",
+						"url": "{{base_url}}/api/auth/register",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {
+							"mode": "raw",
+							"raw": "{}"
+						}
+					},
+					"event": [{
+						"listen": "test",
+						"script": {
+							"exec": [
+								"pm.test('Status 422', () => pm.response.to.have.status(422));"
+							]
+						}
+					}]
+				},
+				{
+					"name": "Register — no body at all",
+					"request": {
+						"method": "POST",
+						"url": "{{base_url}}/api/auth/register",
+						"header": [{"key": "Content-Type", "value": "application/json"}]
+					},
+					"event": [{
+						"listen": "test",
+						"script": {
+							"exec": [
+								"pm.test('Status 422', () => pm.response.to.have.status(422));"
+							]
+						}
+					}]
+				}
+			]
+		},
+		{
+			"name": "02 — Auth: Login & Session",
+			"item": [
+				{
+					"name": "Login — with email",
+					"request": {
+						"method": "POST",
+						"url": "{{base_url}}/api/auth/login",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"login\": \"{{test_email}}\", \"password\": \"{{test_password}}\"}"
+						}
+					},
+					"event": [{
+						"listen": "test",
+						"script": {
+							"exec": [
+								"pm.test('Status 200', () => pm.response.to.have.status(200));",
+								"pm.test('Returns user', () => {",
+								"  const j = pm.response.json();",
+								"  pm.expect(j.email).to.eql(pm.collectionVariables.get('test_email'));",
+								"});",
+								"pm.test('Sets cookie', () => {",
+								"  pm.expect(pm.response.headers.get('Set-Cookie')).to.include('access_token=');",
+								"});"
+							]
+						}
+					}]
+				},
+				{
+					"name": "Login — with username",
+					"request": {
+						"method": "POST",
+						"url": "{{base_url}}/api/auth/login",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"login\": \"{{test_username}}\", \"password\": \"{{test_password}}\"}"
+						}
+					},
+					"event": [{
+						"listen": "test",
+						"script": {
+							"exec": [
+								"pm.test('Status 200', () => pm.response.to.have.status(200));"
+							]
+						}
+					}]
+				},
+				{
+					"name": "Login — wrong password",
+					"request": {
+						"method": "POST",
+						"url": "{{base_url}}/api/auth/login",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"login\": \"{{test_email}}\", \"password\": \"WrongPassword!\"}"
+						}
+					},
+					"event": [{
+						"listen": "test",
+						"script": {
+							"exec": [
+								"pm.test('Status 401', () => pm.response.to.have.status(401));",
+								"pm.test('Error message', () => {",
+								"  pm.expect(pm.response.json().detail).to.include('Invalid');",
+								"});"
+							]
+						}
+					}]
+				},
+				{
+					"name": "Login — nonexistent user",
+					"request": {
+						"method": "POST",
+						"url": "{{base_url}}/api/auth/login",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"login\": \"ghost@nowhere.com\", \"password\": \"Password123!\"}"
+						}
+					},
+					"event": [{
+						"listen": "test",
+						"script": {
+							"exec": [
+								"pm.test('Status 401', () => pm.response.to.have.status(401));"
+							]
+						}
+					}]
+				},
+				{
+					"name": "Me — authenticated",
+					"request": {
+						"method": "GET",
+						"url": "{{base_url}}/api/auth/me"
+					},
+					"event": [{
+						"listen": "test",
+						"script": {
+							"exec": [
+								"pm.test('Status 200', () => pm.response.to.have.status(200));",
+								"pm.test('Returns current user', () => {",
+								"  const j = pm.response.json();",
+								"  pm.expect(j.email).to.eql(pm.collectionVariables.get('test_email'));",
+								"  pm.expect(j.username).to.eql(pm.collectionVariables.get('test_username'));",
+								"  pm.expect(j.id).to.be.a('number');",
+								"});"
+							]
+						}
+					}]
+				},
+				{
+					"name": "Logout",
+					"request": {
+						"method": "POST",
+						"url": "{{base_url}}/api/auth/logout"
+					},
+					"event": [{
+						"listen": "test",
+						"script": {
+							"exec": [
+								"pm.test('Status 200', () => pm.response.to.have.status(200));",
+								"pm.test('Message', () => {",
+								"  pm.expect(pm.response.json().message).to.eql('Logged out');",
+								"});",
+								"pm.test('Clears cookie', () => {",
+								"  const cookie = pm.response.headers.get('Set-Cookie');",
+								"  pm.expect(cookie).to.include('access_token=');",
+								"  const hasClear = /max-age=0/i.test(cookie) || /expires=.*1970/i.test(cookie) || /access_token=\\s*[;\"]/i.test(cookie) || /access_token=\"?\"/i.test(cookie);",
+								"  pm.expect(hasClear).to.be.true;",
+								"});"
+							]
+						}
+					}]
+				},
+				{
+					"name": "Me — after logout (401)",
+					"request": {
+						"method": "GET",
+						"url": "{{base_url}}/api/auth/me"
+					},
+					"event": [{
+						"listen": "test",
+						"script": {
+							"exec": [
+								"pm.test('Status 401', () => pm.response.to.have.status(401));"
+							]
+						}
+					}]
+				}
+			]
+		},
+		{
+			"name": "03 — Auth: Unauthenticated Access (401)",
+			"item": [
+				{
+					"name": "Logout to clear cookie jar",
+					"request": {
+						"method": "POST",
+						"url": "{{base_url}}/api/auth/logout"
+					},
+					"event": [{
+						"listen": "test",
+						"script": {
+							"exec": [
+								"pm.test('Logout OK', () => {",
+								"  // Accept both 200 (logged in) and 401 (already logged out)",
+								"  pm.expect(pm.response.code).to.be.oneOf([200, 401]);",
+								"});"
+							]
+						}
+					}]
+				},
+				{
+					"name": "GET /transactions — no cookie",
+					"request": {
+						"method": "GET",
+						"url": "{{base_url}}/api/transactions"
+					},
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"// Override cookie header to ensure no valid token is sent",
+									"pm.request.headers.upsert({key: 'Cookie', value: 'access_token=INVALIDATED'});"
+								]
+							}
+						},
+						{
+							"listen": "test",
+							"script": {
+								"exec": ["pm.test('Status 401', () => pm.response.to.have.status(401));"]
+							}
+						}
+					]
+				},
+				{
+					"name": "POST /transactions — no cookie",
+					"request": {
+						"method": "POST",
+						"url": "{{base_url}}/api/transactions",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {"mode": "raw", "raw": "{\"amount\": 100, \"description\": \"Test\", \"date\": \"2026-01-15T10:00:00\"}"}
+					},
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"pm.request.headers.upsert({key: 'Cookie', value: 'access_token=INVALIDATED'});"
+								]
+							}
+						},
+						{
+							"listen": "test",
+							"script": {"exec": ["pm.test('Status 401', () => pm.response.to.have.status(401));"]}
+						}
+					]
+				},
+				{
+					"name": "GET /budgets — no cookie",
+					"request": {
+						"method": "GET",
+						"url": "{{base_url}}/api/budgets"
+					},
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"pm.request.headers.upsert({key: 'Cookie', value: 'access_token=INVALIDATED'});"
+								]
+							}
+						},
+						{
+							"listen": "test",
+							"script": {"exec": ["pm.test('Status 401', () => pm.response.to.have.status(401));"]}
+						}
+					]
+				},
+				{
+					"name": "POST /upload — no cookie",
+					"request": {
+						"method": "POST",
+						"url": "{{base_url}}/api/upload"
+					},
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"pm.request.headers.upsert({key: 'Cookie', value: 'access_token=INVALIDATED'});"
+								]
+							}
+						},
+						{
+							"listen": "test",
+							"script": {"exec": ["pm.test('Status 401', () => pm.response.to.have.status(401));"]}
+						}
+					]
+				},
+				{
+					"name": "Fake JWT cookie",
+					"request": {
+						"method": "GET",
+						"url": "{{base_url}}/api/auth/me"
+					},
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"pm.request.headers.upsert({key: 'Cookie', value: 'access_token=eyJhbGciOiJIUzI1NiJ9.eyJzdWIiOiI5OTk5OTkifQ.faketoken'});"
+								]
+							}
+						},
+						{
+							"listen": "test",
+							"script": {"exec": ["pm.test('Status 401', () => pm.response.to.have.status(401));"]}
+						}
+					]
+				},
+				{
+					"name": "Re-login after unauthenticated tests",
+					"request": {
+						"method": "POST",
+						"url": "{{base_url}}/api/auth/login",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"login\": \"{{test_email}}\", \"password\": \"{{test_password}}\"}"
+						}
+					},
+					"event": [{
+						"listen": "test",
+						"script": {"exec": ["pm.test('Status 200', () => pm.response.to.have.status(200));"]}
+					}]
+				}
+			]
+		},
+		{
+			"name": "04 — Transactions: CRUD",
+			"item": [
+				{
+					"name": "Create — expense (RUB)",
+					"request": {
+						"method": "POST",
+						"url": "{{base_url}}/api/transactions",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"amount\": 1500.50, \"description\": \"Пятёрочка\", \"category\": \"Food\", \"date\": \"2026-01-15T14:30:00\", \"currency\": \"RUB\", \"type\": \"expense\"}"
+						}
+					},
+					"event": [{
+						"listen": "test",
+						"script": {
+							"exec": [
+								"pm.test('Status 201', () => pm.response.to.have.status(201));",
+								"pm.test('Correct fields', () => {",
+								"  const j = pm.response.json();",
+								"  pm.expect(j.amount).to.eql(1500.5);",
+								"  pm.expect(j.description).to.eql('Пятёрочка');",
+								"  pm.expect(j.category).to.eql('Food');",
+								"  pm.expect(j.currency).to.eql('RUB');",
+								"  pm.expect(j.type).to.eql('expense');",
+								"  pm.expect(j.id).to.be.a('number');",
+								"  pm.expect(j.created_at).to.be.a('string');",
+								"  pm.expect(j.updated_at).to.be.a('string');",
+								"});",
+								"pm.collectionVariables.set('tx_id', pm.response.json().id);"
+							]
+						}
+					}]
+				},
+				{
+					"name": "Create — income (Salary)",
+					"request": {
+						"method": "POST",
+						"url": "{{base_url}}/api/transactions",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"amount\": 150000, \"description\": \"Зарплата Январь\", \"category\": \"Salary\", \"date\": \"2026-01-10T09:00:00\", \"type\": \"income\"}"
+						}
+					},
+					"event": [{
+						"listen": "test",
+						"script": {
+							"exec": [
+								"pm.test('Status 201', () => pm.response.to.have.status(201));",
+								"pm.test('Type is income', () => {",
+								"  const j = pm.response.json();",
+								"  pm.expect(j.type).to.eql('income');",
+								"  pm.expect(j.category).to.eql('Salary');",
+								"  pm.expect(j.amount).to.eql(150000);",
+								"});",
+								"pm.collectionVariables.set('tx_id_2', pm.response.json().id);"
+							]
+						}
+					}]
+				},
+				{
+					"name": "Create — USD currency",
+					"request": {
+						"method": "POST",
+						"url": "{{base_url}}/api/transactions",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"amount\": 49.99, \"description\": \"Netflix\", \"category\": \"Entertainment\", \"date\": \"2026-01-20T10:00:00\", \"currency\": \"USD\", \"type\": \"expense\"}"
+						}
+					},
+					"event": [{
+						"listen": "test",
+						"script": {
+							"exec": [
+								"pm.test('Status 201', () => pm.response.to.have.status(201));",
+								"pm.test('USD currency', () => {",
+								"  pm.expect(pm.response.json().currency).to.eql('USD');",
+								"});"
+							]
+						}
+					}]
+				},
+				{
+					"name": "Create — minimal fields (defaults)",
+					"request": {
+						"method": "POST",
+						"url": "{{base_url}}/api/transactions",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"amount\": 100, \"description\": \"Минимальный\", \"date\": \"2026-02-01T12:00:00\"}"
+						}
+					},
+					"event": [{
+						"listen": "test",
+						"script": {
+							"exec": [
+								"pm.test('Status 201', () => pm.response.to.have.status(201));",
+								"pm.test('Defaults applied', () => {",
+								"  const j = pm.response.json();",
+								"  pm.expect(j.currency).to.eql('RUB');",
+								"  pm.expect(j.type).to.eql('expense');",
+								"});"
+							]
+						}
+					}]
+				},
+				{
+					"name": "Create — with AI fields",
+					"request": {
+						"method": "POST",
+						"url": "{{base_url}}/api/transactions",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"amount\": 500, \"description\": \"Starbucks Coffee\", \"category\": \"Food\", \"date\": \"2026-01-25T08:00:00\", \"ai_category\": \"Shopping\", \"ai_confidence\": 0.65}"
+						}
+					},
+					"event": [{
+						"listen": "test",
+						"script": {
+							"exec": [
+								"pm.test('Status 201', () => pm.response.to.have.status(201));",
+								"pm.test('AI fields saved', () => {",
+								"  const j = pm.response.json();",
+								"  pm.expect(j.ai_category).to.eql('Shopping');",
+								"  pm.expect(j.ai_confidence).to.be.closeTo(0.65, 0.01);",
+								"});"
+							]
+						}
+					}]
+				},
+				{
+					"name": "Get by ID",
+					"request": {
+						"method": "GET",
+						"url": "{{base_url}}/api/transactions/{{tx_id}}"
+					},
+					"event": [{
+						"listen": "test",
+						"script": {
+							"exec": [
+								"pm.test('Status 200', () => pm.response.to.have.status(200));",
+								"pm.test('Correct ID', () => {",
+								"  pm.expect(pm.response.json().id).to.eql(parseInt(pm.collectionVariables.get('tx_id')));",
+								"});"
+							]
+						}
+					}]
+				},
+				{
+					"name": "Get — nonexistent ID (404)",
+					"request": {
+						"method": "GET",
+						"url": "{{base_url}}/api/transactions/999999"
+					},
+					"event": [{
+						"listen": "test",
+						"script": {"exec": ["pm.test('Status 404', () => pm.response.to.have.status(404));"]}
+					}]
+				},
+				{
+					"name": "Update — partial",
+					"request": {
+						"method": "PUT",
+						"url": "{{base_url}}/api/transactions/{{tx_id}}",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"amount\": 2000, \"category\": \"Shopping\"}"
+						}
+					},
+					"event": [{
+						"listen": "test",
+						"script": {
+							"exec": [
+								"pm.test('Status 200', () => pm.response.to.have.status(200));",
+								"pm.test('Updated fields', () => {",
+								"  const j = pm.response.json();",
+								"  pm.expect(j.amount).to.eql(2000);",
+								"  pm.expect(j.category).to.eql('Shopping');",
+								"  pm.expect(j.description).to.eql('Пятёрочка');",
+								"});"
+							]
+						}
+					}]
+				},
+				{
+					"name": "Update — change type to income",
+					"request": {
+						"method": "PUT",
+						"url": "{{base_url}}/api/transactions/{{tx_id}}",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"type\": \"income\"}"
+						}
+					},
+					"event": [{
+						"listen": "test",
+						"script": {
+							"exec": [
+								"pm.test('Status 200', () => pm.response.to.have.status(200));",
+								"pm.test('Type changed', () => {",
+								"  pm.expect(pm.response.json().type).to.eql('income');",
+								"});"
+							]
+						}
+					}]
+				},
+				{
+					"name": "Update — change currency to EUR",
+					"request": {
+						"method": "PUT",
+						"url": "{{base_url}}/api/transactions/{{tx_id}}",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {
+							"mode": "raw",
+							"raw": "{\"currency\": \"EUR\"}"
+						}
+					},
+					"event": [{
+						"listen": "test",
+						"script": {
+							"exec": [
+								"pm.test('Status 200', () => pm.response.to.have.status(200));",
+								"pm.test('Currency changed', () => {",
+								"  pm.expect(pm.response.json().currency).to.eql('EUR');",
+								"});"
+							]
+						}
+					}]
+				},
+				{
+					"name": "Update — nonexistent (404)",
+					"request": {
+						"method": "PUT",
+						"url": "{{base_url}}/api/transactions/999999",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {"mode": "raw", "raw": "{\"amount\": 100}"}
+					},
+					"event": [{
+						"listen": "test",
+						"script": {"exec": ["pm.test('Status 404', () => pm.response.to.have.status(404));"]}
+					}]
+				},
+				{
+					"name": "List — all",
+					"request": {
+						"method": "GET",
+						"url": "{{base_url}}/api/transactions"
+					},
+					"event": [{
+						"listen": "test",
+						"script": {
+							"exec": [
+								"pm.test('Status 200', () => pm.response.to.have.status(200));",
+								"pm.test('Paginated structure', () => {",
+								"  const j = pm.response.json();",
+								"  pm.expect(j.items).to.be.an('array');",
+								"  pm.expect(j.total).to.be.a('number');",
+								"  pm.expect(j.page).to.eql(1);",
+								"  pm.expect(j.per_page).to.eql(20);",
+								"  pm.expect(j.total).to.be.gte(4);",
+								"});"
+							]
+						}
+					}]
+				},
+				{
+					"name": "List — filter by type=expense",
+					"request": {
+						"method": "GET",
+						"url": "{{base_url}}/api/transactions?type=expense"
+					},
+					"event": [{
+						"listen": "test",
+						"script": {
+							"exec": [
+								"pm.test('Status 200', () => pm.response.to.have.status(200));",
+								"pm.test('Only expenses', () => {",
+								"  pm.response.json().items.forEach(tx => {",
+								"    pm.expect(tx.type).to.eql('expense');",
+								"  });",
+								"});"
+							]
+						}
+					}]
+				},
+				{
+					"name": "List — filter by type=income",
+					"request": {
+						"method": "GET",
+						"url": "{{base_url}}/api/transactions?type=income"
+					},
+					"event": [{
+						"listen": "test",
+						"script": {
+							"exec": [
+								"pm.test('Status 200', () => pm.response.to.have.status(200));",
+								"pm.test('Only income', () => {",
+								"  pm.response.json().items.forEach(tx => {",
+								"    pm.expect(tx.type).to.eql('income');",
+								"  });",
+								"});"
+							]
+						}
+					}]
+				},
+				{
+					"name": "List — filter by category",
+					"request": {
+						"method": "GET",
+						"url": "{{base_url}}/api/transactions?category=Food"
+					},
+					"event": [{
+						"listen": "test",
+						"script": {
+							"exec": [
+								"pm.test('Status 200', () => pm.response.to.have.status(200));",
+								"pm.test('Only Food', () => {",
+								"  pm.response.json().items.forEach(tx => {",
+								"    pm.expect(tx.category).to.eql('Food');",
+								"  });",
+								"});"
+							]
+						}
+					}]
+				},
+				{
+					"name": "List — search cyrillic",
+					"request": {
+						"method": "GET",
+						"url": "{{base_url}}/api/transactions?search=Зарплата"
+					},
+					"event": [{
+						"listen": "test",
+						"script": {
+							"exec": [
+								"pm.test('Status 200', () => pm.response.to.have.status(200));",
+								"pm.test('Found salary', () => {",
+								"  const items = pm.response.json().items;",
+								"  pm.expect(items.length).to.be.gte(1);",
+								"  pm.expect(items[0].description).to.include('Зарплата');",
+								"});"
+							]
+						}
+					}]
+				},
+				{
+					"name": "List — date range filter",
+					"request": {
+						"method": "GET",
+						"url": "{{base_url}}/api/transactions?date_from=2026-01-01T00:00:00&date_to=2026-01-31T23:59:59"
+					},
+					"event": [{
+						"listen": "test",
+						"script": {
+							"exec": [
+								"pm.test('Status 200', () => pm.response.to.have.status(200));",
+								"pm.test('January only', () => {",
+								"  pm.response.json().items.forEach(tx => {",
+								"    pm.expect(tx.date).to.match(/^2026-01/);",
+								"  });",
+								"});"
+							]
+						}
+					}]
+				},
+				{
+					"name": "List — pagination page=1, per_page=2",
+					"request": {
+						"method": "GET",
+						"url": "{{base_url}}/api/transactions?page=1&per_page=2"
+					},
+					"event": [{
+						"listen": "test",
+						"script": {
+							"exec": [
+								"pm.test('Status 200', () => pm.response.to.have.status(200));",
+								"pm.test('Max 2 items', () => {",
+								"  const j = pm.response.json();",
+								"  pm.expect(j.items.length).to.be.lte(2);",
+								"  pm.expect(j.per_page).to.eql(2);",
+								"  pm.expect(j.page).to.eql(1);",
+								"});"
+							]
+						}
+					}]
+				},
+				{
+					"name": "List — ordered by date desc",
+					"request": {
+						"method": "GET",
+						"url": "{{base_url}}/api/transactions?per_page=100"
+					},
+					"event": [{
+						"listen": "test",
+						"script": {
+							"exec": [
+								"pm.test('Status 200', () => pm.response.to.have.status(200));",
+								"pm.test('Ordered by date desc', () => {",
+								"  const items = pm.response.json().items;",
+								"  for (let i = 1; i < items.length; i++) {",
+								"    pm.expect(new Date(items[i-1].date) >= new Date(items[i].date)).to.be.true;",
+								"  }",
+								"});"
+							]
+						}
+					}]
+				}
+			]
+		},
+		{
+			"name": "05 — Transactions: Validation (422/400)",
+			"item": [
+				{
+					"name": "Amount = 0",
+					"request": {
+						"method": "POST",
+						"url": "{{base_url}}/api/transactions",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {"mode": "raw", "raw": "{\"amount\": 0, \"description\": \"Zero\", \"date\": \"2026-01-15T10:00:00\"}"}
+					},
+					"event": [{"listen": "test", "script": {"exec": ["pm.test('Status 422', () => pm.response.to.have.status(422));"]}}]
+				},
+				{
+					"name": "Amount negative",
+					"request": {
+						"method": "POST",
+						"url": "{{base_url}}/api/transactions",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {"mode": "raw", "raw": "{\"amount\": -100, \"description\": \"Neg\", \"date\": \"2026-01-15T10:00:00\"}"}
+					},
+					"event": [{"listen": "test", "script": {"exec": ["pm.test('Status 422', () => pm.response.to.have.status(422));"]}}]
+				},
+				{
+					"name": "Amount too large (>9999999999)",
+					"request": {
+						"method": "POST",
+						"url": "{{base_url}}/api/transactions",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {"mode": "raw", "raw": "{\"amount\": 99999999999, \"description\": \"Huge\", \"date\": \"2026-01-15T10:00:00\"}"}
+					},
+					"event": [{"listen": "test", "script": {"exec": ["pm.test('Status 422', () => pm.response.to.have.status(422));"]}}]
+				},
+				{
+					"name": "Amount = 0.001 (below minimum 0.01)",
+					"request": {
+						"method": "POST",
+						"url": "{{base_url}}/api/transactions",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {"mode": "raw", "raw": "{\"amount\": 0.001, \"description\": \"Tiny\", \"date\": \"2026-01-15T10:00:00\"}"}
+					},
+					"event": [{"listen": "test", "script": {"exec": ["pm.test('Status 422', () => pm.response.to.have.status(422));"]}}]
+				},
+				{
+					"name": "Amount = 0.01 (boundary — valid)",
+					"request": {
+						"method": "POST",
+						"url": "{{base_url}}/api/transactions",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {"mode": "raw", "raw": "{\"amount\": 0.01, \"description\": \"Boundary min\", \"date\": \"2026-01-15T10:00:00\"}"}
+					},
+					"event": [{"listen": "test", "script": {"exec": ["pm.test('Status 201', () => pm.response.to.have.status(201));"]}}]
+				},
+				{
+					"name": "Amount = 9999999999 (boundary — valid)",
+					"request": {
+						"method": "POST",
+						"url": "{{base_url}}/api/transactions",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {"mode": "raw", "raw": "{\"amount\": 9999999999, \"description\": \"Boundary max\", \"date\": \"2026-01-15T10:00:00\"}"}
+					},
+					"event": [{"listen": "test", "script": {"exec": ["pm.test('Status 201', () => pm.response.to.have.status(201));"]}}]
+				},
+				{
+					"name": "Description too long (>500 chars)",
+					"request": {
+						"method": "POST",
+						"url": "{{base_url}}/api/transactions",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {"mode": "raw", "raw": "{\"amount\": 100, \"description\": \"AAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAAA\", \"date\": \"2026-01-15T10:00:00\"}"}
+					},
+					"event": [{"listen": "test", "script": {"exec": ["pm.test('Status 422', () => pm.response.to.have.status(422));"]}}]
+				},
+				{
+					"name": "Missing required fields",
+					"request": {
+						"method": "POST",
+						"url": "{{base_url}}/api/transactions",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {"mode": "raw", "raw": "{\"category\": \"Food\"}"}
+					},
+					"event": [{"listen": "test", "script": {"exec": ["pm.test('Status 422', () => pm.response.to.have.status(422));"]}}]
+				},
+				{
+					"name": "Invalid currency (JPY — not in allowed set)",
+					"request": {
+						"method": "POST",
+						"url": "{{base_url}}/api/transactions",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {"mode": "raw", "raw": "{\"amount\": 100, \"description\": \"Test\", \"date\": \"2026-01-15T10:00:00\", \"currency\": \"JPY\"}"}
+					},
+					"event": [{"listen": "test", "script": {"exec": ["pm.test('Status 422', () => pm.response.to.have.status(422));"]}}]
+				},
+				{
+					"name": "Date before year 2000",
+					"request": {
+						"method": "POST",
+						"url": "{{base_url}}/api/transactions",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {"mode": "raw", "raw": "{\"amount\": 100, \"description\": \"Old\", \"date\": \"1999-12-31T23:59:59\"}"}
+					},
+					"event": [{"listen": "test", "script": {"exec": ["pm.test('Status 422', () => pm.response.to.have.status(422));"]}}]
+				},
+				{
+					"name": "Date after year 2100",
+					"request": {
+						"method": "POST",
+						"url": "{{base_url}}/api/transactions",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {"mode": "raw", "raw": "{\"amount\": 100, \"description\": \"Future\", \"date\": \"2101-01-01T00:00:00\"}"}
+					},
+					"event": [{"listen": "test", "script": {"exec": ["pm.test('Status 422', () => pm.response.to.have.status(422));"]}}]
+				},
+				{
+					"name": "Invalid date format",
+					"request": {
+						"method": "POST",
+						"url": "{{base_url}}/api/transactions",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {"mode": "raw", "raw": "{\"amount\": 100, \"description\": \"Bad date\", \"date\": \"not-a-date\"}"}
+					},
+					"event": [{"listen": "test", "script": {"exec": ["pm.test('Status 422', () => pm.response.to.have.status(422));"]}}]
+				},
+				{
+					"name": "XSS in description",
+					"request": {
+						"method": "POST",
+						"url": "{{base_url}}/api/transactions",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {"mode": "raw", "raw": "{\"amount\": 100, \"description\": \"<script>alert('xss')</script>\", \"date\": \"2026-01-15T10:00:00\"}"}
+					},
+					"event": [{
+						"listen": "test",
+						"script": {
+							"exec": [
+								"pm.test('Status 201 (sanitized)', () => pm.response.to.have.status(201));",
+								"pm.test('HTML stripped', () => {",
+								"  const desc = pm.response.json().description;",
+								"  pm.expect(desc).to.not.include('<script>');",
+								"  pm.expect(desc).to.not.include('</script>');",
+								"});"
+							]
+						}
+					}]
+				},
+				{
+					"name": "Null bytes in description",
+					"request": {
+						"method": "POST",
+						"url": "{{base_url}}/api/transactions",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {"mode": "raw", "raw": "{\"amount\": 100, \"description\": \"Test\\u0000Null\", \"date\": \"2026-01-15T10:00:00\"}"}
+					},
+					"event": [{
+						"listen": "test",
+						"script": {
+							"exec": [
+								"pm.test('Status 201', () => pm.response.to.have.status(201));",
+								"pm.test('Null byte removed', () => {",
+								"  pm.expect(pm.response.json().description).to.not.include('\\u0000');",
+								"});"
+							]
+						}
+					}]
+				}
+			]
+		},
+		{
+			"name": "06 — Transactions: Analytics",
+			"item": [
+				{
+					"name": "Monthly reports",
+					"request": {
+						"method": "GET",
+						"url": "{{base_url}}/api/transactions/reports/monthly"
+					},
+					"event": [{
+						"listen": "test",
+						"script": {
+							"exec": [
+								"pm.test('Status 200', () => pm.response.to.have.status(200));",
+								"pm.test('Array of reports', () => {",
+								"  const j = pm.response.json();",
+								"  pm.expect(j).to.be.an('array');",
+								"  if (j.length > 0) {",
+								"    pm.expect(j[0]).to.have.property('year');",
+								"    pm.expect(j[0]).to.have.property('month');",
+								"    pm.expect(j[0]).to.have.property('total_amount');",
+								"    pm.expect(j[0]).to.have.property('transaction_count');",
+								"    pm.expect(j[0]).to.have.property('by_category');",
+								"  }",
+								"});"
+							]
+						}
+					}]
+				},
+				{
+					"name": "Monthly reports — filter by year",
+					"request": {
+						"method": "GET",
+						"url": "{{base_url}}/api/transactions/reports/monthly?year=2026"
+					},
+					"event": [{
+						"listen": "test",
+						"script": {
+							"exec": [
+								"pm.test('Status 200', () => pm.response.to.have.status(200));",
+								"pm.test('Only 2026', () => {",
+								"  pm.response.json().forEach(r => pm.expect(r.year).to.eql(2026));",
+								"});"
+							]
+						}
+					}]
+				},
+				{
+					"name": "Monthly reports — filter by type",
+					"request": {
+						"method": "GET",
+						"url": "{{base_url}}/api/transactions/reports/monthly?type=expense"
+					},
+					"event": [{"listen": "test", "script": {"exec": ["pm.test('Status 200', () => pm.response.to.have.status(200));"]}}]
+				},
+				{
+					"name": "AI accuracy",
+					"request": {
+						"method": "GET",
+						"url": "{{base_url}}/api/transactions/analytics/ai-accuracy"
+					},
+					"event": [{
+						"listen": "test",
+						"script": {
+							"exec": [
+								"pm.test('Status 200', () => pm.response.to.have.status(200));",
+								"pm.test('Has metrics', () => {",
+								"  const j = pm.response.json();",
+								"  pm.expect(j).to.have.property('total_predictions');",
+								"  pm.expect(j).to.have.property('correct_predictions');",
+								"  pm.expect(j).to.have.property('accuracy_percentage');",
+								"  pm.expect(j).to.have.property('learned_merchants');",
+								"});"
+							]
+						}
+					}]
+				},
+				{
+					"name": "Trends",
+					"request": {
+						"method": "GET",
+						"url": "{{base_url}}/api/transactions/analytics/trends?months=6"
+					},
+					"event": [{
+						"listen": "test",
+						"script": {
+							"exec": [
+								"pm.test('Status 200', () => pm.response.to.have.status(200));",
+								"pm.test('Trends structure', () => {",
+								"  const j = pm.response.json();",
+								"  pm.expect(j).to.have.property('period');",
+								"  pm.expect(j).to.have.property('data');",
+								"  pm.expect(j).to.have.property('trend_line');",
+								"  pm.expect(j).to.have.property('statistics');",
+								"  pm.expect(j.data).to.be.an('array');",
+								"});"
+							]
+						}
+					}]
+				},
+				{
+					"name": "Trends — invalid months (<3)",
+					"request": {
+						"method": "GET",
+						"url": "{{base_url}}/api/transactions/analytics/trends?months=1"
+					},
+					"event": [{"listen": "test", "script": {"exec": ["pm.test('Status 422', () => pm.response.to.have.status(422));"]}}]
+				},
+				{
+					"name": "Trends — invalid months (>24)",
+					"request": {
+						"method": "GET",
+						"url": "{{base_url}}/api/transactions/analytics/trends?months=25"
+					},
+					"event": [{"listen": "test", "script": {"exec": ["pm.test('Status 422', () => pm.response.to.have.status(422));"]}}]
+				},
+				{
+					"name": "Forecast",
+					"request": {
+						"method": "GET",
+						"url": "{{base_url}}/api/transactions/analytics/forecast"
+					},
+					"event": [{
+						"listen": "test",
+						"script": {
+							"exec": [
+								"pm.test('Status 200', () => pm.response.to.have.status(200));",
+								"pm.test('Forecast structure', () => {",
+								"  const j = pm.response.json();",
+								"  pm.expect(j).to.have.property('historical');",
+								"  pm.expect(j).to.have.property('forecast');",
+								"  pm.expect(j).to.have.property('statistics');",
+								"});"
+							]
+						}
+					}]
+				},
+				{
+					"name": "Forecast — custom params",
+					"request": {
+						"method": "GET",
+						"url": "{{base_url}}/api/transactions/analytics/forecast?history_months=12&forecast_months=6"
+					},
+					"event": [{"listen": "test", "script": {"exec": ["pm.test('Status 200', () => pm.response.to.have.status(200));"]}}]
+				},
+				{
+					"name": "Forecast — invalid history_months (<3)",
+					"request": {
+						"method": "GET",
+						"url": "{{base_url}}/api/transactions/analytics/forecast?history_months=1"
+					},
+					"event": [{"listen": "test", "script": {"exec": ["pm.test('Status 422', () => pm.response.to.have.status(422));"]}}]
+				},
+				{
+					"name": "Comparison — Jan 2026",
+					"request": {
+						"method": "GET",
+						"url": "{{base_url}}/api/transactions/analytics/comparison?year=2026&month=1"
+					},
+					"event": [{
+						"listen": "test",
+						"script": {
+							"exec": [
+								"pm.test('Status 200', () => pm.response.to.have.status(200));",
+								"pm.test('Comparison structure', () => {",
+								"  const j = pm.response.json();",
+								"  pm.expect(j).to.have.property('current_month');",
+								"  pm.expect(j).to.have.property('previous_month');",
+								"  pm.expect(j).to.have.property('current');",
+								"  pm.expect(j).to.have.property('previous');",
+								"  pm.expect(j).to.have.property('changes');",
+								"  pm.expect(j.current_month.year).to.eql(2026);",
+								"  pm.expect(j.current_month.month).to.eql(1);",
+								"});"
+							]
+						}
+					}]
+				},
+				{
+					"name": "Comparison — missing required params",
+					"request": {
+						"method": "GET",
+						"url": "{{base_url}}/api/transactions/analytics/comparison"
+					},
+					"event": [{"listen": "test", "script": {"exec": ["pm.test('Status 422', () => pm.response.to.have.status(422));"]}}]
+				},
+				{
+					"name": "Comparison — invalid month=13",
+					"request": {
+						"method": "GET",
+						"url": "{{base_url}}/api/transactions/analytics/comparison?year=2026&month=13"
+					},
+					"event": [{"listen": "test", "script": {"exec": ["pm.test('Status 422', () => pm.response.to.have.status(422));"]}}]
+				}
+			]
+		},
+		{
+			"name": "07 — CSV Export",
+			"item": [
+				{
+					"name": "Export all",
+					"request": {
+						"method": "GET",
+						"url": "{{base_url}}/api/transactions/export"
+					},
+					"event": [{
+						"listen": "test",
+						"script": {
+							"exec": [
+								"pm.test('Status 200', () => pm.response.to.have.status(200));",
+								"pm.test('Content-Type CSV', () => {",
+								"  pm.expect(pm.response.headers.get('Content-Type')).to.include('text/csv');",
+								"});",
+								"pm.test('Content-Disposition', () => {",
+								"  const cd = pm.response.headers.get('Content-Disposition');",
+								"  pm.expect(cd).to.include('attachment');",
+								"  pm.expect(cd).to.include('transactions_');",
+								"  pm.expect(cd).to.include('.csv');",
+								"});",
+								"pm.test('UTF-8 BOM or valid CSV', () => {",
+								"  const buf = pm.response.stream;",
+								"  // Check raw bytes for UTF-8 BOM: EF BB BF",
+								"  const hasBOM = buf && buf.length >= 3 && buf[0] === 0xEF && buf[1] === 0xBB && buf[2] === 0xBF;",
+								"  // Fallback: some clients strip BOM, just verify CSV starts with header",
+								"  const body = pm.response.text();",
+								"  const startsWithHeader = body.charCodeAt(0) === 0xFEFF || body.startsWith('ID');",
+								"  pm.expect(hasBOM || startsWithHeader).to.be.true;",
+								"});",
+								"pm.test('Has header row', () => {",
+								"  const body = pm.response.text();",
+								"  pm.expect(body).to.include('ID');",
+								"});"
+							]
+						}
+					}]
+				},
+				{
+					"name": "Export with type filter",
+					"request": {
+						"method": "GET",
+						"url": "{{base_url}}/api/transactions/export?type=expense"
+					},
+					"event": [{"listen": "test", "script": {"exec": ["pm.test('Status 200', () => pm.response.to.have.status(200));"]}}]
+				},
+				{
+					"name": "Export with search",
+					"request": {
+						"method": "GET",
+						"url": "{{base_url}}/api/transactions/export?search=Пятёрочка"
+					},
+					"event": [{"listen": "test", "script": {"exec": ["pm.test('Status 200', () => pm.response.to.have.status(200));"]}}]
+				}
+			]
+		},
+		{
+			"name": "08 — Budgets: CRUD",
+			"item": [
+				{
+					"name": "Create — Food monthly",
+					"request": {
+						"method": "POST",
+						"url": "{{base_url}}/api/budgets",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {"mode": "raw", "raw": "{\"category\": \"Food\", \"limit_amount\": 30000, \"period\": \"monthly\"}"}
+					},
+					"event": [{
+						"listen": "test",
+						"script": {
+							"exec": [
+								"pm.test('Status 201', () => pm.response.to.have.status(201));",
+								"pm.test('Budget created', () => {",
+								"  const j = pm.response.json();",
+								"  pm.expect(j.category).to.eql('Food');",
+								"  pm.expect(j.limit_amount).to.eql(30000);",
+								"  pm.expect(j.period).to.eql('monthly');",
+								"  pm.expect(j.id).to.be.a('number');",
+								"});",
+								"pm.collectionVariables.set('budget_id', pm.response.json().id);"
+							]
+						}
+					}]
+				},
+				{
+					"name": "Create — Transport weekly",
+					"request": {
+						"method": "POST",
+						"url": "{{base_url}}/api/budgets",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {"mode": "raw", "raw": "{\"category\": \"Transport\", \"limit_amount\": 5000, \"period\": \"weekly\"}"}
+					},
+					"event": [{"listen": "test", "script": {"exec": [
+						"pm.test('Status 201', () => pm.response.to.have.status(201));",
+						"pm.test('Weekly period', () => pm.expect(pm.response.json().period).to.eql('weekly'));"
+					]}}]
+				},
+				{
+					"name": "Create — duplicate category (400)",
+					"request": {
+						"method": "POST",
+						"url": "{{base_url}}/api/budgets",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {"mode": "raw", "raw": "{\"category\": \"Food\", \"limit_amount\": 50000}"}
+					},
+					"event": [{"listen": "test", "script": {"exec": [
+						"pm.test('Status 400', () => pm.response.to.have.status(400));",
+						"pm.test('Already exists', () => pm.expect(pm.response.json().detail).to.include('already exists'));"
+					]}}]
+				},
+				{
+					"name": "Create — zero amount (422)",
+					"request": {
+						"method": "POST",
+						"url": "{{base_url}}/api/budgets",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {"mode": "raw", "raw": "{\"category\": \"Health\", \"limit_amount\": 0}"}
+					},
+					"event": [{"listen": "test", "script": {"exec": ["pm.test('Status 422', () => pm.response.to.have.status(422));"]}}]
+				},
+				{
+					"name": "Create — negative amount (422)",
+					"request": {
+						"method": "POST",
+						"url": "{{base_url}}/api/budgets",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {"mode": "raw", "raw": "{\"category\": \"Health\", \"limit_amount\": -100}"}
+					},
+					"event": [{"listen": "test", "script": {"exec": ["pm.test('Status 422', () => pm.response.to.have.status(422));"]}}]
+				},
+				{
+					"name": "Create — invalid period (422)",
+					"request": {
+						"method": "POST",
+						"url": "{{base_url}}/api/budgets",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {"mode": "raw", "raw": "{\"category\": \"Health\", \"limit_amount\": 10000, \"period\": \"yearly\"}"}
+					},
+					"event": [{"listen": "test", "script": {"exec": ["pm.test('Status 422', () => pm.response.to.have.status(422));"]}}]
+				},
+				{
+					"name": "List all budgets",
+					"request": {
+						"method": "GET",
+						"url": "{{base_url}}/api/budgets"
+					},
+					"event": [{
+						"listen": "test",
+						"script": {"exec": [
+							"pm.test('Status 200', () => pm.response.to.have.status(200));",
+							"pm.test('Array with 2 budgets', () => {",
+							"  pm.expect(pm.response.json()).to.be.an('array');",
+							"  pm.expect(pm.response.json().length).to.be.gte(2);",
+							"});"
+						]}
+					}]
+				},
+				{
+					"name": "Get by ID",
+					"request": {
+						"method": "GET",
+						"url": "{{base_url}}/api/budgets/{{budget_id}}"
+					},
+					"event": [{"listen": "test", "script": {"exec": [
+						"pm.test('Status 200', () => pm.response.to.have.status(200));",
+						"pm.test('Correct ID', () => pm.expect(pm.response.json().id).to.eql(parseInt(pm.collectionVariables.get('budget_id'))));"
+					]}}]
+				},
+				{
+					"name": "Get — nonexistent (404)",
+					"request": {
+						"method": "GET",
+						"url": "{{base_url}}/api/budgets/999999"
+					},
+					"event": [{"listen": "test", "script": {"exec": ["pm.test('Status 404', () => pm.response.to.have.status(404));"]}}]
+				},
+				{
+					"name": "Update budget",
+					"request": {
+						"method": "PUT",
+						"url": "{{base_url}}/api/budgets/{{budget_id}}",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {"mode": "raw", "raw": "{\"limit_amount\": 50000}"}
+					},
+					"event": [{"listen": "test", "script": {"exec": [
+						"pm.test('Status 200', () => pm.response.to.have.status(200));",
+						"pm.test('Updated', () => pm.expect(pm.response.json().limit_amount).to.eql(50000));"
+					]}}]
+				},
+				{
+					"name": "Update — nonexistent (404)",
+					"request": {
+						"method": "PUT",
+						"url": "{{base_url}}/api/budgets/999999",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {"mode": "raw", "raw": "{\"limit_amount\": 1000}"}
+					},
+					"event": [{"listen": "test", "script": {"exec": ["pm.test('Status 404', () => pm.response.to.have.status(404));"]}}]
+				},
+				{
+					"name": "Budget status",
+					"request": {
+						"method": "GET",
+						"url": "{{base_url}}/api/budgets/status"
+					},
+					"event": [{
+						"listen": "test",
+						"script": {"exec": [
+							"pm.test('Status 200', () => pm.response.to.have.status(200));",
+							"pm.test('Status structure', () => {",
+							"  const j = pm.response.json();",
+							"  pm.expect(j).to.be.an('array');",
+							"  if (j.length > 0) {",
+							"    pm.expect(j[0]).to.have.property('budget');",
+							"    pm.expect(j[0]).to.have.property('spent');",
+							"    pm.expect(j[0]).to.have.property('remaining');",
+							"    pm.expect(j[0]).to.have.property('percentage');",
+							"    pm.expect(j[0]).to.have.property('exceeded');",
+							"  }",
+							"});"
+						]}
+					}]
+				},
+				{
+					"name": "Budget status — specific month",
+					"request": {
+						"method": "GET",
+						"url": "{{base_url}}/api/budgets/status?year=2026&month=1"
+					},
+					"event": [{"listen": "test", "script": {"exec": ["pm.test('Status 200', () => pm.response.to.have.status(200));"]}}]
+				}
+			]
+		},
+		{
+			"name": "09 — Upload: Validation",
+			"item": [
+				{
+					"name": "Upload — no file field (422)",
+					"request": {
+						"method": "POST",
+						"url": "{{base_url}}/api/upload",
+						"body": {
+							"mode": "formdata",
+							"formdata": [{"key": "dummy", "type": "text", "value": "no_file_here"}]
+						}
+					},
+					"event": [{"listen": "test", "script": {"exec": [
+						"pm.test('Rejects missing file', () => {",
+						"  pm.expect(pm.response.code).to.be.oneOf([400, 422]);",
+						"});"
+					]}}]
+				},
+				{
+					"name": "Parse-only — no file field (422)",
+					"request": {
+						"method": "POST",
+						"url": "{{base_url}}/api/upload/parse-only",
+						"body": {
+							"mode": "formdata",
+							"formdata": [{"key": "dummy", "type": "text", "value": "no_file_here"}]
+						}
+					},
+					"event": [{"listen": "test", "script": {"exec": [
+						"pm.test('Rejects missing file', () => {",
+						"  pm.expect(pm.response.code).to.be.oneOf([400, 422]);",
+						"});"
+					]}}]
+				},
+				{
+					"name": "Upload — text as file (400)",
+					"request": {
+						"method": "POST",
+						"url": "{{base_url}}/api/upload",
+						"body": {
+							"mode": "formdata",
+							"formdata": [{"key": "file", "type": "text", "value": "this is not an image"}]
+						}
+					},
+					"event": [{"listen": "test", "script": {"exec": [
+						"pm.test('Rejects non-image', () => {",
+						"  pm.expect(pm.response.code).to.be.oneOf([400, 422]);",
+						"});"
+					]}}]
+				}
+			]
+		},
+		{
+			"name": "10 — Data Isolation (Second User)",
+			"item": [
+				{
+					"name": "Register second user",
+					"request": {
+						"method": "POST",
+						"url": "{{base_url}}/api/auth/register",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {"mode": "raw", "raw": "{\"email\": \"{{second_email}}\", \"username\": \"{{second_username}}\", \"password\": \"{{second_password}}\"}"}
+					},
+					"event": [
+						{
+							"listen": "prerequest",
+							"script": {
+								"exec": [
+									"// Generate unique second user credentials per run",
+									"const ts = Date.now();",
+									"pm.collectionVariables.set('second_email', 'second_' + ts + '@example.com');",
+									"pm.collectionVariables.set('second_username', 'second_' + ts);"
+								]
+							}
+						},
+						{
+							"listen": "test",
+							"script": {"exec": [
+								"pm.test('Status 201', () => pm.response.to.have.status(201));",
+								"pm.test('Sets cookie for second user', () => {",
+								"  pm.expect(pm.response.headers.get('Set-Cookie')).to.include('access_token=');",
+								"});"
+							]}
+						}
+					]
+				},
+				{
+					"name": "Second user sees 0 transactions",
+					"request": {
+						"method": "GET",
+						"url": "{{base_url}}/api/transactions"
+					},
+					"event": [{"listen": "test", "script": {"exec": [
+						"pm.test('Status 200', () => pm.response.to.have.status(200));",
+						"pm.test('Empty list', () => {",
+						"  pm.expect(pm.response.json().total).to.eql(0);",
+						"  pm.expect(pm.response.json().items).to.have.length(0);",
+						"});"
+					]}}]
+				},
+				{
+					"name": "Second user sees 0 budgets",
+					"request": {
+						"method": "GET",
+						"url": "{{base_url}}/api/budgets"
+					},
+					"event": [{"listen": "test", "script": {"exec": [
+						"pm.test('Status 200', () => pm.response.to.have.status(200));",
+						"pm.test('Empty', () => pm.expect(pm.response.json()).to.have.length(0));"
+					]}}]
+				},
+				{
+					"name": "Second user can't access first user's tx",
+					"request": {
+						"method": "GET",
+						"url": "{{base_url}}/api/transactions/{{tx_id}}"
+					},
+					"event": [{"listen": "test", "script": {"exec": [
+						"pm.test('Status 404', () => pm.response.to.have.status(404));"
+					]}}]
+				},
+				{
+					"name": "Second user can't update first user's tx",
+					"request": {
+						"method": "PUT",
+						"url": "{{base_url}}/api/transactions/{{tx_id}}",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {"mode": "raw", "raw": "{\"amount\": 1}"}
+					},
+					"event": [{"listen": "test", "script": {"exec": [
+						"pm.test('Status 404', () => pm.response.to.have.status(404));"
+					]}}]
+				},
+				{
+					"name": "Second user can't delete first user's tx",
+					"request": {
+						"method": "DELETE",
+						"url": "{{base_url}}/api/transactions/{{tx_id}}"
+					},
+					"event": [{"listen": "test", "script": {"exec": [
+						"pm.test('Status 404', () => pm.response.to.have.status(404));"
+					]}}]
+				},
+				{
+					"name": "Second user can't access first user's budget",
+					"request": {
+						"method": "GET",
+						"url": "{{base_url}}/api/budgets/{{budget_id}}"
+					},
+					"event": [{"listen": "test", "script": {"exec": [
+						"pm.test('Status 404', () => pm.response.to.have.status(404));"
+					]}}]
+				},
+				{
+					"name": "Re-login as first user",
+					"request": {
+						"method": "POST",
+						"url": "{{base_url}}/api/auth/login",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {"mode": "raw", "raw": "{\"login\": \"{{test_email}}\", \"password\": \"{{test_password}}\"}"}
+					},
+					"event": [{"listen": "test", "script": {"exec": ["pm.test('Status 200', () => pm.response.to.have.status(200));"]}}]
+				},
+				{
+					"name": "First user still sees own transactions",
+					"request": {
+						"method": "GET",
+						"url": "{{base_url}}/api/transactions"
+					},
+					"event": [{"listen": "test", "script": {"exec": [
+						"pm.test('Status 200', () => pm.response.to.have.status(200));",
+						"pm.test('Has transactions', () => pm.expect(pm.response.json().total).to.be.gte(4));"
+					]}}]
+				}
+			]
+		},
+		{
+			"name": "11 — Edge Cases & Stress",
+			"item": [
+				{
+					"name": "Delete — nonexistent tx (404)",
+					"request": {
+						"method": "DELETE",
+						"url": "{{base_url}}/api/transactions/999999"
+					},
+					"event": [{"listen": "test", "script": {"exec": ["pm.test('Status 404', () => pm.response.to.have.status(404));"]}}]
+				},
+				{
+					"name": "Delete same tx twice",
+					"request": {
+						"method": "DELETE",
+						"url": "{{base_url}}/api/transactions/{{tx_id_2}}"
+					},
+					"event": [{"listen": "test", "script": {"exec": ["pm.test('Status 204', () => pm.response.to.have.status(204));"]}}]
+				},
+				{
+					"name": "Delete same tx again (404)",
+					"request": {
+						"method": "DELETE",
+						"url": "{{base_url}}/api/transactions/{{tx_id_2}}"
+					},
+					"event": [{"listen": "test", "script": {"exec": ["pm.test('Status 404', () => pm.response.to.have.status(404));"]}}]
+				},
+				{
+					"name": "Pagination — page=0 (invalid)",
+					"request": {
+						"method": "GET",
+						"url": "{{base_url}}/api/transactions?page=0"
+					},
+					"event": [{"listen": "test", "script": {"exec": ["pm.test('Status 422', () => pm.response.to.have.status(422));"]}}]
+				},
+				{
+					"name": "Pagination — per_page=0 (invalid)",
+					"request": {
+						"method": "GET",
+						"url": "{{base_url}}/api/transactions?per_page=0"
+					},
+					"event": [{"listen": "test", "script": {"exec": ["pm.test('Status 422', () => pm.response.to.have.status(422));"]}}]
+				},
+				{
+					"name": "Pagination — per_page=101 (>100)",
+					"request": {
+						"method": "GET",
+						"url": "{{base_url}}/api/transactions?per_page=101"
+					},
+					"event": [{"listen": "test", "script": {"exec": ["pm.test('Status 422', () => pm.response.to.have.status(422));"]}}]
+				},
+				{
+					"name": "Pagination — very high page (empty result)",
+					"request": {
+						"method": "GET",
+						"url": "{{base_url}}/api/transactions?page=9999"
+					},
+					"event": [{"listen": "test", "script": {"exec": [
+						"pm.test('Status 200', () => pm.response.to.have.status(200));",
+						"pm.test('Empty items', () => pm.expect(pm.response.json().items).to.have.length(0));"
+					]}}]
+				},
+				{
+					"name": "Search — empty string",
+					"request": {
+						"method": "GET",
+						"url": "{{base_url}}/api/transactions?search="
+					},
+					"event": [{"listen": "test", "script": {"exec": ["pm.test('Status 200', () => pm.response.to.have.status(200));"]}}]
+				},
+				{
+					"name": "Search — special chars",
+					"request": {
+						"method": "GET",
+						"url": "{{base_url}}/api/transactions?search=%25%27%22"
+					},
+					"event": [{"listen": "test", "script": {"exec": ["pm.test('Status 200 (no SQL injection)', () => pm.response.to.have.status(200));"]}}]
+				},
+				{
+					"name": "PUT with empty body",
+					"request": {
+						"method": "PUT",
+						"url": "{{base_url}}/api/transactions/{{tx_id}}",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {"mode": "raw", "raw": "{}"}
+					},
+					"event": [{"listen": "test", "script": {"exec": [
+						"pm.test('Status 200 (no changes)', () => pm.response.to.have.status(200));"
+					]}}]
+				},
+				{
+					"name": "POST with extra unknown fields (ignored)",
+					"request": {
+						"method": "POST",
+						"url": "{{base_url}}/api/transactions",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {"mode": "raw", "raw": "{\"amount\": 100, \"description\": \"Extra fields\", \"date\": \"2026-01-15T10:00:00\", \"hack\": true, \"admin\": true, \"user_id\": 999}"}
+					},
+					"event": [{"listen": "test", "script": {"exec": [
+						"pm.test('Status 201', () => pm.response.to.have.status(201));",
+						"pm.test('Extra fields ignored', () => {",
+						"  const j = pm.response.json();",
+						"  pm.expect(j).to.not.have.property('hack');",
+						"  pm.expect(j).to.not.have.property('admin');",
+						"});"
+					]}}]
+				},
+				{
+					"name": "Unicode stress — emoji description",
+					"request": {
+						"method": "POST",
+						"url": "{{base_url}}/api/transactions",
+						"header": [{"key": "Content-Type", "value": "application/json"}],
+						"body": {"mode": "raw", "raw": "{\"amount\": 100, \"description\": \"Кафе ☕ Москва 🇷🇺 тест\", \"date\": \"2026-01-15T10:00:00\"}"}
+					},
+					"event": [{"listen": "test", "script": {"exec": [
+						"pm.test('Status 201', () => pm.response.to.have.status(201));"
+					]}}]
+				}
+			]
+		},
+		{
+			"name": "99 — Cleanup",
+			"item": [
+				{
+					"name": "Delete budget",
+					"request": {
+						"method": "DELETE",
+						"url": "{{base_url}}/api/budgets/{{budget_id}}"
+					},
+					"event": [{"listen": "test", "script": {"exec": ["pm.test('Status 204', () => pm.response.to.have.status(204));"]}}]
+				},
+				{
+					"name": "Delete all transactions",
+					"request": {
+						"method": "DELETE",
+						"url": "{{base_url}}/api/transactions"
+					},
+					"event": [{"listen": "test", "script": {"exec": ["pm.test('Status 204', () => pm.response.to.have.status(204));"]}}]
+				},
+				{
+					"name": "Verify 0 transactions",
+					"request": {
+						"method": "GET",
+						"url": "{{base_url}}/api/transactions"
+					},
+					"event": [{"listen": "test", "script": {"exec": [
+						"pm.test('Status 200', () => pm.response.to.have.status(200));",
+						"pm.test('Empty', () => pm.expect(pm.response.json().total).to.eql(0));"
+					]}}]
+				}
+			]
+		}
+	]
+}

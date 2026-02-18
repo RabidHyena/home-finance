@@ -207,7 +207,7 @@ class BudgetBase(BaseModel):
     period: str = Field(default='monthly', pattern='^(monthly|weekly)$')
 
 
-class BudgetCreate(BudgetBase):
+class BudgetCreate(_SanitizationMixin, BudgetBase):
     """Schema for creating a budget."""
     pass
 

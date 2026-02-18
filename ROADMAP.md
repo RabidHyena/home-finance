@@ -17,6 +17,7 @@
 | Фаза 5 | ✅ Готово | Безопасность и код-ревью |
 | Фаза 5.1 | ✅ Готово | Security testing, input sanitization, Postman collection |
 | Фаза 6 | ✅ Готово | Доходы (income), Excel импорт, strict Postman collection |
+| Фаза 7 | ✅ Готово | Код-ревью: баг-фиксы, безопасность, рефакторинг, OCR улучшения |
 
 ---
 
@@ -32,7 +33,7 @@
 - [x] Сервис OCR (Gemini Vision через OpenRouter)
 - [x] Загрузка скриншотов
 - [x] Docker и docker-compose
-- [x] Комплексные тесты (157 тестов: auth, CRUD, доходы/расходы, аналитика, бюджеты, OCR, обучение, валидация)
+- [x] Комплексные тесты (auth, CRUD, доходы/расходы, аналитика, бюджеты, OCR, обучение, валидация)
 
 ### Frontend (Фаза 2)
 - [x] React + TypeScript + Vite
@@ -268,8 +269,8 @@ docker-compose down
 
 ## Прогресс
 
-**Завершено:** Фазы 0-6 (100% запланированной функциональности + безопасность + доходы + Excel импорт)
-**157 backend тестов** (pytest), strict Postman collection (55 запросов), TypeScript компилируется без ошибок
+**Завершено:** Фазы 0-7 (100% запланированной функциональности + безопасность + доходы + Excel импорт + код-ревью)
+Backend тесты (pytest), strict + brutal Postman collections, TypeScript компилируется без ошибок
 
 ---
 
@@ -315,4 +316,48 @@ docker-compose down
 
 ---
 
-*Обновлено: 17 февраля 2026 — Фазы 0-6 завершены, 157 backend тестов, strict Postman collection*
+## Фаза 7: Код-ревью и качество кода ✅ ЗАВЕРШЕНО
+
+Комплексное ревью с исправлением багов, улучшением безопасности и рефакторингом.
+
+### 7.1 Баг-фиксы (CRITICAL/HIGH)
+- [x] Бюджеты считали доходы как расходы — добавлен фильтр `Transaction.type == 'expense'` (monthly + weekly)
+- [x] `type` query param был `Optional[str]` — исправлен на `Literal['expense', 'income']` (5 эндпоинтов)
+- [x] JSON extraction из AI: жадный regex → `JSONDecoder.raw_decode()` (корректно парсит вложенный JSON)
+- [x] Загруженные файлы не удалялись после обработки — добавлен `finally: file_path.unlink()` (single + batch)
+
+### 7.2 Безопасность
+- [x] DB connection: `pool_pre_ping=True`, `pool_size=5`, `max_overflow=10`
+- [x] Предупреждение при пустом `OPENROUTER_API_KEY`
+- [x] `password` max_length=72 (bcrypt лимит), `username` pattern `^[a-zA-Z0-9_.-]+$`
+- [x] `BudgetCreate` — добавлена `_SanitizationMixin` (HTML/null bytes в категории)
+- [x] Frontend port `"3000:80"` → `"127.0.0.1:3000:80"` (не слушает все интерфейсы)
+- [x] DB restart policy: `restart: unless-stopped`
+
+### 7.3 Рефакторинг
+- [x] Убрана зависимость numpy — заменена на `statistics.mean/pstdev` + ручная линейная регрессия
+- [x] `typing.List` → `list` в upload.py
+- [x] Версия `"0.1.0"` вынесена в `APP_VERSION` (убрано дублирование)
+- [x] `queryClient` вынесен из `App.tsx` в отдельный `queryClient.ts` (убрана циклическая зависимость)
+- [x] `useState(new Map())` → `useRef` в UploadPage (мутация state без setState)
+
+### 7.4 Frontend — UX
+- [x] `CategorySelector` и `TransactionForm` — поддержка `type` prop (income показывает категории доходов)
+
+### 7.5 OCR улучшения (из плана)
+- [x] `temperature=0` для детерминированных ответов AI
+- [x] Расширенный system prompt с русскими банками (Сбербанк, Тинькофф, Альфа-Банк)
+- [x] Парсинг `type` (expense/income) из AI ответа
+- [x] Русские форматы сумм: `"1 500,50"` → `1500.50`
+- [x] `max_tokens` увеличен до 8192
+- [x] Retry при ошибке парсинга AI ответа
+- [x] Улучшенная нормализация мерчантов (ООО, ИП, шум-слова, пунктуация)
+
+### 7.6 Postman Collection
+- [x] Brutal Postman collection: edge-case тесты
+- [x] Idempotent credentials (unique per run via `Date.now()`)
+- [x] Исправлены assertion баги (httponly case, UTF-8 BOM, error messages)
+
+---
+
+*Обновлено: 18 февраля 2026 — Фазы 0-7 завершены*

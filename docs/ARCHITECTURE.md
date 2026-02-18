@@ -136,8 +136,8 @@ home-finance/
 ├── backend/
 │   ├── app/
 │   │   ├── main.py              # FastAPI приложение
-│   │   ├── config.py            # Настройки (env)
-│   │   ├── database.py          # Подключение к БД
+│   │   ├── config.py            # Настройки (env, validation, warnings)
+│   │   ├── database.py          # Подключение к БД (pool_pre_ping, pool_size)
 │   │   ├── models.py            # SQLAlchemy модели
 │   │   ├── schemas.py           # Pydantic схемы (sanitization, validation)
 │   │   ├── routers/
@@ -146,7 +146,7 @@ home-finance/
 │   │   │   ├── upload.py        # Загрузка скриншотов и Excel выписок
 │   │   │   └── budgets.py       # Бюджеты
 │   │   ├── dependencies.py      # get_current_user
-│   │   ├── schemas_auth.py      # Auth Pydantic схемы
+│   │   ├── schemas_auth.py      # Auth Pydantic схемы (password max 72, username pattern)
 │   │   └── services/
 │   │       ├── auth_service.py  # JWT, bcrypt, user CRUD
 │   │       ├── ocr_service.py   # Gemini Vision через OpenRouter
@@ -154,7 +154,7 @@ home-finance/
 │   │       ├── learning_service.py  # Обучение категоризации
 │   │       └── merchant_normalization.py  # Нормализация названий
 │   ├── alembic/                 # Миграции БД
-│   ├── tests/                   # 157 тестов (pytest)
+│   ├── tests/                   # pytest
 │   │   ├── conftest.py          # Фикстуры (in-memory SQLite, auth)
 │   │   ├── test_auth.py         # Auth, registration, data isolation
 │   │   ├── test_transactions.py # CRUD, поиск, фильтры, валюта, CSV экспорт
@@ -176,6 +176,7 @@ home-finance/
 │   │   ├── pages/               # Страницы (Login, Register, ...)
 │   │   ├── types/               # TypeScript типы
 │   │   ├── registerSW.ts        # PWA Service Worker
+│   │   ├── queryClient.ts       # React Query клиент
 │   │   ├── App.tsx              # Routes, ErrorBoundary, 404 page
 │   │   └── main.tsx
 │   ├── public/
@@ -328,18 +329,18 @@ home-finance/
 | XSS | React автоматически экранирует |
 | CORS | Ограниченные методы (GET, POST, PUT, DELETE, OPTIONS) и заголовки (Content-Type, Authorization) |
 | CSRF | SameSite=Lax cookies |
-| Валидация | Pydantic schemas, EmailStr, amount 0.01–9999999999, date range 2000–2100 |
-| File Upload | Magic byte валидация + MIME type + расширение (.jpg, .jpeg, .png, .gif, .webp, .xlsx, .xls), ограничение 10MB |
+| Валидация | Pydantic schemas, EmailStr, amount 0.01–9999999999, date range 2000–2100, password max 72, username pattern, type Literal |
+| File Upload | Magic byte валидация + MIME type + расширение (.jpg, .jpeg, .png, .gif, .webp, .xlsx, .xls), ограничение 10MB, автоудаление после обработки |
 | JWT Secret | RuntimeError при запуске, если SECRET_KEY не задан в production |
 | nginx Headers | X-Content-Type-Options, X-Frame-Options, X-XSS-Protection, Referrer-Policy, server_tokens off |
 | CSV Sanitization | Защита от formula injection в CSV export (экранирование =, +, -, @, \t, \r) |
 | Search Escaping | Экранирование спецсимволов ILIKE (%, _, \) |
 | Error Messages | Generic error messages в upload (без раскрытия internal details) |
 | PWA Security | API ответы не кешируются в Service Worker |
-| Docker | DB port привязан к localhost (127.0.0.1:5432), healthcheck на backend |
+| Docker | DB + frontend порты привязаны к localhost (127.0.0.1), healthcheck на backend, restart: unless-stopped на db |
 | ErrorBoundary | React ErrorBoundary без раскрытия stack trace пользователю |
-
-| Input Sanitization | Null bytes, control chars, surrogates, HTML tags stripped from strings |
+| DB Pool | pool_pre_ping=True (обнаружение разорванных соединений), pool_size=5, max_overflow=10 |
+| Input Sanitization | Null bytes, control chars, surrogates, HTML tags stripped from strings (transactions + budgets) |
 | Rate Limiting | In-memory rate limiter на auth endpoints (configurable via env, auto-cleanup) |
 | Cookie Security | cookie_secure автоматически из DEBUG (secure=true в production) |
 | nginx CSP | Content-Security-Policy headers на всех location блоках |
@@ -409,5 +410,5 @@ home-finance/
 
 ---
 
-*Версия документа: 6.0*
-*Дата: 17 февраля 2026*
+*Версия документа: 7.0*
+*Дата: 18 февраля 2026*

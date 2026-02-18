@@ -1,12 +1,14 @@
-import { CATEGORIES, CATEGORY_LABELS } from '../types';
+import { CATEGORIES, CATEGORY_LABELS, INCOME_CATEGORIES, INCOME_CATEGORY_LABELS } from '../types';
+import type { TransactionType } from '../types';
 
 interface CategorySelectorProps {
   value: string;
   confidence: number;
   onChange: (category: string) => void;
+  type?: TransactionType;
 }
 
-export function CategorySelector({ value, confidence, onChange }: CategorySelectorProps) {
+export function CategorySelector({ value, confidence, onChange, type = 'expense' }: CategorySelectorProps) {
   const getBadge = () => {
     if (confidence >= 0.8) return { color: 'var(--color-success)', text: 'Высокая уверенность' };
     if (confidence >= 0.5) return { color: 'var(--color-warning)', text: 'Требует проверки' };
@@ -28,9 +30,14 @@ export function CategorySelector({ value, confidence, onChange }: CategorySelect
           flex: 1,
         }}
       >
-        {CATEGORIES.map(cat => (
-          <option key={cat} value={cat}>{CATEGORY_LABELS[cat]}</option>
-        ))}
+        {type === 'income'
+          ? INCOME_CATEGORIES.map(cat => (
+              <option key={cat} value={cat}>{INCOME_CATEGORY_LABELS[cat]}</option>
+            ))
+          : CATEGORIES.map(cat => (
+              <option key={cat} value={cat}>{CATEGORY_LABELS[cat]}</option>
+            ))
+        }
       </select>
       <span style={{
         fontSize: '0.75rem',

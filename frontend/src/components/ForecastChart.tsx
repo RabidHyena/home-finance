@@ -24,16 +24,16 @@ export function ForecastChart({ data }: ForecastChartProps) {
     name: `${MONTH_NAMES_SHORT[point.month - 1]} ${point.year}`,
     actual: point.amount,
     forecast: null as number | null,
-    confidenceRange: null as [number, number] | null,
+    confidenceMin: null as number | null,
+    confidenceMax: null as number | null,
   }));
 
   const forecastPoints = data.forecast.map((point) => ({
     name: `${MONTH_NAMES_SHORT[point.month - 1]} ${point.year}`,
     actual: null as number | null,
     forecast: point.amount,
-    confidenceRange: (point.confidence_min != null && point.confidence_max != null)
-      ? [point.confidence_min, point.confidence_max] as [number, number]
-      : null,
+    confidenceMin: point.confidence_min ?? null,
+    confidenceMax: point.confidence_max ?? null,
   }));
 
   // Bridge: last historical point also gets forecast value so lines connect
@@ -71,70 +71,81 @@ export function ForecastChart({ data }: ForecastChartProps) {
       </div>
 
       {/* Chart */}
-      <ResponsiveContainer width="100%" height={350}>
-        <ComposedChart data={chartData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
-          <CartesianGrid strokeDasharray="3 3" />
-          <XAxis
-            dataKey="name"
-            style={{ fontSize: '0.75rem' }}
-            angle={-45}
-            textAnchor="end"
-            height={80}
-          />
-          <YAxis
-            style={{ fontSize: '0.75rem' }}
-            tickFormatter={(value) => `${(Number(value) / 1000).toFixed(0)}k`}
-          />
-          <Tooltip
-            formatter={(value: number | number[] | undefined) => {
-              if (value === undefined || value === null) return '';
-              if (Array.isArray(value)) return `${Number(value[0]).toFixed(0)} — ${Number(value[1]).toFixed(0)} ₽`;
-              return `${Number(value).toFixed(2)} ₽`;
-            }}
-            contentStyle={{
-              backgroundColor: 'var(--color-surface)',
-              border: '1px solid var(--color-border)',
-              borderRadius: '0.5rem',
-            }}
-          />
-          <Legend />
+      <div style={{ width: '100%', height: 350 }}>
+        <ResponsiveContainer>
+          <ComposedChart data={chartData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+            <CartesianGrid strokeDasharray="3 3" />
+            <XAxis
+              dataKey="name"
+              style={{ fontSize: '0.75rem' }}
+              angle={-45}
+              textAnchor="end"
+              height={80}
+            />
+            <YAxis
+              style={{ fontSize: '0.75rem' }}
+              tickFormatter={(value) => `${(Number(value) / 1000).toFixed(0)}k`}
+            />
+            <Tooltip
+              formatter={(value: number | undefined) => {
+                if (value === undefined || value === null) return '';
+                return `${Number(value).toFixed(2)} ₽`;
+              }}
+              contentStyle={{
+                backgroundColor: 'var(--color-surface)',
+                border: '1px solid var(--color-border)',
+                borderRadius: '0.5rem',
+              }}
+            />
+            <Legend />
 
-          {/* Confidence interval as a proper range area */}
-          <Area
-            type="monotone"
-            dataKey="confidenceRange"
-            stroke="none"
-            fill="#fbbf24"
-            fillOpacity={0.2}
-            name="Доверительный интервал"
-            legendType="none"
-            connectNulls={false}
-          />
+            {/* Confidence interval — upper bound area (filled) */}
+            <Area
+              type="monotone"
+              dataKey="confidenceMax"
+              stroke="none"
+              fill="#fbbf24"
+              fillOpacity={0.2}
+              name="Доверительный интервал"
+              legendType="none"
+              connectNulls={false}
+            />
+            {/* Confidence interval — lower bound area (white fill to cut out) */}
+            <Area
+              type="monotone"
+              dataKey="confidenceMin"
+              stroke="none"
+              fill="var(--color-surface, #ffffff)"
+              fillOpacity={1}
+              legendType="none"
+              connectNulls={false}
+            />
 
-          {/* Historical data line */}
-          <Line
-            type="monotone"
-            dataKey="actual"
-            stroke="#3b82f6"
-            strokeWidth={3}
-            dot={{ r: 5 }}
-            name="Фактические"
-            connectNulls={false}
-          />
+            {/* Historical data line */}
+            <Line
+              type="monotone"
+              dataKey="actual"
+              stroke="#3b82f6"
+              strokeWidth={3}
+              dot={{ r: 5 }}
+              name="Фактические"
+              connectNulls={false}
+            />
 
-          {/* Forecast line */}
-          <Line
-            type="monotone"
-            dataKey="forecast"
-            stroke="#f59e0b"
-            strokeWidth={3}
-            strokeDasharray="5 5"
-            dot={{ r: 5, fill: '#f59e0b' }}
-            name="Прогноз"
-            connectNulls={false}
-          />
-        </ComposedChart>
-      </ResponsiveContainer>
+            {/* Forecast line */}
+            <Line
+              type="monotone"
+              dataKey="forecast"
+              stroke="#f59e0b"
+              strokeWidth={3}
+              strokeDasharray="5 5"
+              dot={{ r: 5, fill: '#f59e0b' }}
+              name="Прогноз"
+              connectNulls={false}
+            />
+          </ComposedChart>
+        </ResponsiveContainer>
+      </div>
 
       {/* Info text */}
       <div style={{ marginTop: '1rem', padding: '0.75rem', backgroundColor: 'var(--color-bg, #eff6ff)', borderRadius: '0.5rem' }}>

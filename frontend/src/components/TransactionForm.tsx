@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react';
 import { format } from 'date-fns';
-import type { Transaction, TransactionCreate, ParsedTransaction, Category, Currency } from '../types';
-import { CATEGORIES, CATEGORY_LABELS, CURRENCIES, CURRENCY_SYMBOLS, CURRENCY_LABELS } from '../types';
+import type { Transaction, TransactionCreate, ParsedTransaction, Category, Currency, TransactionType } from '../types';
+import { CATEGORIES, CATEGORY_LABELS, INCOME_CATEGORIES, INCOME_CATEGORY_LABELS, CURRENCIES, CURRENCY_SYMBOLS, CURRENCY_LABELS } from '../types';
 
 interface TransactionFormProps {
   initialData?: Partial<TransactionCreate> | ParsedTransaction | Transaction;
@@ -9,6 +9,7 @@ interface TransactionFormProps {
   onCancel?: () => void;
   isLoading?: boolean;
   confidence?: number;
+  type?: TransactionType;
 }
 
 export function TransactionForm({
@@ -17,6 +18,7 @@ export function TransactionForm({
   onCancel,
   isLoading,
   confidence,
+  type: txType = 'expense',
 }: TransactionFormProps) {
   const [amount, setAmount] = useState('');
   const [description, setDescription] = useState('');
@@ -142,11 +144,18 @@ export function TransactionForm({
           onChange={(e) => setCategory(e.target.value as Category | '')}
         >
           <option value="">Выберите категорию</option>
-          {CATEGORIES.map((cat) => (
-            <option key={cat} value={cat}>
-              {CATEGORY_LABELS[cat]}
-            </option>
-          ))}
+          {txType === 'income'
+            ? INCOME_CATEGORIES.map((cat) => (
+                <option key={cat} value={cat}>
+                  {INCOME_CATEGORY_LABELS[cat]}
+                </option>
+              ))
+            : CATEGORIES.map((cat) => (
+                <option key={cat} value={cat}>
+                  {CATEGORY_LABELS[cat]}
+                </option>
+              ))
+          }
         </select>
       </div>
 

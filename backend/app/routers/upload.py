@@ -1,8 +1,6 @@
 import logging
 import uuid
 from pathlib import Path
-from typing import List
-
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from sqlalchemy.orm import Session
 
@@ -131,8 +129,9 @@ async def upload_and_parse(
         return ParsedTransactions(**result)
     except Exception:
         logger.exception("Failed to parse uploaded file")
-        file_path.unlink(missing_ok=True)
         raise HTTPException(status_code=500, detail="Failed to parse file. Please try again.")
+    finally:
+        file_path.unlink(missing_ok=True)
 
 
 @router.post("/parse-only", response_model=ParsedTransaction)
@@ -165,7 +164,7 @@ async def parse_without_save(
 
 @router.post("/batch", response_model=BatchUploadResponse)
 async def upload_and_parse_batch(
-    files: List[UploadFile] = File(...),
+    files: list[UploadFile] = File(...),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
@@ -193,14 +192,15 @@ async def upload_and_parse_batch(
             successful += 1
         except Exception:
             logger.exception("Failed to parse file in batch: %s", file.filename)
-            if file_path and file_path.exists():
-                file_path.unlink(missing_ok=True)
             results.append(BatchUploadResult(
                 filename=file.filename or "unknown",
                 status="error",
                 error="Failed to parse file",
             ))
             failed += 1
+        finally:
+            if file_path and file_path.exists():
+                file_path.unlink(missing_ok=True)
 
     return BatchUploadResponse(
         results=results,

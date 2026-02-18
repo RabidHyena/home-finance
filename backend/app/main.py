@@ -21,10 +21,12 @@ async def lifespan(app: FastAPI):
 
 settings = get_settings()
 
+APP_VERSION = "0.1.0"
+
 app = FastAPI(
     title="Home Finance API",
     description="API for personal finance tracking with AI-powered receipt parsing",
-    version="0.1.0",
+    version=APP_VERSION,
     lifespan=lifespan,
 )
 
@@ -64,5 +66,5 @@ def health_check():
     return HealthResponse(
         status="healthy" if db_status == "healthy" else "degraded",
         database=db_status,
-        version="0.1.0",
+        version=APP_VERSION,
     )

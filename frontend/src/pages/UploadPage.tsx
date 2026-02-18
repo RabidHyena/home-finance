@@ -1,4 +1,4 @@
-import { useState, useCallback } from 'react';
+import { useState, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { CheckCircle } from 'lucide-react';
 import { UploadZone, MultipleTransactionsForm, RecognizedChartDisplay, useToast, ErrorBoundary } from '../components';
@@ -21,7 +21,7 @@ export function UploadPage() {
   // Track which batch files had chart transactions created
   const [savedBatchCharts, setSavedBatchCharts] = useState<Set<number>>(new Set());
   // Store original AI categories from parsed data (keyed by description+amount)
-  const [originalAiCategories] = useState<Map<string, { category: string; confidence: number }>>(new Map());
+  const originalAiCategories = useRef<Map<string, { category: string; confidence: number }>>(new Map());
 
   const error = uploadMutation.error || createMutation.error || batchUploadMutation.error;
 
@@ -29,14 +29,14 @@ export function UploadPage() {
   const storeOriginalPredictions = useCallback((transactions: { description: string; amount: number; category?: string | null; confidence?: number }[]) => {
     for (const tx of transactions) {
       const key = `${tx.description}|${tx.amount}`;
-      if (!originalAiCategories.has(key)) {
-        originalAiCategories.set(key, {
+      if (!originalAiCategories.current.has(key)) {
+        originalAiCategories.current.set(key, {
           category: tx.category || 'Other',
           confidence: tx.confidence ?? 0.5,
         });
       }
     }
-  }, [originalAiCategories]);
+  }, []);
 
   const handleFileSelect = async (files: File[]) => {
     // Use batch upload for multiple files
@@ -79,7 +79,7 @@ export function UploadPage() {
     try {
       const enrichedTransactions = transactions.map(tx => {
         const key = `${tx.description}|${tx.amount}`;
-        const original = originalAiCategories.get(key);
+        const original = originalAiCategories.current.get(key);
         return {
           amount: tx.amount,
           description: tx.description,

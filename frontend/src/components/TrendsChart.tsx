@@ -41,51 +41,53 @@ export function TrendsChart({ data }: TrendsChartProps) {
       </div>
 
       {/* Chart */}
-      <ResponsiveContainer width="100%" height={300}>
-        <LineChart data={chartData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
-          <CartesianGrid strokeDasharray="3 3" />
-          <XAxis
-            dataKey="name"
-            style={{ fontSize: '0.75rem' }}
-            angle={-45}
-            textAnchor="end"
-            height={60}
-          />
-          <YAxis
-            style={{ fontSize: '0.75rem' }}
-            tickFormatter={(value) => `${(Number(value) / 1000).toFixed(0)}k`}
-          />
-          <Tooltip
-            formatter={(value: number | undefined) => {
-              if (value === undefined || value === null) return '';
-              return `${Number(value).toFixed(2)} ₽`;
-            }}
-            contentStyle={{
-              backgroundColor: 'var(--color-surface)',
-              border: '1px solid var(--color-border)',
-              borderRadius: '0.5rem',
-            }}
-          />
-          <Legend />
-          <Line
-            type="monotone"
-            dataKey="actual"
-            stroke="#3b82f6"
-            strokeWidth={2}
-            dot={{ r: 4 }}
-            name="Фактические"
-          />
-          <Line
-            type="monotone"
-            dataKey="trend"
-            stroke="#ef4444"
-            strokeWidth={2}
-            strokeDasharray="5 5"
-            dot={false}
-            name="Тренд"
-          />
-        </LineChart>
-      </ResponsiveContainer>
+      <div style={{ width: '100%', height: 300 }}>
+        <ResponsiveContainer>
+          <LineChart data={chartData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
+            <CartesianGrid strokeDasharray="3 3" />
+            <XAxis
+              dataKey="name"
+              style={{ fontSize: '0.75rem' }}
+              angle={-45}
+              textAnchor="end"
+              height={60}
+            />
+            <YAxis
+              style={{ fontSize: '0.75rem' }}
+              tickFormatter={(value) => `${(Number(value) / 1000).toFixed(0)}k`}
+            />
+            <Tooltip
+              formatter={(value: number | undefined) => {
+                if (value === undefined || value === null) return '';
+                return `${Number(value).toFixed(2)} ₽`;
+              }}
+              contentStyle={{
+                backgroundColor: 'var(--color-surface)',
+                border: '1px solid var(--color-border)',
+                borderRadius: '0.5rem',
+              }}
+            />
+            <Legend />
+            <Line
+              type="monotone"
+              dataKey="actual"
+              stroke="#3b82f6"
+              strokeWidth={2}
+              dot={{ r: 4 }}
+              name="Фактические"
+            />
+            <Line
+              type="monotone"
+              dataKey="trend"
+              stroke="#ef4444"
+              strokeWidth={2}
+              strokeDasharray="5 5"
+              dot={false}
+              name="Тренд"
+            />
+          </LineChart>
+        </ResponsiveContainer>
+      </div>
 
       {/* Period info */}
       <p style={{ fontSize: '0.875rem', color: 'var(--color-text-secondary, #6b7280)', marginTop: '1rem', textAlign: 'center' }}>

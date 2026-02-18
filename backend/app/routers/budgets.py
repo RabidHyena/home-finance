@@ -83,6 +83,7 @@ def get_budgets_status(
         func.coalesce(func.sum(Transaction.amount), 0).label("total"),
     ).filter(
         Transaction.user_id == current_user.id,
+        Transaction.type == 'expense',
         extract('year', Transaction.date) == year,
         extract('month', Transaction.date) == month,
     ).group_by(Transaction.category).all()
@@ -99,6 +100,7 @@ def get_budgets_status(
             func.coalesce(func.sum(Transaction.amount), 0).label("total"),
         ).filter(
             Transaction.user_id == current_user.id,
+            Transaction.type == 'expense',
             Transaction.date >= week_start.replace(hour=0, minute=0, second=0),
             Transaction.date <= week_end.replace(hour=23, minute=59, second=59),
         ).group_by(Transaction.category).all()
