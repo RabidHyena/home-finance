@@ -78,7 +78,7 @@ export function BudgetsPage() {
     try {
       await deleteMutation.mutateAsync(id);
       toast.success('Бюджет удален');
-    } catch (err) {
+    } catch {
       toast.error('Не удалось удалить бюджет');
     } finally {
       setDeleteId(null);

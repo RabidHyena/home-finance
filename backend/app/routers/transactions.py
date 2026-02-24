@@ -12,8 +12,6 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy import case, func, extract, or_
 from sqlalchemy.orm import Session
 
-logger = logging.getLogger(__name__)
-
 from app.cache import analytics_cache, make_cache_key
 from app.database import get_db
 from app.dependencies import get_current_user
@@ -26,6 +24,8 @@ from app.schemas import (
     MonthlyReport,
 )
 from app.services.learning_service import log_correction
+
+logger = logging.getLogger(__name__)
 
 
 def _invalidate_user_cache(user_id: int) -> None:

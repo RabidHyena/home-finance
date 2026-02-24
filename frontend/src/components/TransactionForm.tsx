@@ -1,7 +1,31 @@
-import { useState, useEffect } from 'react';
+import { useState } from 'react';
 import { format } from 'date-fns';
 import type { Transaction, TransactionCreate, ParsedTransaction, Category, Currency, TransactionType } from '../types';
 import { CATEGORIES, CATEGORY_LABELS, INCOME_CATEGORIES, INCOME_CATEGORY_LABELS, CURRENCIES, CURRENCY_SYMBOLS, CURRENCY_LABELS } from '../types';
+
+function deriveFormState(initialData?: Partial<TransactionCreate> | ParsedTransaction | Transaction) {
+  if (initialData) {
+    let dateVal = '';
+    if (initialData.date) {
+      const d = new Date(initialData.date);
+      dateVal = format(d, "yyyy-MM-dd'T'HH:mm");
+    }
+    return {
+      amount: String(initialData.amount ?? ''),
+      description: initialData.description || '',
+      category: ((initialData.category as Category) || '') as Category | '',
+      currency: (('currency' in initialData ? (initialData.currency as Currency) : undefined) || 'RUB') as Currency,
+      date: dateVal,
+    };
+  }
+  return {
+    amount: '',
+    description: '',
+    category: '' as Category | '',
+    currency: 'RUB' as Currency,
+    date: format(new Date(), "yyyy-MM-dd'T'HH:mm"),
+  };
+}
 
 interface TransactionFormProps {
   initialData?: Partial<TransactionCreate> | ParsedTransaction | Transaction;
@@ -20,31 +44,22 @@ export function TransactionForm({
   confidence,
   type: txType = 'expense',
 }: TransactionFormProps) {
-  const [amount, setAmount] = useState('');
-  const [description, setDescription] = useState('');
-  const [category, setCategory] = useState<Category | ''>('');
-  const [date, setDate] = useState('');
-  const [currency, setCurrency] = useState<Currency>('RUB');
+  const [prevInitialData, setPrevInitialData] = useState(initialData);
+  const [amount, setAmount] = useState(() => deriveFormState(initialData).amount);
+  const [description, setDescription] = useState(() => deriveFormState(initialData).description);
+  const [category, setCategory] = useState<Category | ''>(() => deriveFormState(initialData).category);
+  const [date, setDate] = useState(() => deriveFormState(initialData).date);
+  const [currency, setCurrency] = useState<Currency>(() => deriveFormState(initialData).currency);
 
-  useEffect(() => {
-    if (initialData) {
-      setAmount(String(initialData.amount ?? ''));
-      setDescription(initialData.description || '');
-      setCategory((initialData.category as Category) || '');
-      setCurrency(('currency' in initialData ? (initialData.currency as Currency) : undefined) || 'RUB');
-
-      if (initialData.date) {
-        const d = new Date(initialData.date);
-        setDate(format(d, "yyyy-MM-dd'T'HH:mm"));
-      }
-    } else {
-      setAmount('');
-      setDescription('');
-      setCategory('');
-      setCurrency('RUB');
-      setDate(format(new Date(), "yyyy-MM-dd'T'HH:mm"));
-    }
-  }, [initialData]);
+  if (initialData !== prevInitialData) {
+    setPrevInitialData(initialData);
+    const state = deriveFormState(initialData);
+    setAmount(state.amount);
+    setDescription(state.description);
+    setCategory(state.category);
+    setCurrency(state.currency);
+    setDate(state.date);
+  }
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();

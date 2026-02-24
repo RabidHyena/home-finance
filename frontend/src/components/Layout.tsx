@@ -1,7 +1,7 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Home, Upload, List, TrendingUp, BarChart3, Wallet, PiggyBank, LogOut } from 'lucide-react';
 import { OfflineIndicator } from './OfflineIndicator';
-import { useAuth } from '../contexts/AuthContext';
+import { useAuth } from '../contexts/useAuth';
 
 interface LayoutProps {
   children: React.ReactNode;

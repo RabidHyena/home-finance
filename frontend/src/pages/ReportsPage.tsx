@@ -1,4 +1,4 @@
-import { useEffect, useMemo, useState } from 'react';
+import { useMemo, useState } from 'react';
 import { Calendar } from 'lucide-react';
 import { MonthlyChart, CategoryChart, MonthComparison, TrendsChart, ForecastChart, StatCardSkeleton, ChartSkeleton } from '../components';
 import { useMonthlyReports, useMonthComparison, useSpendingTrends, useForecast } from '../hooks/useApi';
@@ -9,6 +9,7 @@ export function ReportsPage() {
   const [activeTab, setActiveTab] = useState<TransactionType>('expense');
   const { data: reports = [], isLoading, error } = useMonthlyReports(undefined, activeTab);
   const [selectedReport, setSelectedReport] = useState<MonthlyReport | null>(null);
+  const [prevActiveTab, setPrevActiveTab] = useState(activeTab);
 
   // Get comparison for selected month
   const comparisonYear = selectedReport?.year ?? new Date().getFullYear();
@@ -21,16 +22,16 @@ export function ReportsPage() {
   // Get forecast for next 3 months based on last 6 months
   const forecastQuery = useForecast(6, 3, activeTab);
 
-  // Reset selected report when tab changes
-  useEffect(() => {
+  // Reset selected report when tab changes (state update during render)
+  if (activeTab !== prevActiveTab) {
+    setPrevActiveTab(activeTab);
     setSelectedReport(null);
-  }, [activeTab]);
+  }
 
-  useEffect(() => {
-    if (reports.length > 0 && !selectedReport) {
-      setSelectedReport(reports[0]);
-    }
-  }, [reports, selectedReport]);
+  // Auto-select first report when reports load
+  if (reports.length > 0 && !selectedReport && activeTab === prevActiveTab) {
+    setSelectedReport(reports[0]);
+  }
 
   const categoryLabels = useMemo(
     () => activeTab === 'income' ? INCOME_CATEGORY_LABELS : CATEGORY_LABELS,

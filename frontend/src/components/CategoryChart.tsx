@@ -19,6 +19,8 @@ export const CategoryChart = memo(function CategoryChart({ data }: CategoryChart
     [data],
   );
 
+  const total = useMemo(() => chartData.reduce((sum, item) => sum + item.value, 0), [chartData]);
+
   if (chartData.length === 0) {
     return (
       <div
@@ -32,8 +34,6 @@ export const CategoryChart = memo(function CategoryChart({ data }: CategoryChart
       </div>
     );
   }
-
-  const total = useMemo(() => chartData.reduce((sum, item) => sum + item.value, 0), [chartData]);
 
   return (
     <div style={{ width: '100%', height: 300 }}>

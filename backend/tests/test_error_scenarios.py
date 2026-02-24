@@ -7,7 +7,7 @@ from unittest.mock import patch, MagicMock
 import pytest
 from fastapi import HTTPException
 
-from app.rate_limiter import RateLimiter, RateLimitMiddleware
+from app.rate_limiter import RateLimiter
 from app.services.ocr_service import OCRService
 
 
@@ -140,7 +140,7 @@ class TestOCRRetryLogic:
             return '{"transactions": [], "total_amount": 0}'
 
         with patch.object(svc, '_call_vision_api', side_effect=mock_call_api):
-            result = svc._call_with_retry("base64data", "image/jpeg", svc._parse_multiple_response)
+            svc._call_with_retry("base64data", "image/jpeg", svc._parse_multiple_response)
         assert call_count == 2
 
 

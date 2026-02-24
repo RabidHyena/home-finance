@@ -1,7 +1,5 @@
 """Tests for authentication endpoints and data isolation."""
 
-import pytest
-
 
 class TestRegistration:
     """Tests for user registration."""
@@ -121,7 +119,7 @@ class TestLogout:
         assert response.status_code == 200
         # Cookie should be deleted (max_age=0 or expires in past)
         # After logout, /me should fail
-        me_response = auth_client.get("/api/auth/me")
+        auth_client.get("/api/auth/me")
         # The cookie was cleared, so this should be 401
         # Note: TestClient may not handle cookie deletion perfectly
         # But we can verify the response message

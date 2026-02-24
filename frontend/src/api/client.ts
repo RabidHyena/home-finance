@@ -28,7 +28,7 @@ import {
 const delay = (ms: number) => new Promise((resolve) => setTimeout(resolve, ms));
 
 // In-memory store for mock data
-let transactions = [...mockTransactions];
+const transactions = [...mockTransactions];
 let nextId = transactions.length + 1;
 
 // API base URL (proxied through Vite dev server / Nginx in production)

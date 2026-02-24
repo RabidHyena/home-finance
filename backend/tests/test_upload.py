@@ -1,11 +1,7 @@
 """Tests for upload endpoints: file validation, magic bytes, size limits."""
 
-import io
-import json
 import struct
 from unittest.mock import patch, MagicMock
-
-import pytest
 
 from app.routers.upload import _detect_image_type
 

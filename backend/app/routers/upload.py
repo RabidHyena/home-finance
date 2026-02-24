@@ -5,14 +5,14 @@ from pathlib import Path
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from sqlalchemy.orm import Session
 
-logger = logging.getLogger(__name__)
-
 from app.config import get_settings
 from app.database import get_db
 from app.dependencies import get_current_user
 from app.models import User
 from app.schemas import ParsedTransaction, ParsedTransactions, BatchUploadResult, BatchUploadResponse
 from app.services.ocr_service import OCRService
+
+logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/upload", tags=["upload"])
 
