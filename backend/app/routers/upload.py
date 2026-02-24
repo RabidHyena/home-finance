@@ -1,5 +1,6 @@
 import logging
 import uuid
+from concurrent.futures import ThreadPoolExecutor, as_completed
 from pathlib import Path
 from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from sqlalchemy.orm import Session
@@ -67,9 +68,9 @@ def _detect_file_type(content: bytes, content_type: str | None, filename: str | 
     raise HTTPException(status_code=400, detail="Unsupported file type. Allowed: images (JPG, PNG, GIF, WebP) and Excel (.xlsx, .xls)")
 
 
-async def _read_and_validate(file: UploadFile) -> tuple[bytes, str]:
+def _read_and_validate(file: UploadFile) -> tuple[bytes, str]:
     """Validate, read bytes, check size and type. Returns (content, file_type)."""
-    content = await file.read()
+    content = file.file.read()
 
     settings = get_settings()
     if len(content) > settings.max_upload_size:
@@ -114,19 +115,24 @@ def _parse_file(content: bytes, filename: str, file_type: str, db, user_id: int)
 
 
 @router.post("", response_model=ParsedTransactions)
-async def upload_and_parse(
+def upload_and_parse(
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     """Upload a bank screenshot or Excel statement and parse transaction data."""
-    content, file_type = await _read_and_validate(file)
+    content, file_type = _read_and_validate(file)
     filename = file.filename or ("file.xlsx" if file_type == "excel" else "image.jpg")
     file_path = _save_file(content, filename)
 
     try:
         result = _parse_file(content, filename, file_type, db, current_user.id)
         return ParsedTransactions(**result)
+    except HTTPException:
+        raise
+    except ValueError as e:
+        logger.warning("Could not parse data from uploaded file: %s", e)
+        raise HTTPException(status_code=422, detail=f"Could not parse data from file: {e}")
     except Exception:
         logger.exception("Failed to parse uploaded file")
         raise HTTPException(status_code=500, detail="Failed to parse file. Please try again.")
@@ -135,13 +141,13 @@ async def upload_and_parse(
 
 
 @router.post("/parse-only", response_model=ParsedTransaction)
-async def parse_without_save(
+def parse_without_save(
     file: UploadFile = File(...),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     """Parse a bank screenshot without saving it (image only)."""
-    content = await file.read()
+    content = file.file.read()
 
     settings = get_settings()
     if len(content) > settings.max_upload_size:
@@ -157,13 +163,16 @@ async def parse_without_save(
 
     try:
         return ocr_service.parse_image_bytes(content, file.filename or "image.jpg")
+    except ValueError as e:
+        logger.warning("Could not parse data from image: %s", e)
+        raise HTTPException(status_code=422, detail=f"Could not parse data from image: {e}")
     except Exception:
         logger.exception("Failed to parse image (parse-only)")
         raise HTTPException(status_code=500, detail="Failed to parse image. Please try again.")
 
 
 @router.post("/batch", response_model=BatchUploadResponse)
-async def upload_and_parse_batch(
+def upload_and_parse_batch(
     files: list[UploadFile] = File(...),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
@@ -172,35 +181,50 @@ async def upload_and_parse_batch(
     if len(files) > 10:
         raise HTTPException(status_code=400, detail="Maximum 10 files per batch")
 
+    # Read and validate all files upfront (must happen in the main thread
+    # because UploadFile objects are not safe to share across threads).
+    pre: list[tuple[str, bytes, str]] = []
     results = []
-    successful = 0
-    failed = 0
-
     for file in files:
-        file_path = None
         try:
-            content, file_type = await _read_and_validate(file)
+            content, file_type = _read_and_validate(file)
             filename = file.filename or ("file.xlsx" if file_type == "excel" else "image.jpg")
-            file_path = _save_file(content, filename)
-
-            parsed = _parse_file(content, filename, file_type, db, current_user.id)
-            results.append(BatchUploadResult(
-                filename=file.filename or "unknown",
-                status="success",
-                data=ParsedTransactions(**parsed),
-            ))
-            successful += 1
+            pre.append((filename, content, file_type))
         except Exception:
-            logger.exception("Failed to parse file in batch: %s", file.filename)
+            logger.exception("Validation failed for file: %s", file.filename)
             results.append(BatchUploadResult(
                 filename=file.filename or "unknown",
                 status="error",
-                error="Failed to parse file",
+                error="Failed to validate file",
             ))
-            failed += 1
+
+    def _process_one(filename: str, content: bytes, file_type: str) -> BatchUploadResult:
+        file_path = _save_file(content, filename)
+        try:
+            parsed = _parse_file(content, filename, file_type, db, current_user.id)
+            return BatchUploadResult(
+                filename=filename,
+                status="success",
+                data=ParsedTransactions(**parsed),
+            )
+        except Exception:
+            logger.exception("Failed to parse file in batch: %s", filename)
+            return BatchUploadResult(
+                filename=filename,
+                status="error",
+                error="Failed to parse file",
+            )
         finally:
-            if file_path and file_path.exists():
+            if file_path.exists():
                 file_path.unlink(missing_ok=True)
+
+    with ThreadPoolExecutor(max_workers=min(len(pre), 4)) as pool:
+        futures = {pool.submit(_process_one, fn, ct, ft): fn for fn, ct, ft in pre}
+        for future in as_completed(futures):
+            results.append(future.result())
+
+    successful = sum(1 for r in results if r.status == "success")
+    failed = len(results) - successful
 
     return BatchUploadResponse(
         results=results,

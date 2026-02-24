@@ -1,4 +1,4 @@
-from sqlalchemy import Column, Integer, String, Numeric, DateTime, Text, ForeignKey, UniqueConstraint
+from sqlalchemy import Column, Index, Integer, String, Numeric, DateTime, Text, ForeignKey, UniqueConstraint
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.database import Base
@@ -13,7 +13,7 @@ class User(Base):
     username = Column(String(100), unique=True, nullable=False, index=True)
     hashed_password = Column(String(255), nullable=False)
     created_at = Column(DateTime, server_default=func.now())
-    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+    updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
 
     transactions = relationship("Transaction", back_populates="user")
     budgets = relationship("Budget", back_populates="user")
@@ -39,9 +39,15 @@ class Transaction(Base):
     ai_category = Column(String(100), nullable=True)  # Original AI prediction
     ai_confidence = Column(Numeric(3, 2), nullable=True)  # AI confidence 0.00-1.00
     created_at = Column(DateTime, server_default=func.now())
-    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+    updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
 
     user = relationship("User", back_populates="transactions")
+
+    __table_args__ = (
+        Index('ix_tx_user_date', 'user_id', 'date'),
+        Index('ix_tx_user_category', 'user_id', 'category'),
+        Index('ix_tx_user_type_date', 'user_id', 'type', 'date'),
+    )
 
     def __repr__(self):
         return f"<Transaction(id={self.id}, amount={self.amount}, description={self.description})>"
@@ -73,7 +79,7 @@ class MerchantCategoryMapping(Base):
     learned_category = Column(String(100), nullable=False)
     correction_count = Column(Integer, default=1)  # How many times corrected
     confidence = Column(Numeric(3, 2), nullable=False)  # Agreement rate
-    last_updated = Column(DateTime, server_default=func.now(), onupdate=func.now())
+    last_updated = Column(DateTime, default=func.now(), onupdate=func.now())
 
     user = relationship("User", back_populates="merchant_mappings")
 
@@ -92,7 +98,7 @@ class Budget(Base):
     limit_amount = Column(Numeric(12, 2), nullable=False)
     period = Column(String(20), default='monthly')  # monthly, weekly
     created_at = Column(DateTime, server_default=func.now())
-    updated_at = Column(DateTime, server_default=func.now(), onupdate=func.now())
+    updated_at = Column(DateTime, default=func.now(), onupdate=func.now())
 
     user = relationship("User", back_populates="budgets")
 

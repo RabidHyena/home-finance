@@ -1,4 +1,4 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import { Calendar } from 'lucide-react';
 import { MonthlyChart, CategoryChart, MonthComparison, TrendsChart, ForecastChart, StatCardSkeleton, ChartSkeleton } from '../components';
 import { useMonthlyReports, useMonthComparison, useSpendingTrends, useForecast } from '../hooks/useApi';
@@ -32,8 +32,18 @@ export function ReportsPage() {
     }
   }, [reports, selectedReport]);
 
-  const categoryLabels = activeTab === 'income' ? INCOME_CATEGORY_LABELS : CATEGORY_LABELS;
+  const categoryLabels = useMemo(
+    () => activeTab === 'income' ? INCOME_CATEGORY_LABELS : CATEGORY_LABELS,
+    [activeTab],
+  );
   const isIncome = activeTab === 'income';
+
+  const sortedCategories = useMemo(
+    () => selectedReport
+      ? Object.entries(selectedReport.by_category).sort((a, b) => b[1] - a[1])
+      : [],
+    [selectedReport],
+  );
 
   if (isLoading) {
     return (
@@ -364,9 +374,7 @@ export function ReportsPage() {
                   </tr>
                 </thead>
                 <tbody>
-                  {Object.entries(selectedReport.by_category)
-                    .sort((a, b) => b[1] - a[1])
-                    .map(([category, amount]) => (
+                  {sortedCategories.map(([category, amount]) => (
                       <tr key={category}>
                         <td
                           style={{

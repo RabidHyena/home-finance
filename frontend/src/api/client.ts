@@ -247,10 +247,10 @@ export const api = {
       return;
     }
 
-    const params = new URLSearchParams();
+    const params = new URLSearchParams({ confirm: 'true' });
     if (type) params.append('type', type);
     const qs = params.toString();
-    const response = await fetch(`${API_BASE}/api/transactions${qs ? `?${qs}` : ''}`, {
+    const response = await fetch(`${API_BASE}/api/transactions?${qs}`, {
       method: 'DELETE',
       credentials: 'include',
     });

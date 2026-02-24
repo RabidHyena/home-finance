@@ -1,8 +1,8 @@
-from fastapi import APIRouter, Depends, HTTPException
+from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from sqlalchemy import func, extract
 from decimal import Decimal
-from datetime import datetime, timedelta
+from datetime import datetime, timedelta, timezone
 from typing import Optional
 
 from app.database import get_db
@@ -60,15 +60,15 @@ def get_budgets(
 
 @router.get("/status", response_model=list[BudgetStatus])
 def get_budgets_status(
-    year: Optional[int] = None,
-    month: Optional[int] = None,
+    year: Optional[int] = Query(None, ge=2000, le=2100),
+    month: Optional[int] = Query(None, ge=1, le=12),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     """Get budget status with current spending."""
     # Default to current month
     if not year or not month:
-        now = datetime.now()
+        now = datetime.now(timezone.utc)
         year = now.year
         month = now.month
 
@@ -92,7 +92,7 @@ def get_budgets_status(
     # Weekly spending by category (only if any budget uses weekly)
     weekly_spent: dict[str, Decimal] = {}
     if any(b.period == 'weekly' for b in budgets):
-        today = datetime.now()
+        today = datetime.now(timezone.utc)
         week_start = today - timedelta(days=today.weekday())
         week_end = week_start + timedelta(days=6)
         weekly_spent_rows = db.query(

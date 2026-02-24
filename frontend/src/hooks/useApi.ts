@@ -2,10 +2,15 @@ import { useQuery, useInfiniteQuery, useMutation, useQueryClient } from '@tansta
 import { api } from '../api/client';
 import type { TransactionCreate, TransactionUpdate, TransactionType, BudgetCreate, BudgetUpdate } from '../types';
 
-// Query keys
+// Consolidated query keys
 const keys = {
   transactions: ['transactions'] as const,
   reports: ['reports'] as const,
+  monthComparison: ['month-comparison'] as const,
+  spendingTrends: ['spending-trends'] as const,
+  budgets: ['budgets'] as const,
+  budgetsStatus: ['budgets-status'] as const,
+  forecast: ['forecast'] as const,
 };
 
 // --- Queries ---
@@ -48,20 +53,23 @@ export function useMonthlyReports(year?: number, type?: TransactionType) {
   return useQuery({
     queryKey: [...keys.reports, year, type],
     queryFn: () => api.getMonthlyReports(year, type),
+    staleTime: 1000 * 60 * 10, // reports change rarely — 10 min
   });
 }
 
 export function useMonthComparison(year: number, month: number, type?: TransactionType) {
   return useQuery({
-    queryKey: ['month-comparison', year, month, type],
+    queryKey: [...keys.monthComparison, year, month, type],
     queryFn: () => api.getMonthComparison(year, month, type),
+    staleTime: 1000 * 60 * 10,
   });
 }
 
 export function useSpendingTrends(months = 6, type?: TransactionType) {
   return useQuery({
-    queryKey: ['spending-trends', months, type],
+    queryKey: [...keys.spendingTrends, months, type],
     queryFn: () => api.getSpendingTrends(months, type),
+    staleTime: 1000 * 60 * 10,
   });
 }
 
@@ -69,14 +77,14 @@ export function useSpendingTrends(months = 6, type?: TransactionType) {
 
 export function useBudgets() {
   return useQuery({
-    queryKey: ['budgets'],
+    queryKey: [...keys.budgets],
     queryFn: () => api.getBudgets(),
   });
 }
 
 export function useBudgetsStatus(year?: number, month?: number) {
   return useQuery({
-    queryKey: ['budgets-status', year, month],
+    queryKey: [...keys.budgetsStatus, year, month],
     queryFn: () => api.getBudgetsStatus(year, month),
   });
 }
@@ -86,8 +94,8 @@ export function useCreateBudget() {
   return useMutation({
     mutationFn: (data: BudgetCreate) => api.createBudget(data),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['budgets'] });
-      qc.invalidateQueries({ queryKey: ['budgets-status'] });
+      qc.invalidateQueries({ queryKey: keys.budgets });
+      qc.invalidateQueries({ queryKey: keys.budgetsStatus });
     },
   });
 }
@@ -98,8 +106,8 @@ export function useUpdateBudget() {
     mutationFn: ({ id, data }: { id: number; data: BudgetUpdate }) =>
       api.updateBudget(id, data),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['budgets'] });
-      qc.invalidateQueries({ queryKey: ['budgets-status'] });
+      qc.invalidateQueries({ queryKey: keys.budgets });
+      qc.invalidateQueries({ queryKey: keys.budgetsStatus });
     },
   });
 }
@@ -109,8 +117,8 @@ export function useDeleteBudget() {
   return useMutation({
     mutationFn: (id: number) => api.deleteBudget(id),
     onSuccess: () => {
-      qc.invalidateQueries({ queryKey: ['budgets'] });
-      qc.invalidateQueries({ queryKey: ['budgets-status'] });
+      qc.invalidateQueries({ queryKey: keys.budgets });
+      qc.invalidateQueries({ queryKey: keys.budgetsStatus });
     },
   });
 }
@@ -119,8 +127,9 @@ export function useDeleteBudget() {
 
 export function useForecast(historyMonths = 6, forecastMonths = 3, type?: TransactionType) {
   return useQuery({
-    queryKey: ['forecast', historyMonths, forecastMonths, type],
+    queryKey: [...keys.forecast, historyMonths, forecastMonths, type],
     queryFn: () => api.getForecast(historyMonths, forecastMonths, type),
+    staleTime: 1000 * 60 * 10,
   });
 }
 
@@ -133,6 +142,7 @@ export function useCreateTransaction() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: keys.transactions });
       qc.invalidateQueries({ queryKey: keys.reports });
+      qc.invalidateQueries({ queryKey: keys.budgetsStatus });
     },
   });
 }
@@ -145,6 +155,7 @@ export function useUpdateTransaction() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: keys.transactions });
       qc.invalidateQueries({ queryKey: keys.reports });
+      qc.invalidateQueries({ queryKey: keys.budgetsStatus });
     },
   });
 }
@@ -156,6 +167,7 @@ export function useDeleteTransaction() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: keys.transactions });
       qc.invalidateQueries({ queryKey: keys.reports });
+      qc.invalidateQueries({ queryKey: keys.budgetsStatus });
     },
   });
 }
@@ -167,6 +179,7 @@ export function useDeleteAllTransactions() {
     onSuccess: () => {
       qc.invalidateQueries({ queryKey: keys.transactions });
       qc.invalidateQueries({ queryKey: keys.reports });
+      qc.invalidateQueries({ queryKey: keys.budgetsStatus });
     },
   });
 }

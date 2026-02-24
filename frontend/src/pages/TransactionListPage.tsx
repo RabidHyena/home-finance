@@ -115,7 +115,7 @@ export function TransactionListPage({
     [hasNextPage, isFetchingNextPage, fetchNextPage]
   );
 
-  const handleCreate = async (formData: TransactionCreate) => {
+  const handleCreate = useCallback(async (formData: TransactionCreate) => {
     try {
       await createMutation.mutateAsync(type === 'income' ? { ...formData, type: 'income' } : formData);
       setShowForm(false);
@@ -123,9 +123,9 @@ export function TransactionListPage({
     } catch {
       toast.error(toasts.createError);
     }
-  };
+  }, [createMutation, type, toast, toasts]);
 
-  const handleUpdate = async (formData: TransactionCreate) => {
+  const handleUpdate = useCallback(async (formData: TransactionCreate) => {
     if (!editingTransaction) return;
     try {
       await updateMutation.mutateAsync({ id: editingTransaction.id, data: formData });
@@ -134,9 +134,9 @@ export function TransactionListPage({
     } catch {
       toast.error(toasts.updateError);
     }
-  };
+  }, [editingTransaction, updateMutation, toast, toasts]);
 
-  const handleDelete = async () => {
+  const handleDelete = useCallback(async () => {
     if (deleteTarget === null) return;
     try {
       await deleteMutation.mutateAsync(deleteTarget);
@@ -146,9 +146,9 @@ export function TransactionListPage({
       deleteMutation.reset();
     }
     setDeleteTarget(null);
-  };
+  }, [deleteTarget, deleteMutation, toast, toasts]);
 
-  const handleDeleteAll = async () => {
+  const handleDeleteAll = useCallback(async () => {
     try {
       await deleteAllMutation.mutateAsync(type);
       toast.success(toasts.allDeleted);
@@ -157,9 +157,9 @@ export function TransactionListPage({
       deleteAllMutation.reset();
     }
     setShowDeleteAll(false);
-  };
+  }, [deleteAllMutation, type, toast, toasts]);
 
-  const handleExport = async () => {
+  const handleExport = useCallback(async () => {
     try {
       const blob = await api.exportTransactions(
         filter || undefined,
@@ -180,7 +180,7 @@ export function TransactionListPage({
     } catch {
       toast.error('Ошибка экспорта');
     }
-  };
+  }, [filter, dateFrom, dateTo, debouncedSearch, type, exportPrefix, toast]);
 
   const btnStyle = buttonColor
     ? { backgroundColor: buttonColor, borderColor: buttonColor }

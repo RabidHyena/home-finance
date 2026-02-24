@@ -2,7 +2,7 @@ import base64
 import json
 import logging
 import re
-from datetime import datetime
+from datetime import datetime, timezone
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Optional
@@ -34,7 +34,7 @@ def _parse_date(date_str: str) -> datetime:
         except (ValueError, TypeError):
             continue
     logger.warning("Could not parse date '%s', falling back to now()", date_str)
-    return datetime.now()
+    return datetime.now(timezone.utc)
 
 
 def _normalize_category(category: str) -> str:
@@ -71,10 +71,10 @@ def _extract_json(text: str) -> dict | list:
     except json.JSONDecodeError:
         pass
 
-    # Fallback: try parsing from each '{' position, tolerating trailing text
+    # Fallback: try parsing from each '{' or '[' position, tolerating trailing text
     decoder = json.JSONDecoder()
     for i, ch in enumerate(text):
-        if ch == '{':
+        if ch in ('{', '['):
             try:
                 obj, _ = decoder.raw_decode(text, i)
                 return obj

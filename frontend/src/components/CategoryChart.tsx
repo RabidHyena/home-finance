@@ -1,3 +1,4 @@
+import { memo, useMemo } from 'react';
 import { PieChart, Pie, Cell, ResponsiveContainer, Legend, Tooltip } from 'recharts';
 import type { Category } from '../types';
 import { CATEGORY_COLORS, CATEGORY_LABELS } from '../types';
@@ -6,14 +7,17 @@ interface CategoryChartProps {
   data: Record<string, number>;
 }
 
-export function CategoryChart({ data }: CategoryChartProps) {
-  const chartData = Object.entries(data)
-    .map(([category, amount]) => ({
-      name: CATEGORY_LABELS[category as Category] || category,
-      value: amount,
-      color: CATEGORY_COLORS[category as Category] || '#6b7280',
-    }))
-    .sort((a, b) => b.value - a.value);
+export const CategoryChart = memo(function CategoryChart({ data }: CategoryChartProps) {
+  const chartData = useMemo(
+    () => Object.entries(data)
+      .map(([category, amount]) => ({
+        name: CATEGORY_LABELS[category as Category] || category,
+        value: amount,
+        color: CATEGORY_COLORS[category as Category] || '#6b7280',
+      }))
+      .sort((a, b) => b.value - a.value),
+    [data],
+  );
 
   if (chartData.length === 0) {
     return (
@@ -29,7 +33,7 @@ export function CategoryChart({ data }: CategoryChartProps) {
     );
   }
 
-  const total = chartData.reduce((sum, item) => sum + item.value, 0);
+  const total = useMemo(() => chartData.reduce((sum, item) => sum + item.value, 0), [chartData]);
 
   return (
     <div style={{ width: '100%', height: 300 }}>
@@ -74,4 +78,4 @@ export function CategoryChart({ data }: CategoryChartProps) {
       </ResponsiveContainer>
     </div>
   );
-}
+});

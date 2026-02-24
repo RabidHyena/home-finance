@@ -1,5 +1,6 @@
 import warnings
 
+from pydantic import model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from functools import lru_cache
 
@@ -38,13 +39,17 @@ class Settings(BaseSettings):
 
     model_config = SettingsConfigDict(env_file=".env")
 
+    @model_validator(mode='after')
+    def _set_cookie_secure_default(self) -> 'Settings':
+        """Auto-set cookie_secure: True in production, False in debug."""
+        if self.cookie_secure is None:
+            self.cookie_secure = not self.debug
+        return self
+
 
 @lru_cache
 def get_settings() -> Settings:
     settings = Settings()
-    # Auto-set cookie_secure: True in production, False in debug
-    if settings.cookie_secure is None:
-        object.__setattr__(settings, "cookie_secure", not settings.debug)
     if settings.secret_key == "change-me-in-production" and not settings.debug:
         raise RuntimeError(
             "SECRET_KEY must be set to a secure random value in production. "

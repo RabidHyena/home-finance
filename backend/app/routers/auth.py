@@ -1,3 +1,4 @@
+import threading
 import time
 
 from fastapi import APIRouter, Depends, HTTPException, Request, Response
@@ -20,13 +21,14 @@ router = APIRouter(prefix="/api/auth", tags=["auth"])
 
 # Simple in-memory rate limiter (per-process; sufficient for single-worker deployments)
 _rate_limit_store: dict[str, list[float]] = {}
+_rate_limit_lock = threading.Lock()
 _RATE_LIMIT_MAX_KEYS = 10000  # max tracked IPs before forced cleanup
 _last_cleanup = 0.0
 _CLEANUP_INTERVAL = 300  # full cleanup every 5 minutes
 
 
 def _cleanup_store(now: float, window: int) -> None:
-    """Remove all expired entries from the store."""
+    """Remove all expired entries from the store. Caller must hold _rate_limit_lock."""
     global _last_cleanup
     expired_keys = [ip for ip, times in _rate_limit_store.items()
                     if not any(now - t < window for t in times)]
@@ -42,22 +44,23 @@ def _check_rate_limit(client_ip: str) -> None:
     max_requests = settings.rate_limit_max_requests
     now = time.time()
 
-    # Periodic full cleanup to prevent memory leak
-    if now - _last_cleanup > _CLEANUP_INTERVAL or len(_rate_limit_store) > _RATE_LIMIT_MAX_KEYS:
-        _cleanup_store(now, window)
+    with _rate_limit_lock:
+        # Periodic full cleanup to prevent memory leak
+        if now - _last_cleanup > _CLEANUP_INTERVAL or len(_rate_limit_store) > _RATE_LIMIT_MAX_KEYS:
+            _cleanup_store(now, window)
 
-    # Clean this IP's expired entries
-    attempts = _rate_limit_store.get(client_ip, [])
-    attempts = [t for t in attempts if now - t < window]
+        # Clean this IP's expired entries
+        attempts = _rate_limit_store.get(client_ip, [])
+        attempts = [t for t in attempts if now - t < window]
 
-    if len(attempts) >= max_requests:
+        if len(attempts) >= max_requests:
+            _rate_limit_store[client_ip] = attempts
+            raise HTTPException(
+                status_code=429,
+                detail="Too many requests. Please try again later.",
+            )
+        attempts.append(now)
         _rate_limit_store[client_ip] = attempts
-        raise HTTPException(
-            status_code=429,
-            detail="Too many requests. Please try again later.",
-        )
-    attempts.append(now)
-    _rate_limit_store[client_ip] = attempts
 
 
 def _set_token_cookie(response: Response, token: str) -> None:

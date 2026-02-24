@@ -1,6 +1,6 @@
 import csv
 import logging
-from datetime import datetime
+from datetime import datetime, timezone
 from decimal import Decimal
 from io import StringIO
 from typing import Literal, Optional
@@ -9,7 +9,7 @@ from statistics import mean, pstdev
 from dateutil.relativedelta import relativedelta
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
-from sqlalchemy import func, extract, or_
+from sqlalchemy import case, func, extract, or_
 from sqlalchemy.orm import Session
 
 logger = logging.getLogger(__name__)
@@ -96,18 +96,27 @@ def get_transactions(
     current_user: User = Depends(get_current_user),
 ):
     """Get paginated list of transactions."""
-    query = _apply_filters(
+    base_query = _apply_filters(
         db.query(Transaction), current_user.id,
         category=category, date_from=date_from, date_to=date_to, search=search, tx_type=type,
     )
 
-    total = query.count()
-    items = (
-        query.order_by(Transaction.date.desc())
+    # Single query: window function for total count + paginated rows
+    count_col = func.count().over().label('_total')
+    rows = (
+        base_query.add_columns(count_col)
+        .order_by(Transaction.date.desc())
         .offset((page - 1) * per_page)
         .limit(per_page)
         .all()
     )
+
+    if rows:
+        items = [row[0] for row in rows]
+        total = rows[0][1]
+    else:
+        items = []
+        total = 0
 
     return TransactionList(
         items=items,
@@ -133,43 +142,40 @@ def export_transactions(
         category=category, date_from=date_from, date_to=date_to, search=search, tx_type=type,
     ).order_by(Transaction.date.desc())
 
-    # Safety limit to prevent memory issues
-    transactions = query.limit(10000).all()
-
-    # Generate CSV
-    output = StringIO()
-    # Add BOM for Excel UTF-8 compatibility
-    output.write('\ufeff')
-    writer = csv.writer(output)
-
-    # Header
-    writer.writerow(['ID', 'Дата', 'Сумма', 'Валюта', 'Описание', 'Категория', 'Создано'])
-
-    # Rows
     def sanitize_csv_field(value: str) -> str:
         """Prevent CSV formula injection by prefixing dangerous characters."""
         if value and value[0] in ('=', '+', '-', '@', '\t', '\r'):
             return f"'{value}"
         return value
 
-    for tx in transactions:
-        writer.writerow([
-            tx.id,
-            tx.date.isoformat(),
-            float(tx.amount),
-            tx.currency,
-            sanitize_csv_field(tx.description),
-            sanitize_csv_field(tx.category or ''),
-            tx.created_at.isoformat(),
-        ])
+    def generate_csv():
+        # BOM for Excel UTF-8 compatibility
+        yield '\ufeff'
 
-    output.seek(0)
+        buf = StringIO()
+        writer = csv.writer(buf)
+        writer.writerow(['ID', 'Дата', 'Сумма', 'Валюта', 'Описание', 'Категория', 'Создано'])
+        yield buf.getvalue()
+
+        for tx in query.yield_per(500):
+            buf = StringIO()
+            writer = csv.writer(buf)
+            writer.writerow([
+                tx.id,
+                tx.date.isoformat(),
+                float(tx.amount),
+                tx.currency,
+                sanitize_csv_field(tx.description),
+                sanitize_csv_field(tx.category or ''),
+                tx.created_at.isoformat(),
+            ])
+            yield buf.getvalue()
 
     return StreamingResponse(
-        iter([output.getvalue()]),
+        generate_csv(),
         media_type="text/csv; charset=utf-8",
         headers={
-            "Content-Disposition": f"attachment; filename=transactions_{datetime.now().strftime('%Y%m%d_%H%M%S')}.csv"
+            "Content-Disposition": f"attachment; filename=transactions_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}.csv"
         }
     )
 
@@ -262,25 +268,29 @@ def get_ai_accuracy(
     current_user: User = Depends(get_current_user),
 ):
     """Get AI categorization accuracy metrics."""
-    total = db.query(Transaction).filter(
+    result = db.query(
+        func.count().label('total'),
+        func.count(case(
+            (Transaction.ai_category == Transaction.category, 1),
+        )).label('correct'),
+    ).filter(
         Transaction.user_id == current_user.id,
         Transaction.ai_category.isnot(None),
-    ).count()
-    correct = db.query(Transaction).filter(
-        Transaction.user_id == current_user.id,
-        Transaction.ai_category.isnot(None),
-        Transaction.ai_category == Transaction.category
-    ).count()
+    ).first()
 
+    total = result.total or 0
+    correct = result.correct or 0
     accuracy = (correct / total * 100) if total > 0 else 0
+
+    learned = db.query(func.count()).select_from(MerchantCategoryMapping).filter(
+        MerchantCategoryMapping.user_id == current_user.id
+    ).scalar()
 
     return {
         "total_predictions": total,
         "correct_predictions": correct,
         "accuracy_percentage": round(accuracy, 2),
-        "learned_merchants": db.query(MerchantCategoryMapping).filter(
-            MerchantCategoryMapping.user_id == current_user.id
-        ).count()
+        "learned_merchants": learned,
     }
 
 
@@ -294,7 +304,7 @@ def get_spending_forecast(
 ):
     """Forecast future spending based on historical data."""
     # Get historical data
-    end_date = datetime.now()
+    end_date = datetime.now(timezone.utc)
     start_date = end_date - relativedelta(months=history_months)
 
     # Aggregate by month in SQL instead of loading all transactions
@@ -398,7 +408,7 @@ def get_spending_trends(
     """Get spending trends for last N months."""
 
     # Calculate date range
-    end_date = datetime.now()
+    end_date = datetime.now(timezone.utc)
     start_date = end_date - relativedelta(months=months)
 
     # Aggregate by month in SQL
@@ -645,16 +655,22 @@ def update_transaction(
 @router.delete("", status_code=204)
 def delete_all_transactions(
     type: Optional[Literal['expense', 'income']] = Query(None, description="Filter by type: expense or income"),
+    confirm: bool = Query(False, description="Must be true to confirm bulk deletion"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),
 ):
     """Delete all transactions for the current user."""
+    if not confirm:
+        raise HTTPException(
+            status_code=400,
+            detail="Bulk deletion requires confirm=true query parameter",
+        )
     query = db.query(Transaction).filter(
         Transaction.user_id == current_user.id,
     )
     if type:
         query = query.filter(Transaction.type == type)
-    count = query.delete()
+    count = query.delete(synchronize_session=False)
     db.commit()
     logger.info("Deleted %d transactions for user %d", count, current_user.id)
 

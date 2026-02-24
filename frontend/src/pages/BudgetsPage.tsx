@@ -1,4 +1,4 @@
-import { useState } from 'react';
+import { useState, useCallback, useMemo } from 'react';
 import { Plus, Trash2, Edit2, Check, X } from 'lucide-react';
 import {
   useBudgetsStatus,
@@ -29,7 +29,7 @@ export function BudgetsPage() {
     period: 'monthly' as 'monthly' | 'weekly',
   });
 
-  const handleSubmit = async (e: React.FormEvent) => {
+  const handleSubmit = useCallback(async (e: React.FormEvent) => {
     e.preventDefault();
 
     if (!formData.limit_amount || parseFloat(formData.limit_amount) <= 0) {
@@ -62,9 +62,9 @@ export function BudgetsPage() {
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Ошибка сохранения');
     }
-  };
+  }, [editingId, formData, updateMutation, createMutation, toast]);
 
-  const handleEdit = (status: BudgetStatus) => {
+  const handleEdit = useCallback((status: BudgetStatus) => {
     setEditingId(status.budget.id);
     setFormData({
       category: status.budget.category as Category,
@@ -72,9 +72,9 @@ export function BudgetsPage() {
       period: status.budget.period,
     });
     setShowForm(true);
-  };
+  }, []);
 
-  const handleDelete = async (id: number) => {
+  const handleDelete = useCallback(async (id: number) => {
     try {
       await deleteMutation.mutateAsync(id);
       toast.success('Бюджет удален');
@@ -83,21 +83,23 @@ export function BudgetsPage() {
     } finally {
       setDeleteId(null);
     }
-  };
+  }, [deleteMutation, toast]);
 
-  const getProgressColor = (percentage: number): string => {
+  const getProgressColor = useCallback((percentage: number): string => {
     if (percentage < 70) return '#22c55e';
     if (percentage < 90) return '#eab308';
     return '#ef4444';
-  };
+  }, []);
 
-  const usedCategories = new Set(budgetStatuses.map(s => s.budget.category));
-  const editingCategory = editingId
-    ? budgetStatuses.find(s => s.budget.id === editingId)?.budget.category
-    : null;
-  const availableCategories = CATEGORIES.filter(
-    cat => !usedCategories.has(cat) || cat === editingCategory
-  );
+  const usedCategories = useMemo(() => new Set(budgetStatuses.map(s => s.budget.category)), [budgetStatuses]);
+  const availableCategories = useMemo(() => {
+    const editingCategory = editingId
+      ? budgetStatuses.find(s => s.budget.id === editingId)?.budget.category
+      : null;
+    return CATEGORIES.filter(
+      cat => !usedCategories.has(cat) || cat === editingCategory
+    );
+  }, [budgetStatuses, editingId, usedCategories]);
 
   if (isLoading) {
     return <div>Загрузка...</div>;

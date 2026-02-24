@@ -1,3 +1,4 @@
+import { memo } from 'react';
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import { Trash2, Edit2 } from 'lucide-react';
@@ -10,7 +11,7 @@ interface TransactionCardProps {
   onDelete?: (id: number) => void;
 }
 
-export function TransactionCard({
+export const TransactionCard = memo(function TransactionCard({
   transaction,
   onEdit,
   onDelete,
@@ -153,4 +154,4 @@ export function TransactionCard({
       )}
     </div>
   );
-}
+});

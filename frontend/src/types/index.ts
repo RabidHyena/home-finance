@@ -54,6 +54,7 @@ export interface TransactionUpdate {
   category?: string;
   date?: string;
   currency?: string;
+  type?: TransactionType;
 }
 
 export interface TransactionList {
