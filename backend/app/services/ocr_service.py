@@ -2,12 +2,13 @@ import base64
 import json
 import logging
 import re
+import time
 from datetime import datetime, timezone
 from decimal import Decimal, InvalidOperation
 from pathlib import Path
 from typing import Optional
 
-from openai import OpenAI
+from openai import APITimeoutError, APIConnectionError, APIStatusError, OpenAI
 from sqlalchemy.orm import Session
 
 from app.config import get_settings
@@ -424,21 +425,41 @@ If no chart is visible, omit the "chart" field or set it to null."""
             logger.warning("Failed to parse chart data", exc_info=True)
             return None
 
-    MAX_RETRIES = 1  # retry once on parse failure
+    MAX_RETRIES = 3
+    BACKOFF_BASE = 1.0  # seconds; delays: 1s, 2s, 4s
+
+    @staticmethod
+    def _is_retriable(exc: Exception) -> bool:
+        """Determine if an API error is worth retrying."""
+        if isinstance(exc, (APITimeoutError, APIConnectionError)):
+            return True
+        if isinstance(exc, APIStatusError) and exc.status_code >= 500:
+            return True
+        if isinstance(exc, APIStatusError) and exc.status_code == 429:
+            return True
+        # Parse failures are retriable (AI may return valid JSON on retry)
+        if isinstance(exc, (ValueError, KeyError)):
+            return True
+        return False
 
     def _call_with_retry(self, image_data_b64: str, media_type: str, parser):
-        """Call vision API and parse response, retrying once on parse failure."""
-        last_error = None
-        for attempt in range(1 + self.MAX_RETRIES):
-            response_text = self._call_vision_api(image_data_b64, media_type)
+        """Call vision API and parse response with exponential backoff."""
+        last_error: Exception | None = None
+        for attempt in range(self.MAX_RETRIES):
             try:
+                response_text = self._call_vision_api(image_data_b64, media_type)
                 return parser(response_text)
-            except (ValueError, KeyError) as e:
+            except (ValueError, KeyError, APITimeoutError, APIConnectionError, APIStatusError) as e:
                 last_error = e
-                if attempt < self.MAX_RETRIES:
-                    logger.warning("Parse failed (attempt %d), retrying: %s", attempt + 1, e)
-                    continue
-        raise last_error
+                if not self._is_retriable(e) or attempt == self.MAX_RETRIES - 1:
+                    break
+                delay = self.BACKOFF_BASE * (2 ** attempt)
+                logger.warning(
+                    "Attempt %d/%d failed (%s: %s), retrying in %.1fs",
+                    attempt + 1, self.MAX_RETRIES, type(e).__name__, e, delay,
+                )
+                time.sleep(delay)
+        raise last_error  # type: ignore[misc]
 
     def parse_image(self, image_path: str) -> ParsedTransaction:
         """Parse a bank screenshot and extract transaction data."""

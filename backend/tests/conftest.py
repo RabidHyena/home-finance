@@ -34,6 +34,14 @@ app.dependency_overrides[get_db] = override_get_db
 @pytest.fixture(autouse=True)
 def setup_database():
     """Create tables before each test and drop after."""
+    # Clear auth state and caches before each test
+    from app.routers.auth import _failed_logins, _failed_logins_lock, _auth_limiter
+    with _failed_logins_lock:
+        _failed_logins.clear()
+    _auth_limiter.clear()
+    from app.cache import analytics_cache
+    analytics_cache.clear()
+
     Base.metadata.create_all(bind=engine)
     yield
     Base.metadata.drop_all(bind=engine)

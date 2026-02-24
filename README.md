@@ -6,7 +6,7 @@
 
 - **Аутентификация**: регистрация, вход, JWT-токены в httpOnly cookies (bcrypt + PyJWT)
 - **Мультипользовательность**: изоляция данных между пользователями (user_id FK)
-- **Безопасность**: CORS, CSP headers, rate limiting (auth, configurable), magic byte валидация файлов, CSV sanitization, SECRET_KEY enforcement, input sanitization (null bytes, HTML, control chars), amount/date range validation, password max 72 bytes (bcrypt), username pattern validation, budget category sanitization
+- **Безопасность**: CORS, CSP/HSTS/Permissions-Policy headers, rate limiting (глобальный 100 req/min + 10 req/min для upload), brute force защита (5 попыток → 15 мин блокировка), валидация паролей (буква + цифра), magic byte валидация файлов, CSV sanitization, SECRET_KEY enforcement, input sanitization (null bytes, HTML, control chars), amount/date range validation, password max 72 bytes (bcrypt), username pattern validation, budget category sanitization
 - **Расходы и доходы**: тип транзакции (expense/income) с раздельными категориями и фильтрацией
 - Загрузка скриншотов банковских приложений (одиночная и пакетная до 10 штук)
 - Импорт выписок из Excel (.xlsx, .xls)
@@ -21,16 +21,21 @@
 - PWA: установка на устройство, офлайн-режим, кеширование
 - Адаптивный интерфейс (mobile + desktop)
 - REST API с Swagger UI документацией
+- **Производительность**: TTL-кэш аналитики с автоинвалидацией, lazy loading страниц (React.lazy + Suspense), retry с экспоненциальным backoff (OCR + React Query)
+- **Наблюдаемость**: структурированное логирование с request ID и замером времени, health check эндпоинт
+- **CI/CD**: GitHub Actions (ruff, pytest, tsc, eslint, vitest)
+- **Docker hardening**: read-only FS, ограничение CPU/RAM, tmpfs, graceful shutdown
 
 ## Технологии
 
 | Компонент | Технология |
 |-----------|------------|
 | Frontend | React 19, TypeScript, Vite, Recharts, Inline Styles (CSS Variables), vite-plugin-pwa |
-| Backend | Python 3.12, FastAPI, SQLAlchemy (pool_pre_ping), Alembic, PyJWT, bcrypt |
+| Backend | Python 3.12, FastAPI, SQLAlchemy (pool_pre_ping, pool_recycle), Alembic, PyJWT, bcrypt |
 | Database | PostgreSQL 16 |
 | AI | Google Gemini 3 Flash Preview через OpenRouter |
 | Containers | Docker, Docker Compose, nginx |
+| CI | GitHub Actions (lint + test) |
 
 ## Быстрый старт
 
@@ -117,13 +122,15 @@ DEBUG=true pytest -v
 home-finance/
 ├── backend/
 │   ├── app/
-│   │   ├── main.py              # FastAPI приложение
-│   │   ├── config.py            # Настройки (env, auto cookie_secure)
-│   │   ├── database.py          # Подключение к БД (pool_pre_ping, pool_size)
+│   │   ├── main.py              # FastAPI приложение, middleware, логирование
+│   │   ├── config.py            # Настройки с валидацией (env, auto cookie_secure)
+│   │   ├── database.py          # Подключение к БД (pool_pre_ping, pool_recycle)
+│   │   ├── rate_limiter.py      # Rate limiting middleware (глобальный + per-prefix)
+│   │   ├── cache.py             # TTL-кэш аналитики с автоинвалидацией
 │   │   ├── models.py            # SQLAlchemy модели
 │   │   ├── schemas.py           # Pydantic схемы (sanitization, validation)
 │   │   ├── routers/
-│   │   │   ├── auth.py          # Регистрация, вход, выход, configurable rate limiter
+│   │   │   ├── auth.py          # Регистрация, вход, выход, brute force защита
 │   │   │   ├── transactions.py  # CRUD + аналитика + экспорт (expense/income)
 │   │   │   ├── upload.py        # Загрузка скриншотов и Excel (magic byte validation)
 │   │   │   └── budgets.py       # Бюджеты (bulk SQL queries)
@@ -131,7 +138,7 @@ home-finance/
 │   │   ├── schemas_auth.py      # Auth схемы (password max 72, username pattern)
 │   │   └── services/
 │   │       ├── auth_service.py  # JWT (PyJWT), bcrypt
-│   │       ├── ocr_service.py   # Gemini Vision через OpenRouter
+│   │       ├── ocr_service.py   # Gemini Vision через OpenRouter (retry + backoff)
 │   │       ├── excel_service.py # Парсинг банковских выписок Excel
 │   │       ├── learning_service.py  # Обучение категоризации
 │   │       └── merchant_normalization.py
@@ -145,6 +152,7 @@ home-finance/
 │   │   ├── test_services.py     # OCR parsing, merchant norm, learning
 │   │   ├── test_upload.py       # Magic bytes, file validation
 │   │   ├── test_rate_limiter.py # Rate limiter, chart parsing
+│   │   ├── test_error_scenarios.py # Edge cases, brute force, валидация
 │   │   └── test_e2e.py          # E2E integration
 │   ├── Dockerfile
 │   ├── requirements.txt
@@ -158,20 +166,21 @@ home-finance/
 │   │   ├── pages/               # Страницы
 │   │   ├── types/               # TypeScript типы, MONTH_NAMES
 │   │   ├── registerSW.ts        # PWA Service Worker
-│   │   ├── queryClient.ts       # React Query клиент (отдельный модуль)
+│   │   ├── queryClient.ts       # React Query клиент (retry + backoff)
 │   │   ├── App.tsx
 │   │   └── main.tsx
 │   ├── public/
 │   │   ├── icons/               # PWA иконки
 │   │   └── offline.html         # Офлайн-страница
 │   ├── Dockerfile
-│   ├── nginx.conf               # CSP headers, proxy
+│   ├── nginx.conf               # CSP, HSTS, Permissions-Policy headers, proxy
 │   └── vite.config.ts
 ├── docs/
 │   ├── REQUIREMENTS.md
 │   ├── ARCHITECTURE.md
 │   └── API.md
-├── docker-compose.yml
+├── docker-compose.yml           # Оркестрация (read-only, resource limits)
+├── .github/workflows/ci.yml    # CI пайплайн (lint + test)
 ├── ROADMAP.md
 └── README.md
 ```

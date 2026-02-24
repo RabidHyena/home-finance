@@ -36,7 +36,7 @@ RUN echo '#!/bin/sh\n\
 echo "Running database migrations..."\n\
 alembic upgrade head\n\
 echo "Starting application..."\n\
-exec uvicorn app.main:app --host 0.0.0.0 --port 8000' > /entrypoint.sh && \
+exec uvicorn app.main:app --host 0.0.0.0 --port 8000 --timeout-graceful-shutdown 30' > /entrypoint.sh && \
     chmod +x /entrypoint.sh && \
     chown appuser:appuser /entrypoint.sh
 

@@ -1,4 +1,4 @@
-"""Tests for auth rate limiter and chart parsing in OCR service."""
+"""Tests for rate limiter and chart parsing in OCR service."""
 
 import json
 import time
@@ -8,11 +8,7 @@ from unittest.mock import patch, MagicMock
 import pytest
 from fastapi import HTTPException
 
-from app.routers.auth import (
-    _check_rate_limit,
-    _cleanup_store,
-    _rate_limit_store,
-)
+from app.rate_limiter import RateLimiter
 from app.config import get_settings
 from app.services.ocr_service import OCRService
 
@@ -21,44 +17,53 @@ class TestRateLimiter:
     """Tests for in-memory rate limiter."""
 
     def setup_method(self):
-        """Clear rate limit store before each test."""
-        _rate_limit_store.clear()
+        """Create a fresh limiter before each test."""
         settings = get_settings()
         self.max_requests = settings.rate_limit_max_requests
         self.window = settings.rate_limit_window
+        self.limiter = RateLimiter(
+            window=self.window,
+            max_requests=self.max_requests,
+        )
 
     def test_allows_requests_under_limit(self):
         for _ in range(self.max_requests - 1):
-            _check_rate_limit("1.2.3.4")
+            self.limiter.check("1.2.3.4")
         # Should not raise
 
     def test_blocks_requests_over_limit(self):
         for _ in range(self.max_requests):
-            _check_rate_limit("1.2.3.4")
+            self.limiter.check("1.2.3.4")
         with pytest.raises(HTTPException) as exc_info:
-            _check_rate_limit("1.2.3.4")
+            self.limiter.check("1.2.3.4")
         assert exc_info.value.status_code == 429
 
     def test_different_ips_independent(self):
         for _ in range(self.max_requests):
-            _check_rate_limit("1.1.1.1")
+            self.limiter.check("1.1.1.1")
         # Different IP should still work
-        _check_rate_limit("2.2.2.2")
+        self.limiter.check("2.2.2.2")
 
     def test_expired_entries_cleaned(self):
         """Requests outside the window should be ignored."""
         past = time.time() - self.window - 10
-        _rate_limit_store["5.5.5.5"] = [past] * self.max_requests
+        self.limiter._store["5.5.5.5"] = [past] * self.max_requests
         # Should not raise — old entries are expired
-        _check_rate_limit("5.5.5.5")
+        self.limiter.check("5.5.5.5")
 
     def test_cleanup_removes_expired_ips(self):
         past = time.time() - self.window - 10
-        _rate_limit_store["old.ip"] = [past]
-        _rate_limit_store["fresh.ip"] = [time.time()]
-        _cleanup_store(time.time(), self.window)
-        assert "old.ip" not in _rate_limit_store
-        assert "fresh.ip" in _rate_limit_store
+        self.limiter._store["old.ip"] = [past]
+        self.limiter._store["fresh.ip"] = [time.time()]
+        self.limiter._cleanup(time.time())
+        assert "old.ip" not in self.limiter._store
+        assert "fresh.ip" in self.limiter._store
+
+    def test_clear(self):
+        self.limiter.check("1.2.3.4")
+        assert len(self.limiter._store) > 0
+        self.limiter.clear()
+        assert len(self.limiter._store) == 0
 
 
 class TestChartParsing:

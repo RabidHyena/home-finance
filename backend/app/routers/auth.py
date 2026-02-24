@@ -1,3 +1,4 @@
+import logging
 import threading
 import time
 
@@ -8,6 +9,7 @@ from app.config import get_settings
 from app.database import get_db
 from app.dependencies import get_current_user
 from app.models import User
+from app.rate_limiter import RateLimiter
 from app.schemas_auth import UserLogin, UserRegister, UserResponse
 from app.services.auth_service import (
     authenticate_user,
@@ -17,50 +19,50 @@ from app.services.auth_service import (
     get_user_by_username,
 )
 
+logger = logging.getLogger(__name__)
+
 router = APIRouter(prefix="/api/auth", tags=["auth"])
 
-# Simple in-memory rate limiter (per-process; sufficient for single-worker deployments)
-_rate_limit_store: dict[str, list[float]] = {}
-_rate_limit_lock = threading.Lock()
-_RATE_LIMIT_MAX_KEYS = 10000  # max tracked IPs before forced cleanup
-_last_cleanup = 0.0
-_CLEANUP_INTERVAL = 300  # full cleanup every 5 minutes
+settings = get_settings()
+_auth_limiter = RateLimiter(
+    window=settings.rate_limit_window,
+    max_requests=settings.rate_limit_max_requests,
+)
+
+# Brute force protection: track failed login attempts per login key
+_MAX_FAILED_ATTEMPTS = 5
+_LOCKOUT_DURATION = 900  # 15 minutes
+_failed_logins: dict[str, list[float]] = {}
+_failed_logins_lock = threading.Lock()
 
 
-def _cleanup_store(now: float, window: int) -> None:
-    """Remove all expired entries from the store. Caller must hold _rate_limit_lock."""
-    global _last_cleanup
-    expired_keys = [ip for ip, times in _rate_limit_store.items()
-                    if not any(now - t < window for t in times)]
-    for key in expired_keys:
-        del _rate_limit_store[key]
-    _last_cleanup = now
-
-
-def _check_rate_limit(client_ip: str) -> None:
-    global _last_cleanup
-    settings = get_settings()
-    window = settings.rate_limit_window
-    max_requests = settings.rate_limit_max_requests
+def _check_brute_force(login_key: str) -> None:
+    """Block login if too many recent failures for this account."""
     now = time.time()
+    with _failed_logins_lock:
+        attempts = _failed_logins.get(login_key, [])
+        # Keep only attempts within lockout window
+        attempts = [t for t in attempts if now - t < _LOCKOUT_DURATION]
+        _failed_logins[login_key] = attempts
 
-    with _rate_limit_lock:
-        # Periodic full cleanup to prevent memory leak
-        if now - _last_cleanup > _CLEANUP_INTERVAL or len(_rate_limit_store) > _RATE_LIMIT_MAX_KEYS:
-            _cleanup_store(now, window)
-
-        # Clean this IP's expired entries
-        attempts = _rate_limit_store.get(client_ip, [])
-        attempts = [t for t in attempts if now - t < window]
-
-        if len(attempts) >= max_requests:
-            _rate_limit_store[client_ip] = attempts
+        if len(attempts) >= _MAX_FAILED_ATTEMPTS:
+            logger.warning("Account locked due to brute force: %s", login_key)
             raise HTTPException(
                 status_code=429,
-                detail="Too many requests. Please try again later.",
+                detail="Too many failed login attempts. Please try again later.",
             )
-        attempts.append(now)
-        _rate_limit_store[client_ip] = attempts
+
+
+def _record_failed_login(login_key: str) -> None:
+    """Record a failed login attempt."""
+    with _failed_logins_lock:
+        _failed_logins.setdefault(login_key, []).append(time.time())
+
+
+def _clear_failed_logins(login_key: str) -> None:
+    """Clear failed attempts on successful login."""
+    with _failed_logins_lock:
+        _failed_logins.pop(login_key, None)
 
 
 def _set_token_cookie(response: Response, token: str) -> None:
@@ -78,7 +80,7 @@ def _set_token_cookie(response: Response, token: str) -> None:
 
 @router.post("/register", response_model=UserResponse, status_code=201)
 def register(data: UserRegister, response: Response, request: Request, db: Session = Depends(get_db)):
-    _check_rate_limit(request.client.host if request.client else "unknown")
+    _auth_limiter.check(request.client.host if request.client else "unknown")
     if get_user_by_email(db, data.email) or get_user_by_username(db, data.username):
         raise HTTPException(status_code=400, detail="Registration failed. Email or username may already be in use.")
 
@@ -90,11 +92,16 @@ def register(data: UserRegister, response: Response, request: Request, db: Sessi
 
 @router.post("/login", response_model=UserResponse)
 def login(data: UserLogin, response: Response, request: Request, db: Session = Depends(get_db)):
-    _check_rate_limit(request.client.host if request.client else "unknown")
+    _auth_limiter.check(request.client.host if request.client else "unknown")
+    login_key = data.login.lower()
+    _check_brute_force(login_key)
+
     user = authenticate_user(db, data.login, data.password)
     if not user:
+        _record_failed_login(login_key)
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
+    _clear_failed_logins(login_key)
     token = create_access_token(user.id)
     _set_token_cookie(response, token)
     return user

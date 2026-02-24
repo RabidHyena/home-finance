@@ -37,15 +37,37 @@ const API_BASE = import.meta.env.VITE_API_URL || '';
 // Flag to use mock data (default: false — use real backend)
 const USE_MOCK = import.meta.env.VITE_USE_MOCK === 'true';
 
-// Helper to handle 401 responses
+// Custom error that preserves HTTP status and Retry-After header
+class ApiError extends Error {
+  status: number;
+  retryAfter?: number;
+
+  constructor(message: string, status: number, retryAfter?: number) {
+    super(message);
+    this.name = 'ApiError';
+    this.status = status;
+    if (retryAfter !== undefined) this.retryAfter = retryAfter;
+  }
+}
+
+// Helper to handle API responses
 async function handleResponse<T>(response: Response): Promise<T> {
   if (response.status === 401) {
     window.dispatchEvent(new CustomEvent('auth:unauthorized'));
-    throw new Error('Unauthorized');
+    throw new ApiError('Unauthorized', 401);
   }
   if (!response.ok) {
     const err = await response.json().catch(() => null);
-    throw new Error(err?.detail || `Request failed (${response.status})`);
+    const message = err?.detail || `Request failed (${response.status})`;
+
+    // Preserve Retry-After for 429 responses
+    let retryAfter: number | undefined;
+    if (response.status === 429) {
+      const header = response.headers.get('Retry-After');
+      if (header) retryAfter = parseInt(header, 10) || undefined;
+    }
+
+    throw new ApiError(message, response.status, retryAfter);
   }
   if (response.status === 204 || response.headers.get('content-length') === '0') {
     return undefined as T;

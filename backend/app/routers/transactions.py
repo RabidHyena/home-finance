@@ -14,6 +14,7 @@ from sqlalchemy.orm import Session
 
 logger = logging.getLogger(__name__)
 
+from app.cache import analytics_cache, make_cache_key
 from app.database import get_db
 from app.dependencies import get_current_user
 from app.models import Transaction, MerchantCategoryMapping, User
@@ -25,6 +26,12 @@ from app.schemas import (
     MonthlyReport,
 )
 from app.services.learning_service import log_correction
+
+
+def _invalidate_user_cache(user_id: int) -> None:
+    """Invalidate all analytics caches for a user after data changes."""
+    for prefix in ("reports", "forecast", "trends", "comparison"):
+        analytics_cache.invalidate_prefix(f"{prefix}:u{user_id}:")
 
 router = APIRouter(prefix="/api/transactions", tags=["transactions"])
 
@@ -80,6 +87,7 @@ def create_transaction(
 
     db.commit()
     db.refresh(db_transaction)
+    _invalidate_user_cache(current_user.id)
     return db_transaction
 
 
@@ -190,6 +198,11 @@ def get_monthly_reports(
     current_user: User = Depends(get_current_user),
 ):
     """Get monthly spending reports."""
+    cache_key = make_cache_key("reports", current_user.id, year=year, type=type)
+    cached = analytics_cache.get(cache_key)
+    if cached is not None:
+        return cached
+
     query = db.query(
         extract("year", Transaction.date).label("year"),
         extract("month", Transaction.date).label("month"),
@@ -261,6 +274,7 @@ def get_monthly_reports(
             )
         )
 
+    analytics_cache.set(cache_key, reports)
     return reports
 
 
@@ -305,6 +319,12 @@ def get_spending_forecast(
     current_user: User = Depends(get_current_user),
 ):
     """Forecast future spending based on historical data."""
+    cache_key = make_cache_key("forecast", current_user.id,
+                               history=history_months, forecast=forecast_months, type=type)
+    cached = analytics_cache.get(cache_key)
+    if cached is not None:
+        return cached
+
     # Get historical data
     end_date = datetime.now(timezone.utc)
     start_date = end_date - relativedelta(months=history_months)
@@ -386,7 +406,7 @@ def get_spending_forecast(
         })
         current = current + relativedelta(months=1)
 
-    return {
+    result = {
         "historical": historical,
         "forecast": forecast,
         "statistics": {
@@ -398,6 +418,8 @@ def get_spending_forecast(
             }
         }
     }
+    analytics_cache.set(cache_key, result)
+    return result
 
 
 @router.get("/analytics/trends")
@@ -408,6 +430,10 @@ def get_spending_trends(
     current_user: User = Depends(get_current_user),
 ):
     """Get spending trends for last N months."""
+    cache_key = make_cache_key("trends", current_user.id, months=months, type=type)
+    cached = analytics_cache.get(cache_key)
+    if cached is not None:
+        return cached
 
     # Calculate date range
     end_date = datetime.now(timezone.utc)
@@ -481,7 +507,7 @@ def get_spending_trends(
     min_val = float(min(totals)) if totals else 0
     max_val = float(max(totals)) if totals else 0
 
-    return {
+    result = {
         "period": f"{months} months",
         "data": series,
         "trend_line": trend_line,
@@ -492,6 +518,8 @@ def get_spending_trends(
             "max": max_val
         }
     }
+    analytics_cache.set(cache_key, result)
+    return result
 
 
 @router.get("/analytics/comparison")
@@ -503,6 +531,10 @@ def get_month_comparison(
     current_user: User = Depends(get_current_user),
 ):
     """Compare current month with previous month."""
+    cache_key = make_cache_key("comparison", current_user.id, year=year, month=month, type=type)
+    cached = analytics_cache.get(cache_key)
+    if cached is not None:
+        return cached
 
     # Current month dates
     current_start = datetime(year, month, 1)
@@ -590,7 +622,7 @@ def get_month_comparison(
     # Sort by absolute change
     category_changes.sort(key=lambda x: abs(x["change_percent"]), reverse=True)
 
-    return {
+    result = {
         "current_month": {"year": year, "month": month},
         "previous_month": {"year": prev_start.year, "month": prev_start.month},
         "current": {
@@ -609,6 +641,8 @@ def get_month_comparison(
             "by_category": category_changes[:5]  # Top 5
         }
     }
+    analytics_cache.set(cache_key, result)
+    return result
 
 
 @router.get("/{transaction_id}", response_model=TransactionResponse)
@@ -651,6 +685,7 @@ def update_transaction(
 
     db.commit()
     db.refresh(transaction)
+    _invalidate_user_cache(current_user.id)
     return transaction
 
 
@@ -674,6 +709,7 @@ def delete_all_transactions(
         query = query.filter(Transaction.type == type)
     count = query.delete(synchronize_session=False)
     db.commit()
+    _invalidate_user_cache(current_user.id)
     logger.info("Deleted %d transactions for user %d", count, current_user.id)
 
 
@@ -693,3 +729,4 @@ def delete_transaction(
 
     db.delete(transaction)
     db.commit()
+    _invalidate_user_cache(current_user.id)

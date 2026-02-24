@@ -1,6 +1,6 @@
 import warnings
 
-from pydantic import model_validator
+from pydantic import field_validator, model_validator
 from pydantic_settings import BaseSettings, SettingsConfigDict
 from functools import lru_cache
 
@@ -38,6 +38,45 @@ class Settings(BaseSettings):
     debug: bool = False
 
     model_config = SettingsConfigDict(env_file=".env")
+
+    @field_validator("database_url")
+    @classmethod
+    def _validate_database_url(cls, v: str) -> str:
+        if not v.startswith(("postgresql://", "postgresql+psycopg2://", "sqlite://")):
+            raise ValueError(
+                "DATABASE_URL must start with postgresql:// or postgresql+psycopg2://"
+            )
+        return v
+
+    @field_validator("secret_key")
+    @classmethod
+    def _validate_secret_key_length(cls, v: str) -> str:
+        if v != "change-me-in-production" and len(v) < 32:
+            raise ValueError("SECRET_KEY must be at least 32 characters long")
+        return v
+
+    @field_validator("rate_limit_window")
+    @classmethod
+    def _validate_rate_limit_window(cls, v: int) -> int:
+        if not 1 <= v <= 3600:
+            raise ValueError("rate_limit_window must be between 1 and 3600 seconds")
+        return v
+
+    @field_validator("rate_limit_max_requests")
+    @classmethod
+    def _validate_rate_limit_max_requests(cls, v: int) -> int:
+        if not 1 <= v <= 10000:
+            raise ValueError("rate_limit_max_requests must be between 1 and 10000")
+        return v
+
+    @field_validator("access_token_expire_minutes")
+    @classmethod
+    def _validate_token_expire(cls, v: int) -> int:
+        if not 5 <= v <= 43200:
+            raise ValueError(
+                "access_token_expire_minutes must be between 5 and 43200 (30 days)"
+            )
+        return v
 
     @model_validator(mode='after')
     def _set_cookie_secure_default(self) -> 'Settings':
