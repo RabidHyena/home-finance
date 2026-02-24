@@ -116,7 +116,9 @@ def get_transactions(
         total = rows[0][1]
     else:
         items = []
-        total = 0
+        # Window function returns nothing when offset is beyond data;
+        # fall back to a COUNT query so total stays correct.
+        total = base_query.count()
 
     return TransactionList(
         items=items,
