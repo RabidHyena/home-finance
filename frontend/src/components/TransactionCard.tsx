@@ -42,7 +42,7 @@ export const TransactionCard = memo(function TransactionCard({
         transition: 'border-color 0.25s, box-shadow 0.25s',
       }}
       onHoverStart={(_, info) => {
-        const el = (info as any)?.target as HTMLElement | undefined;
+        const el = (info as { target?: HTMLElement })?.target;
         if (el) {
           el.style.borderColor = categoryColor + '40';
           el.style.boxShadow = `0 0 16px ${categoryColor}15`;
