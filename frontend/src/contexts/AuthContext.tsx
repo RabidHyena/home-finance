@@ -1,7 +1,7 @@
 import { useState, useEffect, useCallback, type ReactNode } from 'react';
 import { api } from '../api/client';
 import { queryClient } from '../queryClient';
-import type { LoginRequest, RegisterRequest } from '../types';
+import type { LoginRequest, RegisterRequest, User } from '../types';
 import { AuthContext } from './AuthContextDef';
 
 export function AuthProvider({ children }: { children: ReactNode }) {

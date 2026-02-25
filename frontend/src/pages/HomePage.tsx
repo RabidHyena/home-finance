@@ -1,7 +1,10 @@
 import { Link } from 'react-router-dom';
 import { TrendingDown, TrendingUp, ArrowRight, Plus } from 'lucide-react';
+import { motion } from 'framer-motion';
 import { TransactionCard, StatCardSkeleton, TransactionCardSkeleton } from '../components';
 import { useTransactions, useMonthlyReports } from '../hooks/useApi';
+import { MONTH_NAMES } from '../types';
+import { staggerContainer, staggerItem } from '../motion';
 
 export function HomePage() {
   const { data: txData, isLoading: txLoading, error: txError } = useTransactions(1, 5, undefined, 'expense');
@@ -18,16 +21,30 @@ export function HomePage() {
   ) ?? expenseReports?.[0] ?? null;
   const currentIncomeMonth = incomeReports?.find(
     r => r.year === now.getFullYear() && r.month === now.getMonth() + 1
-  ) ?? null;
+  ) ?? incomeReports?.[0] ?? null;
 
   const expenseTotal = currentExpenseMonth?.total_amount ?? 0;
   const incomeTotal = currentIncomeMonth?.total_amount ?? 0;
   const netBalance = incomeTotal - expenseTotal;
 
+  const currentYear = now.getFullYear();
+  const currentMonth = now.getMonth() + 1;
+  const isExpenseCurrent = currentExpenseMonth?.year === currentYear && currentExpenseMonth?.month === currentMonth;
+  const isIncomeCurrent = currentIncomeMonth?.year === currentYear && currentIncomeMonth?.month === currentMonth;
+  const expenseLabel = isExpenseCurrent || !currentExpenseMonth
+    ? 'Расходы за месяц'
+    : `Расходы за ${MONTH_NAMES[currentExpenseMonth.month - 1].toLowerCase()}`;
+  const incomeLabel = isIncomeCurrent || !currentIncomeMonth
+    ? 'Доходы за месяц'
+    : `Доходы за ${MONTH_NAMES[currentIncomeMonth.month - 1].toLowerCase()}`;
+  const balanceLabel = isExpenseCurrent && isIncomeCurrent
+    ? 'Баланс за месяц'
+    : 'Баланс';
+
   if (isLoading) {
     return (
       <div>
-        <h1 style={{ fontSize: '1.5rem', fontWeight: 600, marginBottom: '1.5rem' }}>
+        <h1 style={{ fontSize: '1.4rem', fontFamily: 'var(--font-heading)', letterSpacing: '0.04em', marginBottom: '1.5rem', color: 'var(--color-text)' }}>
           Главная
         </h1>
         <div style={{ marginBottom: '1.5rem' }}>
@@ -45,122 +62,142 @@ export function HomePage() {
   }
 
   return (
-    <div>
-      <h1 style={{ fontSize: '1.5rem', fontWeight: 600, marginBottom: '1.5rem' }}>
+    <motion.div
+      variants={staggerContainer}
+      initial="initial"
+      animate="animate"
+    >
+      <motion.h1
+        variants={staggerItem}
+        style={{
+          fontSize: '1.4rem',
+          fontFamily: 'var(--font-heading)',
+          letterSpacing: '0.04em',
+          marginBottom: '1.5rem',
+          color: 'var(--color-text)',
+        }}
+      >
         Главная
-      </h1>
+      </motion.h1>
 
       {error && (
-        <div
+        <motion.div
+          variants={staggerItem}
           style={{
             marginBottom: '1rem',
             padding: '1rem',
-            borderRadius: '0.5rem',
-            backgroundColor: 'rgba(239, 68, 68, 0.1)',
-            border: '1px solid var(--color-danger)',
+            borderRadius: 'var(--radius-md)',
+            background: 'rgba(248, 113, 113, 0.08)',
+            border: '1px solid rgba(248, 113, 113, 0.2)',
             color: 'var(--color-danger)',
           }}
         >
           Не удалось загрузить данные. Попробуйте обновить страницу.
-        </div>
+        </motion.div>
       )}
 
       {/* Summary Cards */}
-      <div style={{
-        display: 'grid',
-        gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
-        gap: '1rem',
-        marginBottom: '1.5rem',
-      }}>
+      <motion.div
+        variants={staggerItem}
+        style={{
+          display: 'grid',
+          gridTemplateColumns: 'repeat(auto-fit, minmax(280px, 1fr))',
+          gap: '1rem',
+          marginBottom: '1.5rem',
+        }}
+      >
         {/* Expense Card */}
-        <div
-          className="card"
+        <motion.div
+          whileHover={{ scale: 1.02, y: -2 }}
+          transition={{ type: 'spring', stiffness: 400, damping: 25 }}
           style={{
-            background: 'linear-gradient(135deg, #3b82f6 0%, #1d4ed8 100%)',
-            color: 'white',
+            background: 'var(--gradient-warm)',
+            borderRadius: 'var(--radius-lg)',
+            padding: 'var(--space-lg)',
+            boxShadow: 'var(--shadow-md)',
+            border: '1px solid rgba(129, 140, 248, 0.15)',
           }}
         >
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-            }}
-          >
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <div>
-              <p style={{ margin: 0, fontSize: '0.875rem', opacity: 0.9 }}>
-                Расходы за месяц
+              <p style={{ margin: 0, fontSize: '0.8rem', opacity: 0.85, color: 'rgba(255,255,255,0.85)', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 500 }}>
+                {expenseLabel}
               </p>
-              <p style={{ margin: '0.5rem 0 0', fontSize: '1.75rem', fontWeight: 700 }}>
+              <p style={{ margin: '0.5rem 0 0', fontSize: '1.75rem', fontWeight: 700, color: 'white', fontFamily: 'var(--font-heading)' }}>
                 {expenseTotal.toLocaleString('ru-RU')} ₽
               </p>
               {currentExpenseMonth && (
-                <p style={{ margin: '0.25rem 0 0', fontSize: '0.875rem', opacity: 0.9 }}>
+                <p style={{ margin: '0.25rem 0 0', fontSize: '0.8rem', color: 'rgba(255,255,255,0.7)' }}>
                   {currentExpenseMonth.transaction_count} транзакций
                 </p>
               )}
             </div>
-            <TrendingDown size={40} style={{ opacity: 0.5 }} />
+            <TrendingDown size={40} style={{ opacity: 0.3, color: 'white' }} />
           </div>
-        </div>
+        </motion.div>
 
         {/* Income Card */}
-        <div
-          className="card"
+        <motion.div
+          whileHover={{ scale: 1.02, y: -2 }}
+          transition={{ type: 'spring', stiffness: 400, damping: 25 }}
           style={{
-            background: 'linear-gradient(135deg, #22c55e 0%, #16a34a 100%)',
-            color: 'white',
+            background: 'var(--gradient-cool)',
+            borderRadius: 'var(--radius-lg)',
+            padding: 'var(--space-lg)',
+            boxShadow: 'var(--shadow-md)',
+            border: '1px solid rgba(34, 211, 238, 0.15)',
           }}
         >
-          <div
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              justifyContent: 'space-between',
-            }}
-          >
+          <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between' }}>
             <div>
-              <p style={{ margin: 0, fontSize: '0.875rem', opacity: 0.9 }}>
-                Доходы за месяц
+              <p style={{ margin: 0, fontSize: '0.8rem', opacity: 0.85, color: 'rgba(255,255,255,0.85)', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 500 }}>
+                {incomeLabel}
               </p>
-              <p style={{ margin: '0.5rem 0 0', fontSize: '1.75rem', fontWeight: 700 }}>
+              <p style={{ margin: '0.5rem 0 0', fontSize: '1.75rem', fontWeight: 700, color: 'white', fontFamily: 'var(--font-heading)' }}>
                 {incomeTotal.toLocaleString('ru-RU')} ₽
               </p>
               {currentIncomeMonth && (
-                <p style={{ margin: '0.25rem 0 0', fontSize: '0.875rem', opacity: 0.9 }}>
+                <p style={{ margin: '0.25rem 0 0', fontSize: '0.8rem', color: 'rgba(255,255,255,0.7)' }}>
                   {currentIncomeMonth.transaction_count} транзакций
                 </p>
               )}
             </div>
-            <TrendingUp size={40} style={{ opacity: 0.5 }} />
+            <TrendingUp size={40} style={{ opacity: 0.3, color: 'white' }} />
           </div>
-        </div>
-      </div>
+        </motion.div>
+      </motion.div>
 
       {/* Net Balance */}
-      <div
-        className="card"
+      <motion.div
+        variants={staggerItem}
+        whileHover={{ boxShadow: netBalance >= 0 ? '0 0 24px rgba(34, 211, 238, 0.15)' : '0 0 24px rgba(248, 113, 113, 0.15)' }}
         style={{
           marginBottom: '1.5rem',
           textAlign: 'center',
-          padding: '1rem',
+          padding: 'var(--space-md) var(--space-lg)',
+          background: 'var(--color-surface)',
+          borderRadius: 'var(--radius-lg)',
+          border: `1px solid ${netBalance >= 0 ? 'rgba(34, 211, 238, 0.15)' : 'rgba(248, 113, 113, 0.15)'}`,
+          boxShadow: 'var(--shadow-sm)',
         }}
       >
-        <p style={{ margin: 0, fontSize: '0.875rem', color: 'var(--color-text-secondary)' }}>
-          Баланс за месяц
+        <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--color-text-secondary)', textTransform: 'uppercase', letterSpacing: '0.05em', fontWeight: 500 }}>
+          {balanceLabel}
         </p>
         <p style={{
           margin: '0.25rem 0 0',
           fontSize: '1.5rem',
           fontWeight: 700,
-          color: netBalance >= 0 ? '#16a34a' : 'var(--color-danger)',
+          fontFamily: 'var(--font-heading)',
+          color: netBalance >= 0 ? 'var(--color-accent)' : 'var(--color-danger)',
         }}>
           {netBalance >= 0 ? '+' : ''}{netBalance.toLocaleString('ru-RU')} ₽
         </p>
-      </div>
+      </motion.div>
 
       {/* Quick Actions */}
-      <div
+      <motion.div
+        variants={staggerItem}
         style={{
           display: 'grid',
           gridTemplateColumns: 'repeat(2, 1fr)',
@@ -168,87 +205,84 @@ export function HomePage() {
           marginBottom: '1.5rem',
         }}
       >
-        <Link
-          to="/upload"
-          className="card"
-          style={{
-            textDecoration: 'none',
-            color: 'var(--color-text)',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.75rem',
-            padding: '1rem',
-          }}
-        >
-          <div
+        <motion.div whileHover={{ scale: 1.03, y: -2 }} whileTap={{ scale: 0.98 }}>
+          <Link
+            to="/upload"
             style={{
-              width: '40px',
-              height: '40px',
-              borderRadius: '0.5rem',
-              backgroundColor: 'rgba(59, 130, 246, 0.1)',
+              textDecoration: 'none',
+              color: 'var(--color-text)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.75rem',
+              padding: 'var(--space-md)',
+              background: 'var(--color-surface)',
+              borderRadius: 'var(--radius-lg)',
+              border: '1px solid var(--color-border)',
+              boxShadow: 'var(--shadow-sm)',
+              transition: 'border-color 0.25s',
+            }}
+          >
+            <div style={{
+              width: '42px',
+              height: '42px',
+              borderRadius: 'var(--radius-md)',
+              background: 'rgba(129, 140, 248, 0.1)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-            }}
-          >
-            <Plus size={20} color="var(--color-primary)" />
-          </div>
-          <div>
-            <p style={{ margin: 0, fontWeight: 500 }}>Добавить</p>
-            <p
-              style={{
-                margin: 0,
-                fontSize: '0.75rem',
-                color: 'var(--color-text-secondary)',
-              }}
-            >
-              Загрузить скриншот или файл
-            </p>
-          </div>
-        </Link>
+            }}>
+              <Plus size={20} color="var(--color-primary)" />
+            </div>
+            <div>
+              <p style={{ margin: 0, fontWeight: 600, fontSize: '0.9rem' }}>Добавить</p>
+              <p style={{ margin: 0, fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>
+                Загрузить скриншот или файл
+              </p>
+            </div>
+          </Link>
+        </motion.div>
 
-        <Link
-          to="/reports"
-          className="card"
-          style={{
-            textDecoration: 'none',
-            color: 'var(--color-text)',
-            display: 'flex',
-            alignItems: 'center',
-            gap: '0.75rem',
-            padding: '1rem',
-          }}
-        >
-          <div
+        <motion.div whileHover={{ scale: 1.03, y: -2 }} whileTap={{ scale: 0.98 }}>
+          <Link
+            to="/reports"
             style={{
-              width: '40px',
-              height: '40px',
-              borderRadius: '0.5rem',
-              backgroundColor: 'rgba(34, 197, 94, 0.1)',
+              textDecoration: 'none',
+              color: 'var(--color-text)',
+              display: 'flex',
+              alignItems: 'center',
+              gap: '0.75rem',
+              padding: 'var(--space-md)',
+              background: 'var(--color-surface)',
+              borderRadius: 'var(--radius-lg)',
+              border: '1px solid var(--color-border)',
+              boxShadow: 'var(--shadow-sm)',
+              transition: 'border-color 0.25s',
+            }}
+          >
+            <div style={{
+              width: '42px',
+              height: '42px',
+              borderRadius: 'var(--radius-md)',
+              background: 'rgba(34, 211, 238, 0.1)',
               display: 'flex',
               alignItems: 'center',
               justifyContent: 'center',
-            }}
-          >
-            <TrendingDown size={20} color="var(--color-success)" />
-          </div>
-          <div>
-            <p style={{ margin: 0, fontWeight: 500 }}>Отчёты</p>
-            <p
-              style={{
-                margin: 0,
-                fontSize: '0.75rem',
-                color: 'var(--color-text-secondary)',
-              }}
-            >
-              Статистика трат
-            </p>
-          </div>
-        </Link>
-      </div>
+            }}>
+              <TrendingDown size={20} color="var(--color-accent)" />
+            </div>
+            <div>
+              <p style={{ margin: 0, fontWeight: 600, fontSize: '0.9rem' }}>Отчёты</p>
+              <p style={{ margin: 0, fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>
+                Статистика трат
+              </p>
+            </div>
+          </Link>
+        </motion.div>
+      </motion.div>
 
       {/* Recent Transactions */}
-      <div
+      <motion.div
+        variants={staggerItem}
         style={{
           display: 'flex',
           alignItems: 'center',
@@ -256,7 +290,7 @@ export function HomePage() {
           marginBottom: '1rem',
         }}
       >
-        <h2 style={{ margin: 0, fontSize: '1.125rem', fontWeight: 600 }}>
+        <h2 style={{ margin: 0, fontSize: '1rem', fontFamily: 'var(--font-heading)', letterSpacing: '0.03em' }}>
           Последние транзакции
         </h2>
         <Link
@@ -265,33 +299,47 @@ export function HomePage() {
             display: 'flex',
             alignItems: 'center',
             gap: '0.25rem',
-            color: 'var(--color-primary)',
+            color: 'var(--color-accent)',
             textDecoration: 'none',
-            fontSize: '0.875rem',
+            fontSize: '0.85rem',
             fontWeight: 500,
           }}
         >
           Все <ArrowRight size={16} />
         </Link>
-      </div>
+      </motion.div>
 
       {transactions.length === 0 ? (
-        <div
-          className="card"
-          style={{ textAlign: 'center', color: 'var(--color-text-secondary)' }}
+        <motion.div
+          variants={staggerItem}
+          style={{
+            textAlign: 'center',
+            color: 'var(--color-text-secondary)',
+            background: 'var(--color-surface)',
+            borderRadius: 'var(--radius-lg)',
+            border: '1px solid var(--color-border)',
+            padding: 'var(--space-xl)',
+          }}
         >
           <p>Нет транзакций</p>
           <Link to="/upload" className="btn btn-primary" style={{ marginTop: '1rem' }}>
             Добавить первую
           </Link>
-        </div>
+        </motion.div>
       ) : (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+        <motion.div
+          variants={staggerContainer}
+          initial="initial"
+          animate="animate"
+          style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}
+        >
           {transactions.map((tx) => (
-            <TransactionCard key={tx.id} transaction={tx} />
+            <motion.div key={tx.id} variants={staggerItem}>
+              <TransactionCard transaction={tx} />
+            </motion.div>
           ))}
-        </div>
+        </motion.div>
       )}
-    </div>
+    </motion.div>
   );
 }

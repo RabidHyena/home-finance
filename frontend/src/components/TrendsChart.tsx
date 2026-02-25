@@ -6,8 +6,15 @@ interface TrendsChartProps {
   data: TrendsData;
 }
 
+const tooltipStyle = {
+  borderRadius: '0.75rem',
+  border: '1px solid rgba(148, 163, 184, 0.12)',
+  boxShadow: '0 4px 16px rgba(0,0,0,0.3)',
+  background: '#1e2130',
+  color: '#e2e8f0',
+};
+
 export function TrendsChart({ data }: TrendsChartProps) {
-  // Transform data for Recharts
   const chartData = data.data.map((point, index) => ({
     name: `${MONTH_NAMES_SHORT[point.month - 1]} ${point.year}`,
     actual: point.total,
@@ -16,81 +23,65 @@ export function TrendsChart({ data }: TrendsChartProps) {
 
   const { statistics } = data;
 
-  return (
-    <div className="card">
-      <h2 style={{ fontSize: '1.25rem', fontWeight: 700, marginBottom: '1rem' }}>Тренды расходов</h2>
+  const statCardStyle: React.CSSProperties = {
+    padding: '0.75rem 1rem',
+    background: 'var(--color-surface-elevated)',
+    borderRadius: 'var(--radius-md)',
+    border: '1px solid var(--color-border)',
+  };
 
-      {/* Statistics */}
-      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '1rem', marginBottom: '1.5rem' }}>
-        <div style={{ padding: '0.75rem', backgroundColor: 'var(--color-bg, #f9fafb)', borderRadius: '0.5rem' }}>
-          <p style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary, #6b7280)', marginBottom: '0.25rem' }}>Среднее</p>
-          <p style={{ fontSize: '1.125rem', fontWeight: 700 }}>{Number(statistics.average).toFixed(0)} ₽</p>
+  return (
+    <div style={{
+      background: 'var(--color-surface)',
+      borderRadius: 'var(--radius-lg)',
+      border: '1px solid var(--color-border)',
+      boxShadow: 'var(--shadow-sm)',
+      padding: 'var(--space-lg)',
+    }}>
+      <h2 style={{ fontSize: '1rem', fontFamily: 'var(--font-heading)', letterSpacing: '0.03em', marginBottom: '1rem' }}>
+        Тренды расходов
+      </h2>
+
+      <div style={{ display: 'grid', gridTemplateColumns: 'repeat(4, 1fr)', gap: '0.75rem', marginBottom: '1.5rem' }}>
+        <div style={statCardStyle}>
+          <p style={{ fontSize: '0.7rem', color: 'var(--color-text-muted)', marginBottom: '0.2rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Среднее</p>
+          <p style={{ fontSize: '1rem', fontWeight: 700, fontFamily: 'var(--font-heading)' }}>{Number(statistics.average).toFixed(0)} ₽</p>
         </div>
-        <div style={{ padding: '0.75rem', backgroundColor: 'var(--color-bg, #f9fafb)', borderRadius: '0.5rem' }}>
-          <p style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary, #6b7280)', marginBottom: '0.25rem' }}>Минимум</p>
-          <p style={{ fontSize: '1.125rem', fontWeight: 700, color: 'var(--color-success, #16a34a)' }}>{Number(statistics.min).toFixed(0)} ₽</p>
+        <div style={statCardStyle}>
+          <p style={{ fontSize: '0.7rem', color: 'var(--color-text-muted)', marginBottom: '0.2rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Минимум</p>
+          <p style={{ fontSize: '1rem', fontWeight: 700, fontFamily: 'var(--font-heading)', color: 'var(--color-success)' }}>{Number(statistics.min).toFixed(0)} ₽</p>
         </div>
-        <div style={{ padding: '0.75rem', backgroundColor: 'var(--color-bg, #f9fafb)', borderRadius: '0.5rem' }}>
-          <p style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary, #6b7280)', marginBottom: '0.25rem' }}>Максимум</p>
-          <p style={{ fontSize: '1.125rem', fontWeight: 700, color: 'var(--color-danger, #dc2626)' }}>{Number(statistics.max).toFixed(0)} ₽</p>
+        <div style={statCardStyle}>
+          <p style={{ fontSize: '0.7rem', color: 'var(--color-text-muted)', marginBottom: '0.2rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Максимум</p>
+          <p style={{ fontSize: '1rem', fontWeight: 700, fontFamily: 'var(--font-heading)', color: 'var(--color-danger)' }}>{Number(statistics.max).toFixed(0)} ₽</p>
         </div>
-        <div style={{ padding: '0.75rem', backgroundColor: 'var(--color-bg, #f9fafb)', borderRadius: '0.5rem' }}>
-          <p style={{ fontSize: '0.75rem', color: 'var(--color-text-secondary, #6b7280)', marginBottom: '0.25rem' }}>Отклонение</p>
-          <p style={{ fontSize: '1.125rem', fontWeight: 700, color: 'var(--color-primary, #2563eb)' }}>{Number(statistics.std_deviation).toFixed(0)} ₽</p>
+        <div style={statCardStyle}>
+          <p style={{ fontSize: '0.7rem', color: 'var(--color-text-muted)', marginBottom: '0.2rem', textTransform: 'uppercase', letterSpacing: '0.04em' }}>Отклонение</p>
+          <p style={{ fontSize: '1rem', fontWeight: 700, fontFamily: 'var(--font-heading)', color: 'var(--color-accent)' }}>{Number(statistics.std_deviation).toFixed(0)} ₽</p>
         </div>
       </div>
 
-      {/* Chart */}
       <div style={{ width: '100%', height: 300 }}>
         <ResponsiveContainer>
           <LineChart data={chartData} margin={{ top: 5, right: 30, left: 20, bottom: 5 }}>
-            <CartesianGrid strokeDasharray="3 3" />
-            <XAxis
-              dataKey="name"
-              style={{ fontSize: '0.75rem' }}
-              angle={-45}
-              textAnchor="end"
-              height={60}
-            />
-            <YAxis
-              style={{ fontSize: '0.75rem' }}
-              tickFormatter={(value) => `${(Number(value) / 1000).toFixed(0)}k`}
-            />
+            <CartesianGrid strokeDasharray="3 3" stroke="rgba(148, 163, 184, 0.06)" />
+            <XAxis dataKey="name" style={{ fontSize: '0.75rem' }} angle={-45} textAnchor="end" height={60} tick={{ fill: '#94a3b8' }} axisLine={{ stroke: 'rgba(148, 163, 184, 0.12)' }} />
+            <YAxis style={{ fontSize: '0.75rem' }} tickFormatter={(value) => `${(Number(value) / 1000).toFixed(0)}k`} tick={{ fill: '#94a3b8' }} axisLine={{ stroke: 'rgba(148, 163, 184, 0.12)' }} />
             <Tooltip
               formatter={(value: number | undefined) => {
                 if (value === undefined || value === null) return '';
                 return `${Number(value).toFixed(2)} ₽`;
               }}
-              contentStyle={{
-                backgroundColor: 'var(--color-surface)',
-                border: '1px solid var(--color-border)',
-                borderRadius: '0.5rem',
-              }}
+              contentStyle={tooltipStyle}
             />
-            <Legend />
-            <Line
-              type="monotone"
-              dataKey="actual"
-              stroke="#3b82f6"
-              strokeWidth={2}
-              dot={{ r: 4 }}
-              name="Фактические"
-            />
-            <Line
-              type="monotone"
-              dataKey="trend"
-              stroke="#ef4444"
-              strokeWidth={2}
-              strokeDasharray="5 5"
-              dot={false}
-              name="Тренд"
-            />
+            <Legend wrapperStyle={{ color: '#94a3b8' }} />
+            <Line type="monotone" dataKey="actual" stroke="#22d3ee" strokeWidth={2} dot={{ r: 4, fill: '#22d3ee' }} name="Фактические" />
+            <Line type="monotone" dataKey="trend" stroke="#818cf8" strokeWidth={2} strokeDasharray="5 5" dot={false} name="Тренд" />
           </LineChart>
         </ResponsiveContainer>
       </div>
 
-      {/* Period info */}
-      <p style={{ fontSize: '0.875rem', color: 'var(--color-text-secondary, #6b7280)', marginTop: '1rem', textAlign: 'center' }}>
+      <p style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)', marginTop: '1rem', textAlign: 'center' }}>
         Период: {data.period}
       </p>
     </div>

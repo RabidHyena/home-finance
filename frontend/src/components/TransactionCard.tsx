@@ -2,6 +2,7 @@ import { memo } from 'react';
 import { format } from 'date-fns';
 import { ru } from 'date-fns/locale';
 import { Trash2, Edit2 } from 'lucide-react';
+import { motion } from 'framer-motion';
 import type { Transaction, Category, IncomeCategory, Currency } from '../types';
 import { CATEGORY_COLORS, CATEGORY_LABELS, INCOME_CATEGORY_COLORS, INCOME_CATEGORY_LABELS, CURRENCY_SYMBOLS } from '../types';
 
@@ -26,13 +27,26 @@ export const TransactionCard = memo(function TransactionCard({
     : 'Без категории';
 
   return (
-    <div
-      className="card"
+    <motion.div
+      whileHover={{ scale: 1.01, y: -1 }}
+      transition={{ type: 'spring', stiffness: 400, damping: 30 }}
       style={{
         display: 'flex',
         alignItems: 'center',
         gap: '1rem',
-        padding: '1rem 1.5rem',
+        padding: '0.875rem 1.25rem',
+        background: 'var(--color-surface)',
+        borderRadius: 'var(--radius-lg)',
+        border: '1px solid var(--color-border)',
+        boxShadow: 'var(--shadow-sm)',
+        transition: 'border-color 0.25s, box-shadow 0.25s',
+      }}
+      onHoverStart={(_, info) => {
+        const el = (info as any)?.target as HTMLElement | undefined;
+        if (el) {
+          el.style.borderColor = categoryColor + '40';
+          el.style.boxShadow = `0 0 16px ${categoryColor}15`;
+        }
       }}
     >
       {/* Category indicator */}
@@ -40,43 +54,45 @@ export const TransactionCard = memo(function TransactionCard({
         style={{
           width: '4px',
           height: '40px',
-          borderRadius: '2px',
+          borderRadius: 'var(--radius-full)',
           backgroundColor: categoryColor,
           flexShrink: 0,
+          boxShadow: `0 0 8px ${categoryColor}40`,
         }}
       />
 
       {/* Main content */}
       <div style={{ flex: 1, minWidth: 0 }}>
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            gap: '1rem',
-          }}
-        >
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', gap: '1rem' }}>
           <div style={{ minWidth: 0 }}>
-            <p
-              style={{
-                margin: 0,
-                fontWeight: 500,
-                fontSize: '1rem',
-                overflow: 'hidden',
-                textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap',
-              }}
-            >
+            <p style={{
+              margin: 0,
+              fontWeight: 500,
+              fontSize: '0.95rem',
+              overflow: 'hidden',
+              textOverflow: 'ellipsis',
+              whiteSpace: 'nowrap',
+              color: 'var(--color-text)',
+            }}>
               {transaction.description}
             </p>
-            <p
-              style={{
-                margin: '0.25rem 0 0',
-                fontSize: '0.875rem',
-                color: 'var(--color-text-secondary)',
-              }}
-            >
-              {categoryLabel} •{' '}
+            <p style={{
+              margin: '0.2rem 0 0',
+              fontSize: '0.8rem',
+              color: 'var(--color-text-muted)',
+            }}>
+              <span style={{
+                display: 'inline-block',
+                padding: '0.1rem 0.45rem',
+                borderRadius: 'var(--radius-full)',
+                background: categoryColor + '18',
+                color: categoryColor,
+                fontSize: '0.75rem',
+                fontWeight: 500,
+                marginRight: '0.4rem',
+              }}>
+                {categoryLabel}
+              </span>
               {(() => {
                 try {
                   return format(new Date(transaction.date), 'd MMM, HH:mm', { locale: ru });
@@ -87,20 +103,15 @@ export const TransactionCard = memo(function TransactionCard({
             </p>
           </div>
 
-          <div
-            style={{
-              textAlign: 'right',
-              flexShrink: 0,
-            }}
-          >
-            <p
-              style={{
-                margin: 0,
-                fontWeight: 600,
-                fontSize: '1.125rem',
-                color: isIncome ? '#16a34a' : 'var(--color-danger)',
-              }}
-            >
+          <div style={{ textAlign: 'right', flexShrink: 0 }}>
+            <p style={{
+              margin: 0,
+              fontWeight: 700,
+              fontSize: '1.05rem',
+              fontFamily: 'var(--font-heading)',
+              letterSpacing: '0.02em',
+              color: isIncome ? 'var(--color-accent)' : 'var(--color-danger)',
+            }}>
               {isIncome ? '+' : '-'}{transaction.amount.toLocaleString('ru-RU')} {CURRENCY_SYMBOLS[transaction.currency as Currency] || '₽'}
             </p>
           </div>
@@ -109,49 +120,47 @@ export const TransactionCard = memo(function TransactionCard({
 
       {/* Actions */}
       {(onEdit || onDelete) && (
-        <div
-          style={{
-            display: 'flex',
-            gap: '0.5rem',
-            flexShrink: 0,
-          }}
-        >
+        <div style={{ display: 'flex', gap: '0.25rem', flexShrink: 0 }}>
           {onEdit && (
-            <button
+            <motion.button
               onClick={() => onEdit(transaction)}
+              whileHover={{ scale: 1.15, color: 'var(--color-accent)' }}
+              whileTap={{ scale: 0.9 }}
               style={{
-                padding: '0.5rem',
-                borderRadius: '0.375rem',
+                padding: '0.4rem',
+                borderRadius: 'var(--radius-sm)',
                 border: 'none',
                 backgroundColor: 'transparent',
                 cursor: 'pointer',
-                color: 'var(--color-text-secondary)',
+                color: 'var(--color-text-muted)',
                 transition: 'color 0.2s',
               }}
               title="Редактировать"
             >
-              <Edit2 size={18} />
-            </button>
+              <Edit2 size={16} />
+            </motion.button>
           )}
           {onDelete && (
-            <button
+            <motion.button
               onClick={() => onDelete(transaction.id)}
+              whileHover={{ scale: 1.15, color: 'var(--color-danger)' }}
+              whileTap={{ scale: 0.9 }}
               style={{
-                padding: '0.5rem',
-                borderRadius: '0.375rem',
+                padding: '0.4rem',
+                borderRadius: 'var(--radius-sm)',
                 border: 'none',
                 backgroundColor: 'transparent',
                 cursor: 'pointer',
-                color: 'var(--color-text-secondary)',
+                color: 'var(--color-text-muted)',
                 transition: 'color 0.2s',
               }}
               title="Удалить"
             >
-              <Trash2 size={18} />
-            </button>
+              <Trash2 size={16} />
+            </motion.button>
           )}
         </div>
       )}
-    </div>
+    </motion.div>
   );
 });

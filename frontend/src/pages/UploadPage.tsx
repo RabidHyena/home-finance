@@ -1,9 +1,12 @@
 import { useState, useCallback, useRef } from 'react';
 import { useNavigate } from 'react-router-dom';
 import { CheckCircle } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { UploadZone, MultipleTransactionsForm, RecognizedChartDisplay, useToast, ErrorBoundary } from '../components';
-import { useUploadAndParse, useCreateTransaction, useBatchUploadAndParse } from '../hooks/useApi';
+import { useUploadAndParse, useBatchUploadAndParse } from '../hooks/useApi';
+import { api } from '../api/client';
 import type { TransactionCreate, BatchUploadResponse } from '../types';
+import { slideUp, scaleIn } from '../motion';
 
 type Step = 'upload' | 'review' | 'success';
 
@@ -14,18 +17,15 @@ export function UploadPage() {
   const toast = useToast();
   const uploadMutation = useUploadAndParse();
   const batchUploadMutation = useBatchUploadAndParse();
-  const createMutation = useCreateTransaction();
+  const [isSaving, setIsSaving] = useState(false);
+  const [saveError, setSaveError] = useState<Error | null>(null);
   const [batchResults, setBatchResults] = useState<BatchUploadResponse | null>(null);
-  // Track which batch files have been saved (by index)
   const [savedBatchFiles, setSavedBatchFiles] = useState<Set<number>>(new Set());
-  // Track which batch files had chart transactions created
   const [savedBatchCharts, setSavedBatchCharts] = useState<Set<number>>(new Set());
-  // Store original AI categories from parsed data (keyed by description+amount)
   const originalAiCategories = useRef<Map<string, { category: string; confidence: number }>>(new Map());
 
-  const error = uploadMutation.error || createMutation.error || batchUploadMutation.error;
+  const error = uploadMutation.error || saveError || batchUploadMutation.error;
 
-  // Store original AI predictions when data arrives
   const storeOriginalPredictions = useCallback((transactions: { description: string; amount: number; category?: string | null; confidence?: number }[]) => {
     for (const tx of transactions) {
       const key = `${tx.description}|${tx.amount}`;
@@ -39,7 +39,6 @@ export function UploadPage() {
   }, []);
 
   const handleFileSelect = async (files: File[]) => {
-    // Use batch upload for multiple files
     if (files.length > 1) {
       try {
         const results = await batchUploadMutation.mutateAsync(files);
@@ -47,7 +46,6 @@ export function UploadPage() {
         setSavedBatchFiles(new Set());
         setSavedBatchCharts(new Set());
         setStep('review');
-        // Store original AI predictions
         for (const r of results.results) {
           if (r.status === 'success' && r.data) {
             storeOriginalPredictions(r.data.transactions);
@@ -61,7 +59,6 @@ export function UploadPage() {
         toast.error(e instanceof Error ? e.message : 'Ошибка пакетной загрузки');
       }
     } else {
-      // Single file upload
       try {
         const result = await uploadMutation.mutateAsync(files[0]);
         if (result) {
@@ -76,6 +73,8 @@ export function UploadPage() {
   };
 
   const handleSubmit = async (transactions: (TransactionCreate & { confidence?: number })[], batchIndex?: number) => {
+    setIsSaving(true);
+    setSaveError(null);
     try {
       const enrichedTransactions = transactions.map(tx => {
         const key = `${tx.description}|${tx.amount}`;
@@ -94,56 +93,40 @@ export function UploadPage() {
         };
       });
 
-      // Save all selected transactions
-      const results = await Promise.allSettled(
-        enrichedTransactions.map(tx => createMutation.mutateAsync(tx))
-      );
-      const succeeded = results.filter(r => r.status === 'fulfilled').length;
-      const failed = results.filter(r => r.status === 'rejected').length;
+      const result = await api.createTransactionsBulk(enrichedTransactions);
+      const succeeded = result.length;
 
       if (succeeded > 0 && batchIndex !== undefined) {
-        // In batch mode, mark this file as saved instead of navigating away
         setSavedBatchFiles(prev => new Set(prev).add(batchIndex));
       }
 
-      if (failed === 0) {
-        toast.success(`Сохранено транзакций: ${succeeded}`);
-        if (batchIndex === undefined) {
-          setStep('success');
-        }
-      } else if (succeeded > 0) {
-        toast.success(`Сохранено: ${succeeded}, ошибок: ${failed}`);
-        if (batchIndex === undefined) {
-          setStep('success');
-        }
-      } else {
-        toast.error('Не удалось сохранить транзакции');
-      }
-    } catch {
+      toast.success(`Сохранено транзакций: ${succeeded}`);
+      if (batchIndex === undefined) setStep('success');
+    } catch (e) {
+      setSaveError(e instanceof Error ? e : new Error('Не удалось сохранить транзакции'));
       toast.error('Не удалось сохранить транзакции');
+    } finally {
+      setIsSaving(false);
     }
   };
 
   const handleCreateFromChart = async (transactions: TransactionCreate[], batchIndex?: number) => {
+    setIsSaving(true);
+    setSaveError(null);
     try {
-      const results = await Promise.allSettled(
-        transactions.map(tx => createMutation.mutateAsync(tx))
-      );
-      const succeeded = results.filter(r => r.status === 'fulfilled').length;
-      const failed = results.filter(r => r.status === 'rejected').length;
-      if (failed === 0) {
-        toast.success(`Создано транзакций из диаграммы: ${succeeded}`);
-      } else {
-        toast.success(`Создано: ${succeeded}, ошибок: ${failed}`);
-      }
+      const result = await api.createTransactionsBulk(transactions);
+      toast.success(`Создано транзакций из диаграммы: ${result.length}`);
 
       if (batchIndex !== undefined) {
         setSavedBatchCharts(prev => new Set(prev).add(batchIndex));
       } else {
         setTimeout(() => setStep('success'), 500);
       }
-    } catch {
+    } catch (e) {
+      setSaveError(e instanceof Error ? e : new Error('Не удалось создать транзакции'));
       toast.error('Не удалось создать транзакции из диаграммы');
+    } finally {
+      setIsSaving(false);
     }
   };
 
@@ -151,13 +134,12 @@ export function UploadPage() {
     setStep('upload');
     uploadMutation.reset();
     batchUploadMutation.reset();
-    createMutation.reset();
+    setSaveError(null);
     setBatchResults(null);
     setSavedBatchFiles(new Set());
     setSavedBatchCharts(new Set());
   };
 
-  // In batch mode, check if all successful files have been saved
   const allBatchFilesSaved = batchResults
     ? batchResults.results.every((r, idx) =>
         r.status === 'error' || savedBatchFiles.has(idx))
@@ -166,207 +148,263 @@ export function UploadPage() {
   return (
     <ErrorBoundary>
       <div>
-        <h1 style={{ fontSize: '1.5rem', fontWeight: 600, marginBottom: '1.5rem' }}>
+        <h1 style={{
+          fontSize: '1.4rem',
+          fontFamily: 'var(--font-heading)',
+          letterSpacing: '0.04em',
+          marginBottom: '1.5rem',
+          color: 'var(--color-text)',
+        }}>
           {step === 'upload' && 'Загрузить файл'}
           {step === 'review' && 'Проверьте данные'}
           {step === 'success' && 'Готово!'}
         </h1>
 
       {error && (
-        <div
-          style={{
-            marginBottom: '1rem',
-            padding: '1rem',
-            borderRadius: '0.5rem',
-            backgroundColor: 'rgba(239, 68, 68, 0.1)',
-            border: '1px solid var(--color-danger)',
-            color: 'var(--color-danger)',
-          }}
-        >
+        <div style={{
+          marginBottom: '1rem',
+          padding: '1rem',
+          borderRadius: 'var(--radius-md)',
+          background: 'rgba(248, 113, 113, 0.08)',
+          border: '1px solid rgba(248, 113, 113, 0.2)',
+          color: 'var(--color-danger)',
+        }}>
           {uploadMutation.error
             ? `Ошибка распознавания: ${uploadMutation.error.message}`
             : 'Не удалось сохранить транзакцию'}
         </div>
       )}
 
-      {step === 'upload' && (
-        <div className="card">
-          <UploadZone
-            onFileSelect={handleFileSelect}
-            isLoading={uploadMutation.isPending || batchUploadMutation.isPending}
-            multiple={true}
-          />
-          <div
+      <AnimatePresence mode="wait">
+        {step === 'upload' && (
+          <motion.div key="upload" variants={slideUp} initial="initial" animate="animate" exit="exit">
+            <div style={{
+              background: 'var(--color-surface)',
+              borderRadius: 'var(--radius-lg)',
+              border: '1px solid var(--color-border)',
+              boxShadow: 'var(--shadow-md)',
+              padding: 'var(--space-lg)',
+            }}>
+              <UploadZone
+                onFileSelect={handleFileSelect}
+                isLoading={uploadMutation.isPending || batchUploadMutation.isPending}
+                multiple={true}
+              />
+              <div style={{
+                marginTop: '1.5rem',
+                padding: '1rem 1.25rem',
+                background: 'var(--color-surface-elevated)',
+                borderRadius: 'var(--radius-md)',
+                border: '1px solid var(--color-border)',
+              }}>
+                <h3 style={{
+                  margin: '0 0 0.5rem',
+                  fontSize: '0.85rem',
+                  fontWeight: 600,
+                  fontFamily: 'var(--font-heading)',
+                  letterSpacing: '0.03em',
+                  color: 'var(--color-accent)',
+                }}>
+                  Как это работает:
+                </h3>
+                <ol style={{
+                  margin: 0,
+                  paddingLeft: '1.25rem',
+                  fontSize: '0.85rem',
+                  color: 'var(--color-text-secondary)',
+                  lineHeight: 1.8,
+                }}>
+                  <li>Загрузите скриншоты или Excel-выписки из банковского приложения</li>
+                  <li>AI распознает сумму, описание и категорию</li>
+                  <li>Проверьте и при необходимости исправьте данные</li>
+                  <li>Сохраните транзакции</li>
+                </ol>
+              </div>
+            </div>
+          </motion.div>
+        )}
+
+        {step === 'review' && batchResults && (
+          <motion.div key="batch-review" variants={slideUp} initial="initial" animate="animate" exit="exit">
+            {batchResults.results.map((result, idx) => {
+              const isSaved = savedBatchFiles.has(idx);
+              const isChartSaved = savedBatchCharts.has(idx);
+              return (
+                <details
+                  key={idx}
+                  open={idx === 0 && !isSaved}
+                  style={{
+                    marginBottom: '1rem',
+                    border: '1px solid var(--color-border)',
+                    borderRadius: 'var(--radius-lg)',
+                    padding: '1rem 1.25rem',
+                    background: 'var(--color-surface)',
+                    opacity: isSaved ? 0.5 : 1,
+                    transition: 'opacity 0.3s',
+                  }}
+                >
+                  <summary style={{
+                    cursor: 'pointer',
+                    fontWeight: 600,
+                    display: 'flex',
+                    justifyContent: 'space-between',
+                    alignItems: 'center',
+                    fontSize: '0.95rem',
+                  }}>
+                    <span>{result.filename}</span>
+                    <span style={{
+                      color: isSaved
+                        ? 'var(--color-success)'
+                        : result.status === 'success'
+                          ? 'var(--color-accent)'
+                          : 'var(--color-danger)',
+                      fontSize: '0.8rem',
+                      padding: '0.15rem 0.6rem',
+                      borderRadius: 'var(--radius-full)',
+                      background: isSaved
+                        ? 'rgba(52, 211, 153, 0.08)'
+                        : result.status === 'success'
+                          ? 'rgba(129, 140, 248, 0.08)'
+                          : 'rgba(248, 113, 113, 0.08)',
+                    }}>
+                      {isSaved
+                        ? 'Сохранено'
+                        : result.status === 'success'
+                          ? `${result.data?.transactions.length || 0} транзакций`
+                          : `${result.error}`}
+                    </span>
+                  </summary>
+
+                  {result.status === 'success' && result.data && !isSaved && (
+                    <div style={{ marginTop: '1rem' }}>
+                      {result.data.chart && !isChartSaved && (
+                        <RecognizedChartDisplay
+                          chart={result.data.chart}
+                          onCreateTransactions={(txs) => handleCreateFromChart(txs, idx)}
+                          isCreating={isSaving}
+                        />
+                      )}
+                      {isChartSaved && (
+                        <div style={{
+                          padding: '0.75rem',
+                          marginBottom: '1rem',
+                          background: 'rgba(52, 211, 153, 0.06)',
+                          borderRadius: 'var(--radius-md)',
+                          color: 'var(--color-success)',
+                          fontSize: '0.85rem',
+                          border: '1px solid rgba(52, 211, 153, 0.15)',
+                        }}>
+                          Транзакции из диаграммы созданы
+                        </div>
+                      )}
+                      <div style={{
+                        background: 'var(--color-surface)',
+                        borderRadius: 'var(--radius-lg)',
+                        border: '1px solid var(--color-border)',
+                        padding: 'var(--space-lg)',
+                      }}>
+                        <MultipleTransactionsForm
+                          transactions={result.data.transactions}
+                          totalAmount={result.data.total_amount}
+                          onSubmit={(txs) => handleSubmit(txs, idx)}
+                          onCancel={handleReset}
+                          isLoading={isSaving}
+                        />
+                      </div>
+                    </div>
+                  )}
+                </details>
+              );
+            })}
+
+            {allBatchFilesSaved && (
+              <div style={{ textAlign: 'center', marginTop: '1rem' }}>
+                <motion.button
+                  className="btn btn-primary"
+                  onClick={() => setStep('success')}
+                  whileHover={{ scale: 1.03 }}
+                  whileTap={{ scale: 0.97 }}
+                >
+                  Готово
+                </motion.button>
+              </div>
+            )}
+          </motion.div>
+        )}
+
+        {step === 'review' && uploadMutation.data && !batchResults && (
+          <motion.div key="single-review" variants={slideUp} initial="initial" animate="animate" exit="exit">
+            {uploadMutation.data.chart && (
+              <RecognizedChartDisplay
+                chart={uploadMutation.data.chart}
+                onCreateTransactions={handleCreateFromChart}
+                isCreating={isSaving}
+              />
+            )}
+            <div style={{
+              background: 'var(--color-surface)',
+              borderRadius: 'var(--radius-lg)',
+              border: '1px solid var(--color-border)',
+              boxShadow: 'var(--shadow-md)',
+              padding: 'var(--space-lg)',
+            }}>
+              <MultipleTransactionsForm
+                transactions={uploadMutation.data.transactions}
+                totalAmount={uploadMutation.data.total_amount}
+                onSubmit={handleSubmit}
+                onCancel={handleReset}
+                isLoading={isSaving}
+              />
+            </div>
+          </motion.div>
+        )}
+
+        {step === 'success' && (
+          <motion.div
+            key="success"
+            variants={scaleIn}
+            initial="initial"
+            animate="animate"
+            exit="exit"
             style={{
-              marginTop: '1.5rem',
-              padding: '1rem',
-              backgroundColor: 'var(--color-background)',
-              borderRadius: '0.5rem',
+              textAlign: 'center',
+              background: 'var(--color-surface)',
+              borderRadius: 'var(--radius-xl)',
+              border: '1px solid var(--color-border)',
+              boxShadow: 'var(--shadow-md)',
+              padding: 'var(--space-2xl)',
             }}
           >
-            <h3 style={{ margin: '0 0 0.5rem', fontSize: '0.875rem', fontWeight: 600 }}>
-              Как это работает:
-            </h3>
-            <ol
-              style={{
-                margin: 0,
-                paddingLeft: '1.25rem',
-                fontSize: '0.875rem',
-                color: 'var(--color-text-secondary)',
-              }}
+            <motion.div
+              initial={{ scale: 0 }}
+              animate={{ scale: 1 }}
+              transition={{ type: 'spring', stiffness: 300, damping: 15, delay: 0.1 }}
             >
-              <li>Загрузите скриншоты или Excel-выписки из банковского приложения</li>
-              <li>AI распознает сумму, описание и категорию</li>
-              <li>Проверьте и при необходимости исправьте данные</li>
-              <li>Сохраните транзакции</li>
-            </ol>
-          </div>
-        </div>
-      )}
-
-      {step === 'review' && batchResults && (
-        <div>
-          {batchResults.results.map((result, idx) => {
-            const isSaved = savedBatchFiles.has(idx);
-            const isChartSaved = savedBatchCharts.has(idx);
-            return (
-              <details
-                key={idx}
-                open={idx === 0 && !isSaved}
-                style={{
-                  marginBottom: '1rem',
-                  border: '1px solid var(--color-border)',
-                  borderRadius: '0.5rem',
-                  padding: '1rem',
-                  backgroundColor: 'var(--color-surface)',
-                  opacity: isSaved ? 0.6 : 1,
-                }}
-              >
-                <summary style={{
-                  cursor: 'pointer',
-                  fontWeight: 600,
-                  display: 'flex',
-                  justifyContent: 'space-between',
-                  alignItems: 'center',
-                }}>
-                  <span>{result.filename}</span>
-                  <span style={{
-                    color: isSaved
-                      ? 'var(--color-success)'
-                      : result.status === 'success'
-                        ? 'var(--color-success)'
-                        : 'var(--color-danger)',
-                    fontSize: '0.875rem',
-                  }}>
-                    {isSaved
-                      ? '✓ Сохранено'
-                      : result.status === 'success'
-                        ? `${result.data?.transactions.length || 0} транзакций`
-                        : `✗ ${result.error}`}
-                  </span>
-                </summary>
-
-                {result.status === 'success' && result.data && !isSaved && (
-                  <div style={{ marginTop: '1rem' }}>
-                    {result.data.chart && !isChartSaved && (
-                      <RecognizedChartDisplay
-                        chart={result.data.chart}
-                        onCreateTransactions={(txs) => handleCreateFromChart(txs, idx)}
-                        isCreating={createMutation.isPending}
-                      />
-                    )}
-                    {isChartSaved && (
-                      <div style={{
-                        padding: '0.75rem',
-                        marginBottom: '1rem',
-                        backgroundColor: 'rgba(34, 197, 94, 0.1)',
-                        borderRadius: '0.5rem',
-                        color: 'var(--color-success)',
-                        fontSize: '0.875rem',
-                      }}>
-                        Транзакции из диаграммы созданы
-                      </div>
-                    )}
-                    <div className="card">
-                      <MultipleTransactionsForm
-                        transactions={result.data.transactions}
-                        totalAmount={result.data.total_amount}
-                        onSubmit={(txs) => handleSubmit(txs, idx)}
-                        onCancel={handleReset}
-                        isLoading={createMutation.isPending}
-                      />
-                    </div>
-                  </div>
-                )}
-              </details>
-            );
-          })}
-
-          {allBatchFilesSaved && (
-            <div style={{ textAlign: 'center', marginTop: '1rem' }}>
-              <button
-                className="btn btn-primary"
-                onClick={() => setStep('success')}
-              >
-                Готово
+              <CheckCircle size={64} color="var(--color-accent)" style={{ marginBottom: '1rem' }} />
+            </motion.div>
+            <h2 style={{
+              margin: '0 0 0.5rem',
+              fontSize: '1.2rem',
+              fontFamily: 'var(--font-heading)',
+              letterSpacing: '0.03em',
+              color: 'var(--color-accent)',
+            }}>
+              Транзакции сохранены!
+            </h2>
+            <p style={{ margin: '0 0 1.5rem', color: 'var(--color-text-secondary)' }}>
+              Вы можете загрузить ещё файл или перейти к списку транзакций
+            </p>
+            <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
+              <button className="btn btn-secondary" onClick={handleReset}>
+                Добавить ещё
+              </button>
+              <button className="btn btn-primary" onClick={() => navigate('/transactions')}>
+                К транзакциям
               </button>
             </div>
-          )}
-        </div>
-      )}
-
-      {step === 'review' && uploadMutation.data && !batchResults && (
-        <div>
-          {uploadMutation.data.chart && (
-            <RecognizedChartDisplay
-              chart={uploadMutation.data.chart}
-              onCreateTransactions={handleCreateFromChart}
-              isCreating={createMutation.isPending}
-            />
-          )}
-          <div className="card">
-            <MultipleTransactionsForm
-              transactions={uploadMutation.data.transactions}
-              totalAmount={uploadMutation.data.total_amount}
-              onSubmit={handleSubmit}
-              onCancel={handleReset}
-              isLoading={createMutation.isPending}
-            />
-          </div>
-        </div>
-      )}
-
-      {step === 'success' && (
-        <div className="card" style={{ textAlign: 'center' }}>
-          <CheckCircle
-            size={64}
-            color="var(--color-success)"
-            style={{ marginBottom: '1rem' }}
-          />
-          <h2 style={{ margin: '0 0 0.5rem', fontSize: '1.25rem' }}>
-            Транзакции сохранены!
-          </h2>
-          <p
-            style={{
-              margin: '0 0 1.5rem',
-              color: 'var(--color-text-secondary)',
-            }}
-          >
-            Вы можете загрузить ещё файл или перейти к списку транзакций
-          </p>
-          <div style={{ display: 'flex', gap: '1rem', justifyContent: 'center' }}>
-            <button className="btn btn-secondary" onClick={handleReset}>
-              Добавить ещё
-            </button>
-            <button
-              className="btn btn-primary"
-              onClick={() => navigate('/transactions')}
-            >
-              К транзакциям
-            </button>
-          </div>
-        </div>
-      )}
+          </motion.div>
+        )}
+      </AnimatePresence>
       </div>
     </ErrorBoundary>
   );

@@ -173,7 +173,7 @@ export function RecognizedChartDisplay({
     const mapped = mapCategory(name);
     if (mapped !== 'Other') return CATEGORY_COLORS[mapped];
     const hash = name.split('').reduce((acc, char) => char.charCodeAt(0) + acc, 0);
-    const fallbackColors = ['#3b82f6', '#f59e0b', '#10b981', '#8b5cf6', '#ec4899', '#14b8a6'];
+    const fallbackColors = ['#60a5fa', '#fbbf24', '#34d399', '#a78bfa', '#f472b6', '#22d3ee'];
     return fallbackColors[hash % fallbackColors.length];
   };
 
@@ -244,7 +244,7 @@ export function RecognizedChartDisplay({
         marginBottom: '1.5rem',
         padding: '1rem',
         borderRadius: '0.5rem',
-        backgroundColor: 'rgba(59, 130, 246, 0.05)',
+        backgroundColor: 'rgba(129, 140, 248, 0.04)',
         border: '1px solid var(--color-primary)',
       }}
     >
@@ -266,10 +266,10 @@ export function RecognizedChartDisplay({
             fontWeight: 500,
             backgroundColor:
               chart.confidence >= 0.8
-                ? 'rgba(34, 197, 94, 0.1)'
+                ? 'rgba(52, 211, 153, 0.08)'
                 : chart.confidence >= 0.5
-                ? 'rgba(245, 158, 11, 0.1)'
-                : 'rgba(239, 68, 68, 0.1)',
+                ? 'rgba(251, 191, 36, 0.08)'
+                : 'rgba(248, 113, 113, 0.08)',
             color:
               chart.confidence >= 0.8
                 ? 'var(--color-success)'
@@ -391,7 +391,7 @@ export function RecognizedChartDisplay({
                   gap: '0.75rem',
                   padding: '0.5rem 0.75rem',
                   borderRadius: '0.375rem',
-                  backgroundColor: isSelected ? 'rgba(59, 130, 246, 0.05)' : 'var(--color-surface)',
+                  backgroundColor: isSelected ? 'rgba(129, 140, 248, 0.05)' : 'var(--color-surface)',
                   border: onCreateTransactions ? '2px solid' : 'none',
                   borderColor: isSelected ? 'var(--color-primary)' : 'transparent',
                   cursor: onCreateTransactions ? 'pointer' : 'default',
@@ -456,8 +456,8 @@ export function RecognizedChartDisplay({
             style={{
               padding: '0.75rem',
               borderRadius: '0.375rem',
-              backgroundColor: 'rgba(34, 197, 94, 0.1)',
-              border: '1px solid rgba(34, 197, 94, 0.3)',
+              backgroundColor: 'rgba(52, 211, 153, 0.06)',
+              border: '1px solid rgba(52, 211, 153, 0.2)',
               marginBottom: '1rem',
             }}
           >
@@ -484,8 +484,8 @@ export function RecognizedChartDisplay({
           style={{
             padding: '0.75rem',
             borderRadius: '0.375rem',
-            backgroundColor: 'rgba(245, 158, 11, 0.1)',
-            border: '1px solid rgba(245, 158, 11, 0.3)',
+            backgroundColor: 'rgba(251, 191, 36, 0.06)',
+            border: '1px solid rgba(251, 191, 36, 0.2)',
           }}
         >
           <p style={{ margin: 0, fontSize: '0.75rem', color: 'var(--color-text-secondary)' }}>

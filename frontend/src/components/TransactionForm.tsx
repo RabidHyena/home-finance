@@ -91,26 +91,26 @@ export function TransactionForm({
         <div
           style={{
             marginBottom: '1rem',
-            padding: '0.75rem',
-            borderRadius: '0.5rem',
-            backgroundColor:
+            padding: '0.75rem 1rem',
+            borderRadius: 'var(--radius-md)',
+            background:
               confidence >= 0.8
-                ? 'rgba(34, 197, 94, 0.1)'
+                ? 'rgba(52, 211, 153, 0.08)'
                 : confidence >= 0.5
-                ? 'rgba(245, 158, 11, 0.1)'
-                : 'rgba(239, 68, 68, 0.1)',
+                ? 'rgba(251, 191, 36, 0.08)'
+                : 'rgba(248, 113, 113, 0.08)',
             border: `1px solid ${
               confidence >= 0.8
-                ? 'var(--color-success)'
+                ? 'rgba(52, 211, 153, 0.2)'
                 : confidence >= 0.5
-                ? 'var(--color-warning)'
-                : 'var(--color-danger)'
+                ? 'rgba(251, 191, 36, 0.2)'
+                : 'rgba(248, 113, 113, 0.2)'
             }`,
           }}
         >
           <p style={{ margin: 0, fontSize: '0.875rem' }}>
             Уверенность распознавания:{' '}
-            <strong>{Math.round(confidence * 100)}%</strong>
+            <strong style={{ fontFamily: 'var(--font-heading)', fontSize: '0.9rem' }}>{Math.round(confidence * 100)}%</strong>
             {confidence < 0.8 && ' — проверьте данные'}
           </p>
         </div>

@@ -23,13 +23,7 @@ export const CategoryChart = memo(function CategoryChart({ data }: CategoryChart
 
   if (chartData.length === 0) {
     return (
-      <div
-        style={{
-          padding: '3rem',
-          textAlign: 'center',
-          color: 'var(--color-text-secondary)',
-        }}
-      >
+      <div style={{ padding: '3rem', textAlign: 'center', color: 'var(--color-text-muted)' }}>
         Нет данных для отображения
       </div>
     );
@@ -47,6 +41,8 @@ export const CategoryChart = memo(function CategoryChart({ data }: CategoryChart
             outerRadius={100}
             paddingAngle={2}
             dataKey="value"
+            stroke="rgba(11, 13, 20, 0.5)"
+            strokeWidth={2}
           >
             {chartData.map((entry, index) => (
               <Cell key={`cell-${index}`} fill={entry.color} />
@@ -61,9 +57,11 @@ export const CategoryChart = memo(function CategoryChart({ data }: CategoryChart
               ];
             }}
             contentStyle={{
-              borderRadius: '0.5rem',
-              border: '1px solid #e5e7eb',
-              boxShadow: '0 2px 8px rgba(0,0,0,0.1)',
+              borderRadius: '0.75rem',
+              border: '1px solid rgba(148, 163, 184, 0.12)',
+              boxShadow: '0 4px 20px rgba(0,0,0,0.4)',
+              background: '#1e2130',
+              color: '#e2e8f0',
             }}
           />
           <Legend
@@ -71,7 +69,7 @@ export const CategoryChart = memo(function CategoryChart({ data }: CategoryChart
             align="right"
             verticalAlign="middle"
             formatter={(value) => (
-              <span style={{ color: 'var(--color-text, #111827)', fontSize: '0.875rem' }}>{value}</span>
+              <span style={{ color: '#94a3b8', fontSize: '0.8rem' }}>{value}</span>
             )}
           />
         </PieChart>

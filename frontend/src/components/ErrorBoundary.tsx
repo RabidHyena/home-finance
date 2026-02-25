@@ -36,22 +36,25 @@ export class ErrorBoundary extends Component<Props, State> {
             flexDirection: 'column',
             alignItems: 'center',
             justifyContent: 'center',
+            background: 'var(--color-background)',
           }}
         >
           <div
             style={{
-              padding: '2rem',
-              borderRadius: '0.5rem',
-              backgroundColor: 'rgba(239, 68, 68, 0.1)',
-              border: '1px solid var(--color-danger)',
+              padding: '2.5rem',
+              borderRadius: 'var(--radius-xl)',
+              background: 'var(--color-surface)',
+              border: '1px solid rgba(248, 113, 113, 0.2)',
+              boxShadow: 'var(--shadow-lg)',
               maxWidth: '500px',
             }}
           >
             <h2
               style={{
                 margin: '0 0 1rem',
-                fontSize: '1.25rem',
-                fontWeight: 600,
+                fontSize: '1.2rem',
+                fontFamily: 'var(--font-heading)',
+                letterSpacing: '0.03em',
                 color: 'var(--color-danger)',
               }}
             >
@@ -59,7 +62,7 @@ export class ErrorBoundary extends Component<Props, State> {
             </h2>
             <p
               style={{
-                margin: '0 0 1rem',
+                margin: '0 0 1.5rem',
                 fontSize: '0.875rem',
                 color: 'var(--color-text-secondary)',
               }}

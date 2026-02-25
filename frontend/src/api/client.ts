@@ -220,6 +220,40 @@ export const api = {
     return handleResponse<Transaction>(response);
   },
 
+  async createTransactionsBulk(data: TransactionCreate[]): Promise<Transaction[]> {
+    if (USE_MOCK) {
+      await delay(300);
+      return data.map(d => {
+        const now = new Date().toISOString();
+        const transaction: Transaction = {
+          id: nextId++,
+          amount: d.amount,
+          description: d.description,
+          category: d.category || null,
+          date: d.date,
+          currency: d.currency || 'RUB',
+          type: d.type || 'expense',
+          image_path: d.image_path || null,
+          raw_text: d.raw_text || null,
+          ai_category: d.ai_category || null,
+          ai_confidence: d.ai_confidence || null,
+          created_at: now,
+          updated_at: now,
+        };
+        transactions.unshift(transaction);
+        return transaction;
+      });
+    }
+
+    const response = await fetch(`${API_BASE}/api/transactions/bulk`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(data),
+      credentials: 'include',
+    });
+    return handleResponse<Transaction[]>(response);
+  },
+
   async updateTransaction(
     id: number,
     data: TransactionUpdate

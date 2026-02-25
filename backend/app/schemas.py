@@ -1,8 +1,9 @@
 import re
 from pydantic import BaseModel, Field, ConfigDict, field_validator
+from pydantic.functional_serializers import PlainSerializer
 from datetime import datetime
 from decimal import Decimal
-from typing import Literal, Optional
+from typing import Annotated, Literal, Optional
 
 # Matches null bytes, surrogate characters, and other problematic unicode
 _DANGEROUS_CHARS = re.compile(r'[\x00-\x08\x0b\x0c\x0e-\x1f\ud800-\udfff]')
@@ -15,12 +16,10 @@ CURRENCY_PATTERN = f'^({"|".join(VALID_CURRENCIES)})$'
 MIN_DATE = datetime(2000, 1, 1)
 MAX_DATE = datetime(2100, 12, 31, 23, 59, 59)
 
-# Shared model config for Decimal serialization
-_DECIMAL_CONFIG = ConfigDict(json_encoders={Decimal: lambda v: float(v)})
-_ORM_DECIMAL_CONFIG = ConfigDict(
-    from_attributes=True,
-    json_encoders={Decimal: lambda v: float(v)},
-)
+# Decimal that serializes as float in JSON responses
+FloatDecimal = Annotated[Decimal, PlainSerializer(lambda v: float(v), return_type=float)]
+
+_ORM_CONFIG = ConfigDict(from_attributes=True)
 
 
 def _sanitize_string(value: str) -> str:
@@ -92,15 +91,16 @@ class TransactionResponse(TransactionBase):
     """Schema for transaction response."""
 
     id: int
+    amount: FloatDecimal
     currency: str
     image_path: Optional[str] = None
     raw_text: Optional[str] = None
     ai_category: Optional[str] = None
-    ai_confidence: Optional[Decimal] = None
+    ai_confidence: Optional[FloatDecimal] = None
     created_at: datetime
     updated_at: datetime
 
-    model_config = _ORM_DECIMAL_CONFIG
+    model_config = _ORM_CONFIG
 
 
 class TransactionList(BaseModel):
@@ -115,7 +115,7 @@ class TransactionList(BaseModel):
 class ParsedTransaction(BaseModel):
     """Schema for AI-parsed transaction data."""
 
-    amount: Decimal
+    amount: FloatDecimal
     description: str
     date: datetime
     category: Optional[str] = None
@@ -124,17 +124,13 @@ class ParsedTransaction(BaseModel):
     raw_text: str
     confidence: float = Field(..., ge=0, le=1)
 
-    model_config = _DECIMAL_CONFIG
-
 
 class ChartDataItem(BaseModel):
     """Schema for a single chart data item."""
 
     name: str
-    value: Decimal
+    value: FloatDecimal
     percentage: Optional[float] = None
-
-    model_config = _DECIMAL_CONFIG
 
 
 class ParsedChart(BaseModel):
@@ -142,23 +138,19 @@ class ParsedChart(BaseModel):
 
     type: str  # 'pie', 'bar', 'line', etc.
     categories: list[ChartDataItem]
-    total: Decimal
+    total: FloatDecimal
     period: Optional[str] = None
     period_type: Optional[str] = None  # 'month', 'year', 'week', 'custom'
     confidence: float = Field(..., ge=0, le=1)
-
-    model_config = _DECIMAL_CONFIG
 
 
 class ParsedTransactions(BaseModel):
     """Schema for multiple AI-parsed transactions and charts."""
 
     transactions: list[ParsedTransaction]
-    total_amount: Decimal
+    total_amount: FloatDecimal
     chart: Optional[ParsedChart] = None
     raw_text: str
-
-    model_config = _DECIMAL_CONFIG
 
 
 class MonthlyReport(BaseModel):
@@ -166,11 +158,9 @@ class MonthlyReport(BaseModel):
 
     year: int
     month: int
-    total_amount: Decimal
+    total_amount: FloatDecimal
     transaction_count: int
-    by_category: dict[str, Decimal]
-
-    model_config = _DECIMAL_CONFIG
+    by_category: dict[str, FloatDecimal]
 
 
 class HealthResponse(BaseModel):
@@ -223,19 +213,18 @@ class BudgetResponse(BudgetBase):
     """Schema for budget response."""
 
     id: int
+    limit_amount: FloatDecimal
     created_at: datetime
     updated_at: datetime
 
-    model_config = _ORM_DECIMAL_CONFIG
+    model_config = _ORM_CONFIG
 
 
 class BudgetStatus(BaseModel):
     """Schema for budget status with current spending."""
 
     budget: BudgetResponse
-    spent: Decimal
-    remaining: Decimal
+    spent: FloatDecimal
+    remaining: FloatDecimal
     percentage: float
     exceeded: bool
-
-    model_config = _DECIMAL_CONFIG

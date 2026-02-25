@@ -125,13 +125,13 @@ export const CATEGORIES: Category[] = [
 ];
 
 export const CATEGORY_COLORS: Record<Category, string> = {
-  Food: '#22c55e',
-  Transport: '#3b82f6',
-  Entertainment: '#a855f7',
-  Shopping: '#f59e0b',
-  Bills: '#ef4444',
-  Health: '#ec4899',
-  Other: '#6b7280',
+  Food: '#34d399',
+  Transport: '#60a5fa',
+  Entertainment: '#a78bfa',
+  Shopping: '#fbbf24',
+  Bills: '#f87171',
+  Health: '#f472b6',
+  Other: '#94a3b8',
 };
 
 export const CATEGORY_LABELS: Record<Category, string> = {
@@ -160,11 +160,11 @@ export const INCOME_CATEGORIES: IncomeCategory[] = [
 ];
 
 export const INCOME_CATEGORY_COLORS: Record<IncomeCategory, string> = {
-  Salary: '#22c55e',
-  Transfer: '#3b82f6',
-  Cashback: '#f59e0b',
-  Investment: '#a855f7',
-  OtherIncome: '#6b7280',
+  Salary: '#34d399',
+  Transfer: '#60a5fa',
+  Cashback: '#fbbf24',
+  Investment: '#a78bfa',
+  OtherIncome: '#94a3b8',
 };
 
 export const INCOME_CATEGORY_LABELS: Record<IncomeCategory, string> = {

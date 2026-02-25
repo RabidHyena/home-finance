@@ -1,5 +1,6 @@
 import { useState, useCallback, useMemo } from 'react';
 import { Plus, Trash2, Edit2, Check, X } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import {
   useBudgetsStatus,
   useCreateBudget,
@@ -9,6 +10,7 @@ import {
 import { useToast, ConfirmModal } from '../components';
 import { CATEGORIES, CATEGORY_LABELS, type Category } from '../types';
 import type { BudgetStatus } from '../types';
+import { staggerContainer, staggerItem, slideUp } from '../motion';
 
 export function BudgetsPage() {
   const currentYear = new Date().getFullYear();
@@ -86,9 +88,15 @@ export function BudgetsPage() {
   }, [deleteMutation, toast]);
 
   const getProgressColor = useCallback((percentage: number): string => {
-    if (percentage < 70) return '#22c55e';
-    if (percentage < 90) return '#eab308';
-    return '#ef4444';
+    if (percentage < 70) return '#34d399';
+    if (percentage < 90) return '#fbbf24';
+    return '#f87171';
+  }, []);
+
+  const getProgressGlow = useCallback((percentage: number): string => {
+    if (percentage < 70) return 'rgba(52, 211, 153, 0.25)';
+    if (percentage < 90) return 'rgba(251, 191, 36, 0.25)';
+    return 'rgba(248, 113, 113, 0.25)';
   }, []);
 
   const usedCategories = useMemo(() => new Set(budgetStatuses.map(s => s.budget.category)), [budgetStatuses]);
@@ -102,152 +110,204 @@ export function BudgetsPage() {
   }, [budgetStatuses, editingId, usedCategories]);
 
   if (isLoading) {
-    return <div>Загрузка...</div>;
+    return (
+      <div style={{
+        padding: '2rem',
+        textAlign: 'center',
+        color: 'var(--color-accent)',
+        fontFamily: 'var(--font-heading)',
+      }}>
+        Загрузка...
+      </div>
+    );
   }
 
   return (
-    <div>
-      <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
-        <h1 style={{ fontSize: '1.5rem', fontWeight: 600 }}>Бюджеты</h1>
+    <motion.div variants={staggerContainer} initial="initial" animate="animate">
+      <motion.div variants={staggerItem} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
+        <h1 style={{ fontSize: '1.4rem', fontFamily: 'var(--font-heading)', letterSpacing: '0.04em', margin: 0 }}>Бюджеты</h1>
         {!showForm && availableCategories.length > 0 && (
-          <button
+          <motion.button
             onClick={() => {
               setShowForm(true);
               setEditingId(null);
               setFormData({ category: availableCategories[0], limit_amount: '', period: 'monthly' });
             }}
             className="btn btn-primary"
+            whileHover={{ scale: 1.03 }}
+            whileTap={{ scale: 0.97 }}
             style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}
           >
-            <Plus size={18} />
+            <Plus size={16} />
             Добавить бюджет
-          </button>
+          </motion.button>
         )}
-      </div>
+      </motion.div>
 
       {/* Create/Edit Form */}
-      {showForm && (
-        <div className="card" style={{ marginBottom: '1.5rem' }}>
-          <h2 style={{ fontSize: '1.125rem', fontWeight: 600, marginBottom: '1rem' }}>
-            {editingId ? 'Редактировать бюджет' : 'Новый бюджет'}
-          </h2>
-          <form onSubmit={handleSubmit}>
-            <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
-              <div>
-                <label className="label">Категория</label>
-                <select
-                  className="select"
-                  value={formData.category}
-                  onChange={(e) => setFormData({ ...formData, category: e.target.value as Category })}
-                  disabled={!!editingId}
-                  required
-                >
-                  {availableCategories.map(cat => (
-                    <option key={cat} value={cat}>{CATEGORY_LABELS[cat]}</option>
+      <AnimatePresence>
+        {showForm && (
+          <motion.div
+            variants={slideUp}
+            initial="initial"
+            animate="animate"
+            exit="exit"
+            style={{
+              marginBottom: '1.5rem',
+              background: 'var(--color-surface)',
+              borderRadius: 'var(--radius-lg)',
+              border: '1px solid var(--color-border)',
+              boxShadow: 'var(--shadow-md)',
+              padding: 'var(--space-lg)',
+            }}
+          >
+            <h2 style={{ fontSize: '1rem', fontFamily: 'var(--font-heading)', letterSpacing: '0.03em', marginBottom: '1rem' }}>
+              {editingId ? 'Редактировать бюджет' : 'Новый бюджет'}
+            </h2>
+            <form onSubmit={handleSubmit}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
+                <div>
+                  <label className="label">Категория</label>
+                  <select
+                    className="select"
+                    value={formData.category}
+                    onChange={(e) => setFormData({ ...formData, category: e.target.value as Category })}
+                    disabled={!!editingId}
+                    required
+                  >
+                    {availableCategories.map(cat => (
+                      <option key={cat} value={cat}>{CATEGORY_LABELS[cat]}</option>
+                    ))}
+                  </select>
+                </div>
+                <div>
+                  <label className="label">Лимит (₽)</label>
+                  <input
+                    type="number"
+                    className="input"
+                    value={formData.limit_amount}
+                    onChange={(e) => setFormData({ ...formData, limit_amount: e.target.value })}
+                    placeholder="50000"
+                    min="0"
+                    step="100"
+                    required
+                  />
+                </div>
+              </div>
+              <div style={{ marginBottom: '1rem' }}>
+                <label className="label">Период</label>
+                <div style={{ display: 'flex', gap: '1rem' }}>
+                  {(['monthly', 'weekly'] as const).map((p) => (
+                    <label key={p} style={{
+                      display: 'flex',
+                      alignItems: 'center',
+                      gap: '0.5rem',
+                      cursor: 'pointer',
+                      padding: '0.4rem 0.75rem',
+                      borderRadius: 'var(--radius-full)',
+                      border: `2px solid ${formData.period === p ? 'var(--color-accent)' : 'var(--color-border)'}`,
+                      background: formData.period === p ? 'rgba(129, 140, 248, 0.08)' : 'transparent',
+                      transition: 'all 0.2s',
+                      fontSize: '0.875rem',
+                    }}>
+                      <input
+                        type="radio"
+                        value={p}
+                        checked={formData.period === p}
+                        onChange={(e) => setFormData({ ...formData, period: e.target.value as 'monthly' | 'weekly' })}
+                        style={{ accentColor: 'var(--color-accent)' }}
+                      />
+                      {p === 'monthly' ? 'Месяц' : 'Неделя'}
+                    </label>
                   ))}
-                </select>
+                </div>
               </div>
-              <div>
-                <label className="label">Лимит (₽)</label>
-                <input
-                  type="number"
-                  className="input"
-                  value={formData.limit_amount}
-                  onChange={(e) => setFormData({ ...formData, limit_amount: e.target.value })}
-                  placeholder="50000"
-                  min="0"
-                  step="100"
-                  required
-                />
+              <div style={{ display: 'flex', gap: '0.75rem' }}>
+                <button
+                  type="submit"
+                  className="btn btn-primary"
+                  disabled={createMutation.isPending || updateMutation.isPending}
+                >
+                  <Check size={16} />
+                  {editingId ? 'Сохранить' : 'Создать'}
+                </button>
+                <button
+                  type="button"
+                  className="btn btn-secondary"
+                  onClick={() => {
+                    setShowForm(false);
+                    setEditingId(null);
+                    setFormData({ category: 'Food', limit_amount: '', period: 'monthly' });
+                  }}
+                >
+                  <X size={16} />
+                  Отмена
+                </button>
               </div>
-            </div>
-            <div style={{ marginBottom: '1rem' }}>
-              <label className="label">Период</label>
-              <div style={{ display: 'flex', gap: '1rem' }}>
-                <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
-                  <input
-                    type="radio"
-                    value="monthly"
-                    checked={formData.period === 'monthly'}
-                    onChange={(e) => setFormData({ ...formData, period: e.target.value as 'monthly' })}
-                  />
-                  Месяц
-                </label>
-                <label style={{ display: 'flex', alignItems: 'center', gap: '0.5rem', cursor: 'pointer' }}>
-                  <input
-                    type="radio"
-                    value="weekly"
-                    checked={formData.period === 'weekly'}
-                    onChange={(e) => setFormData({ ...formData, period: e.target.value as 'weekly' })}
-                  />
-                  Неделя
-                </label>
-              </div>
-            </div>
-            <div style={{ display: 'flex', gap: '0.75rem' }}>
-              <button
-                type="submit"
-                className="btn btn-primary"
-                disabled={createMutation.isPending || updateMutation.isPending}
-                style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}
-              >
-                <Check size={18} />
-                {editingId ? 'Сохранить' : 'Создать'}
-              </button>
-              <button
-                type="button"
-                className="btn btn-secondary"
-                onClick={() => {
-                  setShowForm(false);
-                  setEditingId(null);
-                  setFormData({ category: 'Food', limit_amount: '', period: 'monthly' });
-                }}
-                style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}
-              >
-                <X size={18} />
-                Отмена
-              </button>
-            </div>
-          </form>
-        </div>
-      )}
+            </form>
+          </motion.div>
+        )}
+      </AnimatePresence>
 
       {/* Budget Status Cards */}
       {budgetStatuses.length === 0 ? (
-        <div className="card" style={{ textAlign: 'center', color: 'var(--color-text-secondary)' }}>
+        <motion.div variants={staggerItem} style={{
+          textAlign: 'center',
+          color: 'var(--color-text-secondary)',
+          background: 'var(--color-surface)',
+          borderRadius: 'var(--radius-lg)',
+          border: '1px solid var(--color-border)',
+          padding: 'var(--space-xl)',
+        }}>
           <p>Нет установленных бюджетов</p>
-          <p style={{ fontSize: '0.875rem' }}>Создайте бюджет для отслеживания расходов по категориям</p>
-        </div>
+          <p style={{ fontSize: '0.875rem', color: 'var(--color-text-muted)' }}>Создайте бюджет для отслеживания расходов по категориям</p>
+        </motion.div>
       ) : (
-        <div style={{ display: 'grid', gap: '1rem' }}>
+        <motion.div variants={staggerContainer} initial="initial" animate="animate" style={{ display: 'grid', gap: '1rem' }}>
           {budgetStatuses.map((status) => (
-            <div key={status.budget.id} className="card">
+            <motion.div
+              key={status.budget.id}
+              variants={staggerItem}
+              whileHover={{ scale: 1.005, borderColor: getProgressColor(status.percentage) + '40' }}
+              style={{
+                background: 'var(--color-surface)',
+                borderRadius: 'var(--radius-lg)',
+                border: '1px solid var(--color-border)',
+                boxShadow: 'var(--shadow-sm)',
+                padding: 'var(--space-lg)',
+                transition: 'border-color 0.25s',
+              }}
+            >
               <div style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'start', marginBottom: '0.75rem' }}>
                 <div>
-                  <h3 style={{ fontSize: '1.125rem', fontWeight: 600, marginBottom: '0.25rem' }}>
+                  <h3 style={{ fontSize: '1rem', fontFamily: 'var(--font-heading)', letterSpacing: '0.02em', marginBottom: '0.25rem' }}>
                     {CATEGORY_LABELS[status.budget.category as Category] || status.budget.category}
                   </h3>
-                  <p style={{ fontSize: '0.875rem', color: 'var(--color-text-secondary)' }}>
-                    Лимит: {status.budget.limit_amount.toLocaleString('ru-RU')} ₽ / {status.budget.period === 'monthly' ? 'месяц' : 'неделю'}
+                  <p style={{ fontSize: '0.8rem', color: 'var(--color-text-muted)', margin: 0 }}>
+                    Лимит: <span style={{ fontFamily: 'var(--font-heading)', fontWeight: 600 }}>{status.budget.limit_amount.toLocaleString('ru-RU')} ₽</span> / {status.budget.period === 'monthly' ? 'месяц' : 'неделю'}
                   </p>
                 </div>
-                <div style={{ display: 'flex', gap: '0.5rem' }}>
-                  <button
+                <div style={{ display: 'flex', gap: '0.25rem' }}>
+                  <motion.button
                     onClick={() => handleEdit(status)}
+                    whileHover={{ scale: 1.1 }}
+                    whileTap={{ scale: 0.9 }}
                     className="btn btn-secondary"
-                    style={{ padding: '0.5rem' }}
+                    style={{ padding: '0.4rem' }}
                     title="Редактировать"
                   >
-                    <Edit2 size={16} />
-                  </button>
-                  <button
+                    <Edit2 size={14} />
+                  </motion.button>
+                  <motion.button
                     onClick={() => setDeleteId(status.budget.id)}
+                    whileHover={{ scale: 1.1 }}
+                    whileTap={{ scale: 0.9 }}
                     className="btn btn-secondary"
-                    style={{ padding: '0.5rem', color: 'var(--color-danger)' }}
+                    style={{ padding: '0.4rem', color: 'var(--color-danger)' }}
                     title="Удалить"
                   >
-                    <Trash2 size={16} />
-                  </button>
+                    <Trash2 size={14} />
+                  </motion.button>
                 </div>
               </div>
 
@@ -256,17 +316,21 @@ export function BudgetsPage() {
                 <div style={{
                   width: '100%',
                   height: '1.5rem',
-                  backgroundColor: 'var(--color-border)',
-                  borderRadius: '0.5rem',
+                  background: 'var(--color-surface-elevated)',
+                  borderRadius: 'var(--radius-full)',
                   overflow: 'hidden',
                   position: 'relative',
+                  border: '1px solid var(--color-border)',
                 }}>
-                  <div
+                  <motion.div
+                    initial={{ width: 0 }}
+                    animate={{ width: `${Math.min(status.percentage, 100)}%` }}
+                    transition={{ duration: 0.8, ease: [0.25, 0.46, 0.45, 0.94] }}
                     style={{
                       backgroundColor: getProgressColor(status.percentage),
-                      width: `${Math.min(status.percentage, 100)}%`,
                       height: '100%',
-                      transition: 'width 0.3s ease',
+                      borderRadius: 'var(--radius-full)',
+                      boxShadow: `0 0 12px ${getProgressGlow(status.percentage)}`,
                     }}
                   />
                   <div style={{
@@ -278,8 +342,9 @@ export function BudgetsPage() {
                     display: 'flex',
                     alignItems: 'center',
                     justifyContent: 'center',
-                    fontSize: '0.875rem',
-                    fontWeight: 600,
+                    fontSize: '0.8rem',
+                    fontWeight: 700,
+                    fontFamily: 'var(--font-heading)',
                     color: status.percentage > 50 ? 'white' : 'var(--color-text)',
                   }}>
                     {Number(status.percentage).toFixed(1)}%
@@ -288,27 +353,31 @@ export function BudgetsPage() {
               </div>
 
               {/* Statistics */}
-              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.75rem', fontSize: '0.875rem' }}>
+              <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr 1fr', gap: '0.75rem', fontSize: '0.8rem' }}>
                 <div>
-                  <p style={{ color: 'var(--color-text-secondary)', marginBottom: '0.25rem' }}>Потрачено</p>
-                  <p style={{ fontWeight: 600 }}>{status.spent.toLocaleString('ru-RU')} ₽</p>
+                  <p style={{ color: 'var(--color-text-muted)', marginBottom: '0.2rem', textTransform: 'uppercase', letterSpacing: '0.04em', fontSize: '0.7rem' }}>Потрачено</p>
+                  <p style={{ fontWeight: 600, fontFamily: 'var(--font-heading)', margin: 0 }}>{status.spent.toLocaleString('ru-RU')} ₽</p>
                 </div>
                 <div>
-                  <p style={{ color: 'var(--color-text-secondary)', marginBottom: '0.25rem' }}>Остаток</p>
-                  <p style={{ fontWeight: 600, color: status.exceeded ? 'var(--color-danger)' : 'var(--color-success)' }}>
+                  <p style={{ color: 'var(--color-text-muted)', marginBottom: '0.2rem', textTransform: 'uppercase', letterSpacing: '0.04em', fontSize: '0.7rem' }}>Остаток</p>
+                  <p style={{ fontWeight: 600, fontFamily: 'var(--font-heading)', color: status.exceeded ? 'var(--color-danger)' : 'var(--color-success)', margin: 0 }}>
                     {status.remaining.toLocaleString('ru-RU')} ₽
                   </p>
                 </div>
                 <div>
-                  <p style={{ color: 'var(--color-text-secondary)', marginBottom: '0.25rem' }}>Статус</p>
-                  <p style={{ fontWeight: 600, color: status.exceeded ? 'var(--color-danger)' : 'var(--color-success)' }}>
+                  <p style={{ color: 'var(--color-text-muted)', marginBottom: '0.2rem', textTransform: 'uppercase', letterSpacing: '0.04em', fontSize: '0.7rem' }}>Статус</p>
+                  <p style={{
+                    fontWeight: 600,
+                    color: status.exceeded ? 'var(--color-danger)' : 'var(--color-success)',
+                    margin: 0,
+                  }}>
                     {status.exceeded ? 'Превышен' : 'В рамках'}
                   </p>
                 </div>
               </div>
-            </div>
+            </motion.div>
           ))}
-        </div>
+        </motion.div>
       )}
 
       <ConfirmModal
@@ -319,6 +388,6 @@ export function BudgetsPage() {
         onCancel={() => setDeleteId(null)}
         isLoading={deleteMutation.isPending}
       />
-    </div>
+    </motion.div>
   );
 }

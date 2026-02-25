@@ -17,3 +17,4 @@ export { useToast } from './useToast';
 export { Skeleton, TransactionCardSkeleton, StatCardSkeleton, ChartSkeleton } from './Skeleton';
 export { ErrorBoundary } from './ErrorBoundary';
 export { ProtectedRoute } from './ProtectedRoute';
+export { PageTransition } from './PageTransition';

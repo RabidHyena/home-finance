@@ -91,6 +91,47 @@ def create_transaction(
     return db_transaction
 
 
+@router.post("/bulk", response_model=list[TransactionResponse], status_code=201)
+def create_transactions_bulk(
+    transactions: list[TransactionCreate],
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Create multiple transactions in a single request."""
+    if len(transactions) > 200:
+        raise HTTPException(status_code=400, detail="Maximum 200 transactions per request")
+
+    db_transactions = []
+    for tx in transactions:
+        db_tx = Transaction(
+            user_id=current_user.id,
+            amount=tx.amount,
+            description=tx.description,
+            category=tx.category or "Other",
+            date=tx.date,
+            currency=tx.currency,
+            type=tx.type,
+            image_path=tx.image_path,
+            raw_text=tx.raw_text,
+            ai_category=tx.ai_category,
+            ai_confidence=tx.ai_confidence,
+        )
+        db.add(db_tx)
+        db_transactions.append(db_tx)
+
+    db.flush()
+
+    for db_tx in db_transactions:
+        log_correction(db, db_tx, current_user.id)
+
+    db.commit()
+    for db_tx in db_transactions:
+        db.refresh(db_tx)
+
+    _invalidate_user_cache(current_user.id)
+    return db_transactions
+
+
 @router.get("", response_model=TransactionList)
 def get_transactions(
     page: int = Query(1, ge=1),

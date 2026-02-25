@@ -1873,6 +1873,27 @@
 					]}}]
 				},
 				{
+					"name": "Bulk delete — without confirm (400)",
+					"request": {
+						"method": "DELETE",
+						"url": "{{base_url}}/api/transactions"
+					},
+					"event": [{"listen": "test", "script": {"exec": [
+						"pm.test('Status 400 — confirm required', () => pm.response.to.have.status(400));",
+						"pm.test('Error message', () => pm.expect(pm.response.json().detail).to.include('confirm'));"
+					]}}]
+				},
+				{
+					"name": "Bulk delete — confirm=false (400)",
+					"request": {
+						"method": "DELETE",
+						"url": "{{base_url}}/api/transactions?confirm=false"
+					},
+					"event": [{"listen": "test", "script": {"exec": [
+						"pm.test('Status 400', () => pm.response.to.have.status(400));"
+					]}}]
+				},
+				{
 					"name": "Unicode stress — emoji description",
 					"request": {
 						"method": "POST",
@@ -1901,7 +1922,7 @@
 					"name": "Delete all transactions",
 					"request": {
 						"method": "DELETE",
-						"url": "{{base_url}}/api/transactions"
+						"url": "{{base_url}}/api/transactions?confirm=true"
 					},
 					"event": [{"listen": "test", "script": {"exec": ["pm.test('Status 204', () => pm.response.to.have.status(204));"]}}]
 				},

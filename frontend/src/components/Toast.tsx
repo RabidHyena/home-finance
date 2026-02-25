@@ -1,5 +1,6 @@
 import { useCallback, useState } from 'react';
 import { CheckCircle, XCircle, X } from 'lucide-react';
+import { motion, AnimatePresence } from 'framer-motion';
 import { ToastContext } from './ToastContext';
 import type { ToastContextValue } from './ToastContext';
 
@@ -48,49 +49,54 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
           pointerEvents: 'none',
         }}
       >
-        {toasts.map((toast) => (
-          <div
-            key={toast.id}
-            className="toast-enter"
-            style={{
-              display: 'flex',
-              alignItems: 'center',
-              gap: '0.75rem',
-              padding: '0.75rem 1rem',
-              borderRadius: '0.5rem',
-              backgroundColor: 'white',
-              boxShadow: '0 4px 12px rgba(0, 0, 0, 0.15)',
-              border: `1px solid ${
-                toast.type === 'success' ? 'var(--color-success)' : 'var(--color-danger)'
-              }`,
-              minWidth: '280px',
-              maxWidth: '400px',
-              pointerEvents: 'auto',
-            }}
-          >
-            {toast.type === 'success' ? (
-              <CheckCircle size={20} color="var(--color-success)" style={{ flexShrink: 0 }} />
-            ) : (
-              <XCircle size={20} color="var(--color-danger)" style={{ flexShrink: 0 }} />
-            )}
-            <span style={{ flex: 1, fontSize: '0.875rem' }}>{toast.message}</span>
-            <button
-              onClick={() => removeToast(toast.id)}
+        <AnimatePresence>
+          {toasts.map((toast) => (
+            <motion.div
+              key={toast.id}
+              initial={{ opacity: 0, x: 100, scale: 0.95 }}
+              animate={{ opacity: 1, x: 0, scale: 1 }}
+              exit={{ opacity: 0, x: 80, scale: 0.95 }}
+              transition={{ type: 'spring', stiffness: 400, damping: 25 }}
               style={{
-                padding: '0.25rem',
-                border: 'none',
-                backgroundColor: 'transparent',
-                cursor: 'pointer',
-                color: 'var(--color-text-secondary)',
-                flexShrink: 0,
+                display: 'flex',
+                alignItems: 'center',
+                gap: '0.75rem',
+                padding: '0.75rem 1rem',
+                borderRadius: 'var(--radius-lg)',
+                background: 'var(--color-surface)',
+                boxShadow: 'var(--shadow-lg)',
+                border: `1px solid ${
+                  toast.type === 'success' ? 'rgba(52, 211, 153, 0.2)' : 'rgba(248, 113, 113, 0.2)'
+                }`,
+                minWidth: '280px',
+                maxWidth: '400px',
+                pointerEvents: 'auto',
+                backdropFilter: 'blur(12px)',
               }}
             >
-              <X size={16} />
-            </button>
-          </div>
-        ))}
+              {toast.type === 'success' ? (
+                <CheckCircle size={20} color="var(--color-success)" style={{ flexShrink: 0 }} />
+              ) : (
+                <XCircle size={20} color="var(--color-danger)" style={{ flexShrink: 0 }} />
+              )}
+              <span style={{ flex: 1, fontSize: '0.875rem', color: 'var(--color-text)' }}>{toast.message}</span>
+              <button
+                onClick={() => removeToast(toast.id)}
+                style={{
+                  padding: '0.25rem',
+                  border: 'none',
+                  backgroundColor: 'transparent',
+                  cursor: 'pointer',
+                  color: 'var(--color-text-muted)',
+                  flexShrink: 0,
+                }}
+              >
+                <X size={16} />
+              </button>
+            </motion.div>
+          ))}
+        </AnimatePresence>
       </div>
     </ToastContext.Provider>
   );
 }
-

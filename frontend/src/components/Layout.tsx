@@ -1,5 +1,6 @@
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Home, Upload, List, TrendingUp, BarChart3, Wallet, PiggyBank, LogOut } from 'lucide-react';
+import { motion } from 'framer-motion';
 import { OfflineIndicator } from './OfflineIndicator';
 import { useAuth } from '../contexts/useAuth';
 
@@ -27,13 +28,15 @@ export function Layout({ children }: LayoutProps) {
   };
 
   return (
-    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column' }}>
+    <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', background: 'var(--color-background)' }}>
       {/* Header */}
       <header
         style={{
-          backgroundColor: 'white',
+          background: 'var(--color-surface-glass)',
+          backdropFilter: 'blur(16px)',
+          WebkitBackdropFilter: 'blur(16px)',
           borderBottom: '1px solid var(--color-border)',
-          padding: '1rem',
+          padding: '0.75rem 1rem',
           position: 'sticky',
           top: 0,
           zIndex: 50,
@@ -53,22 +56,36 @@ export function Layout({ children }: LayoutProps) {
             style={{
               display: 'flex',
               alignItems: 'center',
-              gap: '0.5rem',
+              gap: '0.6rem',
               textDecoration: 'none',
               color: 'var(--color-text)',
-              fontWeight: 600,
-              fontSize: '1.25rem',
             }}
           >
-            <Wallet size={28} color="var(--color-primary)" />
-            Home Finance
+            <motion.div
+              whileHover={{ rotate: 15, scale: 1.1 }}
+              transition={{ type: 'spring', stiffness: 400, damping: 15 }}
+            >
+              <Wallet size={28} color="var(--color-primary)" />
+            </motion.div>
+            <span style={{
+              fontFamily: 'var(--font-heading)',
+              fontWeight: 700,
+              fontSize: '1.1rem',
+              letterSpacing: '0.05em',
+              background: 'var(--gradient-primary)',
+              WebkitBackgroundClip: 'text',
+              WebkitTextFillColor: 'transparent',
+              backgroundClip: 'text',
+            }}>
+              HOME FINANCE
+            </span>
           </Link>
 
           {/* Desktop Navigation */}
           <nav
             style={{
               display: 'flex',
-              gap: '0.5rem',
+              gap: '0.25rem',
               alignItems: 'center',
             }}
             className="desktop-nav"
@@ -81,20 +98,50 @@ export function Layout({ children }: LayoutProps) {
                   key={item.path}
                   to={item.path}
                   style={{
+                    position: 'relative',
                     display: 'flex',
                     alignItems: 'center',
                     gap: '0.5rem',
-                    padding: '0.5rem 1rem',
-                    borderRadius: '0.5rem',
+                    padding: '0.5rem 0.875rem',
+                    borderRadius: 'var(--radius-full)',
                     textDecoration: 'none',
                     color: isActive ? 'var(--color-primary)' : 'var(--color-text-secondary)',
-                    backgroundColor: isActive ? 'rgba(59, 130, 246, 0.1)' : 'transparent',
-                    fontWeight: isActive ? 500 : 400,
-                    transition: 'all 0.2s',
+                    fontWeight: isActive ? 600 : 400,
+                    fontSize: '0.875rem',
+                    transition: 'all 0.25s ease-out',
+                    background: isActive ? 'rgba(129, 140, 248, 0.1)' : 'transparent',
+                  }}
+                  onMouseEnter={(e) => {
+                    if (!isActive) {
+                      e.currentTarget.style.color = 'var(--color-primary)';
+                      e.currentTarget.style.background = 'rgba(129, 140, 248, 0.06)';
+                    }
+                  }}
+                  onMouseLeave={(e) => {
+                    if (!isActive) {
+                      e.currentTarget.style.color = 'var(--color-text-secondary)';
+                      e.currentTarget.style.background = 'transparent';
+                    }
                   }}
                 >
-                  <Icon size={20} />
+                  <Icon size={18} />
                   <span>{item.label}</span>
+                  {isActive && (
+                    <motion.div
+                      layoutId="nav-indicator"
+                      style={{
+                        position: 'absolute',
+                        bottom: -1,
+                        left: '20%',
+                        right: '20%',
+                        height: 2,
+                        borderRadius: 'var(--radius-full)',
+                        background: 'var(--color-primary)',
+                        boxShadow: '0 0 8px var(--color-primary-glow)',
+                      }}
+                      transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+                    />
+                  )}
                 </Link>
               );
             })}
@@ -104,25 +151,29 @@ export function Layout({ children }: LayoutProps) {
               display: 'flex',
               alignItems: 'center',
               gap: '0.75rem',
-              marginLeft: '1rem',
-              paddingLeft: '1rem',
+              marginLeft: '0.75rem',
+              paddingLeft: '0.75rem',
               borderLeft: '1px solid var(--color-border)',
             }}>
               <span style={{
-                fontSize: '0.875rem',
-                color: 'var(--color-text-secondary)',
+                fontSize: '0.8rem',
+                color: 'var(--color-text-muted)',
+                fontFamily: 'var(--font-body)',
+                letterSpacing: '0.03em',
               }}>
                 {user?.username}
               </span>
-              <button
+              <motion.button
                 onClick={handleLogout}
+                whileHover={{ scale: 1.1, color: 'var(--color-danger)' }}
+                whileTap={{ scale: 0.9 }}
                 style={{
                   display: 'flex',
                   alignItems: 'center',
                   gap: '0.25rem',
-                  padding: '0.5rem 0.75rem',
-                  borderRadius: '0.5rem',
-                  border: 'none',
+                  padding: '0.4rem 0.6rem',
+                  borderRadius: 'var(--radius-full)',
+                  border: '1px solid var(--color-border)',
                   backgroundColor: 'transparent',
                   color: 'var(--color-text-secondary)',
                   cursor: 'pointer',
@@ -130,8 +181,8 @@ export function Layout({ children }: LayoutProps) {
                 }}
                 title="Выйти"
               >
-                <LogOut size={18} />
-              </button>
+                <LogOut size={16} />
+              </motion.button>
             </div>
           </nav>
         </div>
@@ -158,9 +209,11 @@ export function Layout({ children }: LayoutProps) {
           bottom: 0,
           left: 0,
           right: 0,
-          backgroundColor: 'white',
+          background: 'var(--color-surface-glass)',
+          backdropFilter: 'blur(16px)',
+          WebkitBackdropFilter: 'blur(16px)',
           borderTop: '1px solid var(--color-border)',
-          padding: '0.5rem',
+          padding: '0.4rem 0.25rem',
           display: 'flex',
           justifyContent: 'space-around',
           zIndex: 50,
@@ -175,18 +228,38 @@ export function Layout({ children }: LayoutProps) {
               key={item.path}
               to={item.path}
               style={{
+                position: 'relative',
                 display: 'flex',
                 flexDirection: 'column',
                 alignItems: 'center',
-                gap: '0.25rem',
-                padding: '0.5rem',
+                gap: '0.2rem',
+                padding: '0.4rem 0.5rem',
                 textDecoration: 'none',
-                color: isActive ? 'var(--color-primary)' : 'var(--color-text-secondary)',
-                fontSize: '0.75rem',
+                color: isActive ? 'var(--color-primary)' : 'var(--color-text-muted)',
+                fontSize: '0.65rem',
+                fontWeight: isActive ? 600 : 400,
+                transition: 'color 0.2s',
+                borderRadius: 'var(--radius-md)',
               }}
             >
-              <Icon size={24} />
+              <Icon size={22} />
               <span>{item.label}</span>
+              {isActive && (
+                <motion.div
+                  layoutId="mobile-nav-indicator"
+                  style={{
+                    position: 'absolute',
+                    top: 0,
+                    left: '15%',
+                    right: '15%',
+                    height: 2,
+                    borderRadius: 'var(--radius-full)',
+                    background: 'var(--color-primary)',
+                    boxShadow: '0 0 8px var(--color-primary-glow)',
+                  }}
+                  transition={{ type: 'spring', stiffness: 400, damping: 30 }}
+                />
+              )}
             </Link>
           );
         })}
@@ -196,22 +269,22 @@ export function Layout({ children }: LayoutProps) {
             display: 'flex',
             flexDirection: 'column',
             alignItems: 'center',
-            gap: '0.25rem',
-            padding: '0.5rem',
+            gap: '0.2rem',
+            padding: '0.4rem 0.5rem',
             border: 'none',
             backgroundColor: 'transparent',
-            color: 'var(--color-text-secondary)',
-            fontSize: '0.75rem',
+            color: 'var(--color-text-muted)',
+            fontSize: '0.65rem',
             cursor: 'pointer',
           }}
         >
-          <LogOut size={24} />
+          <LogOut size={22} />
           <span>Выйти</span>
         </button>
       </nav>
 
       {/* Spacer for mobile nav */}
-      <div style={{ height: '80px' }} className="mobile-nav-spacer" />
+      <div style={{ height: '72px' }} className="mobile-nav-spacer" />
 
       {/* Offline Indicator */}
       <OfflineIndicator />

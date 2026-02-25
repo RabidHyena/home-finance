@@ -1,5 +1,6 @@
 import { useState, useCallback } from 'react';
 import { Upload, Image, X, Loader2, FileSpreadsheet } from 'lucide-react';
+import { motion } from 'framer-motion';
 
 const isExcelFile = (file: File) =>
   file.name.toLowerCase().endsWith('.xlsx') ||
@@ -27,7 +28,7 @@ export function UploadZone({
 
   const handleFiles = useCallback(
     (fileList: File[]) => {
-      const MAX_FILE_SIZE = 10 * 1024 * 1024; // 10MB
+      const MAX_FILE_SIZE = 10 * 1024 * 1024;
       const EXCEL_TYPES = ['application/vnd.openxmlformats-officedocument.spreadsheetml.sheet', 'application/vnd.ms-excel'];
       const EXCEL_EXTENSIONS = ['.xlsx', '.xls'];
       const isValidFile = (f: File) =>
@@ -48,7 +49,6 @@ export function UploadZone({
       }
 
       if (multiple) {
-        // Revoke old object URLs to prevent memory leaks
         previews.forEach(p => URL.revokeObjectURL(p.url));
         const newPreviews = validFiles.map(file => ({
           file,
@@ -56,7 +56,6 @@ export function UploadZone({
         }));
         setPreviews(newPreviews);
       } else {
-        // Single file mode (backwards compatibility)
         const file = validFiles[0];
         setFileName(file.name);
         if (isExcelFile(file)) {
@@ -79,11 +78,8 @@ export function UploadZone({
     (e: React.DragEvent) => {
       e.preventDefault();
       setIsDragging(false);
-
       const files = Array.from(e.dataTransfer.files);
-      if (files.length > 0) {
-        handleFiles(files);
-      }
+      if (files.length > 0) handleFiles(files);
     },
     [handleFiles]
   );
@@ -101,9 +97,7 @@ export function UploadZone({
   const handleInputChange = useCallback(
     (e: React.ChangeEvent<HTMLInputElement>) => {
       const files = e.target.files ? Array.from(e.target.files) : [];
-      if (files.length > 0) {
-        handleFiles(files);
-      }
+      if (files.length > 0) handleFiles(files);
     },
     [handleFiles]
   );
@@ -119,34 +113,26 @@ export function UploadZone({
     return (
       <div
         style={{
-          border: '2px dashed var(--color-border)',
-          borderRadius: '0.75rem',
+          border: '2px dashed var(--color-border-strong)',
+          borderRadius: 'var(--radius-lg)',
           padding: '3rem',
           textAlign: 'center',
-          backgroundColor: 'var(--color-background)',
+          background: 'var(--color-surface)',
         }}
       >
-        <Loader2
-          size={48}
-          style={{
-            color: 'var(--color-primary)',
-            animation: 'spin 1s linear infinite',
-          }}
-        />
-        <p style={{ marginTop: '1rem', color: 'var(--color-text-secondary)' }}>
+        <motion.div
+          animate={{ rotate: 360 }}
+          transition={{ duration: 1, repeat: Infinity, ease: 'linear' }}
+        >
+          <Loader2 size={48} style={{ color: 'var(--color-accent)' }} />
+        </motion.div>
+        <p style={{ marginTop: '1rem', color: 'var(--color-text-secondary)', fontFamily: 'var(--font-body)' }}>
           Распознавание файла...
         </p>
-        <style>{`
-          @keyframes spin {
-            from { transform: rotate(0deg); }
-            to { transform: rotate(360deg); }
-          }
-        `}</style>
       </div>
     );
   }
 
-  // Multiple file preview
   if (previews.length > 0 && multiple) {
     return (
       <div>
@@ -157,12 +143,18 @@ export function UploadZone({
           marginBottom: '1rem',
         }}>
           {previews.map((preview, i) => (
-            <div key={i} style={{
-              border: '2px solid var(--color-border)',
-              borderRadius: '0.5rem',
-              padding: '0.5rem',
-              backgroundColor: 'var(--color-surface)',
-            }}>
+            <motion.div
+              key={i}
+              initial={{ opacity: 0, scale: 0.9 }}
+              animate={{ opacity: 1, scale: 1 }}
+              transition={{ delay: i * 0.05 }}
+              style={{
+                border: '1px solid var(--color-border)',
+                borderRadius: 'var(--radius-md)',
+                padding: '0.5rem',
+                background: 'var(--color-surface)',
+              }}
+            >
               {isExcelFile(preview.file) ? (
                 <div style={{
                   width: '100%',
@@ -170,8 +162,8 @@ export function UploadZone({
                   display: 'flex',
                   alignItems: 'center',
                   justifyContent: 'center',
-                  backgroundColor: 'rgba(34, 197, 94, 0.1)',
-                  borderRadius: '0.25rem',
+                  background: 'rgba(52, 211, 153, 0.06)',
+                  borderRadius: 'var(--radius-sm)',
                 }}>
                   <FileSpreadsheet size={40} color="var(--color-success)" />
                 </div>
@@ -179,26 +171,23 @@ export function UploadZone({
                 <img
                   src={preview.url}
                   alt={preview.file.name}
-                  style={{ width: '100%', height: '100px', objectFit: 'cover', borderRadius: '0.25rem' }}
+                  style={{ width: '100%', height: '100px', objectFit: 'cover', borderRadius: 'var(--radius-sm)' }}
                 />
               )}
               <p style={{
-                fontSize: '0.75rem',
-                marginTop: '0.5rem',
+                fontSize: '0.7rem',
+                marginTop: '0.4rem',
                 overflow: 'hidden',
                 textOverflow: 'ellipsis',
-                whiteSpace: 'nowrap'
+                whiteSpace: 'nowrap',
+                color: 'var(--color-text-secondary)',
               }}>
                 {preview.file.name}
               </p>
-            </div>
+            </motion.div>
           ))}
         </div>
-        <button
-          onClick={clearPreview}
-          className="btn btn-secondary"
-          style={{ width: '100%' }}
-        >
+        <button onClick={clearPreview} className="btn btn-secondary" style={{ width: '100%' }}>
           Выбрать другие файлы
         </button>
       </div>
@@ -209,36 +198,31 @@ export function UploadZone({
     return (
       <div
         style={{
-          border: '2px solid var(--color-border)',
-          borderRadius: '0.75rem',
+          border: '1px solid var(--color-border)',
+          borderRadius: 'var(--radius-lg)',
           padding: '1rem',
-          backgroundColor: 'white',
+          background: 'var(--color-surface)',
         }}
       >
-        <div
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'space-between',
-            marginBottom: '1rem',
-          }}
-        >
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '1rem' }}>
           <div style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}>
-            <Image size={20} color="var(--color-success)" />
-            <span style={{ fontWeight: 500 }}>{fileName}</span>
+            <Image size={20} color="var(--color-accent)" />
+            <span style={{ fontWeight: 500, fontSize: '0.9rem', color: 'var(--color-text)' }}>{fileName}</span>
           </div>
-          <button
+          <motion.button
             onClick={clearPreview}
+            whileHover={{ scale: 1.1 }}
+            whileTap={{ scale: 0.9 }}
             style={{
               padding: '0.25rem',
               border: 'none',
               background: 'none',
               cursor: 'pointer',
-              color: 'var(--color-text-secondary)',
+              color: 'var(--color-text-muted)',
             }}
           >
             <X size={20} />
-          </button>
+          </motion.button>
         </div>
         {preview === 'excel' ? (
           <div style={{
@@ -248,11 +232,11 @@ export function UploadZone({
             flexDirection: 'column',
             alignItems: 'center',
             justifyContent: 'center',
-            backgroundColor: 'rgba(34, 197, 94, 0.1)',
-            borderRadius: '0.5rem',
+            background: 'rgba(52, 211, 153, 0.06)',
+            borderRadius: 'var(--radius-md)',
           }}>
             <FileSpreadsheet size={64} color="var(--color-success)" />
-            <p style={{ marginTop: '0.5rem', color: 'var(--color-text-secondary)', fontSize: '0.875rem' }}>
+            <p style={{ marginTop: '0.5rem', color: 'var(--color-text-muted)', fontSize: '0.875rem' }}>
               Excel файл
             </p>
           </div>
@@ -264,7 +248,7 @@ export function UploadZone({
               width: '100%',
               maxHeight: '300px',
               objectFit: 'contain',
-              borderRadius: '0.5rem',
+              borderRadius: 'var(--radius-md)',
             }}
           />
         )}
@@ -273,21 +257,23 @@ export function UploadZone({
   }
 
   return (
-    <label
+    <motion.label
       onDrop={handleDrop}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
+      whileHover={{ borderColor: 'var(--color-accent)', boxShadow: '0 0 24px rgba(129, 140, 248, 0.12)' }}
+      animate={{
+        borderColor: isDragging ? 'var(--color-primary)' : 'rgba(148, 163, 184, 0.2)',
+        background: isDragging ? 'rgba(129, 140, 248, 0.04)' : 'var(--color-surface)',
+      }}
       style={{
         display: 'block',
-        border: `2px dashed ${isDragging ? 'var(--color-primary)' : 'var(--color-border)'}`,
-        borderRadius: '0.75rem',
+        border: '2px dashed rgba(148, 163, 184, 0.2)',
+        borderRadius: 'var(--radius-xl)',
         padding: '3rem',
         textAlign: 'center',
         cursor: 'pointer',
-        backgroundColor: isDragging
-          ? 'rgba(59, 130, 246, 0.05)'
-          : 'var(--color-background)',
-        transition: 'all 0.2s',
+        transition: 'all 0.3s ease-out',
       }}
     >
       <input
@@ -297,40 +283,27 @@ export function UploadZone({
         onChange={handleInputChange}
         style={{ display: 'none' }}
       />
-      <Upload
-        size={48}
-        style={{
-          color: isDragging ? 'var(--color-primary)' : 'var(--color-text-secondary)',
-          marginBottom: '1rem',
-        }}
-      />
-      <p
-        style={{
-          margin: 0,
-          fontWeight: 500,
-          color: 'var(--color-text)',
-        }}
+      <motion.div
+        animate={isDragging ? { scale: 1.1, y: -5 } : { scale: 1, y: 0 }}
+        transition={{ type: 'spring', stiffness: 300, damping: 20 }}
       >
+        <Upload
+          size={48}
+          style={{
+            color: isDragging ? 'var(--color-primary)' : 'var(--color-accent)',
+            marginBottom: '1rem',
+          }}
+        />
+      </motion.div>
+      <p style={{ margin: 0, fontWeight: 600, fontSize: '0.95rem', color: 'var(--color-text)' }}>
         {multiple ? 'Перетащите файлы сюда' : 'Перетащите файл сюда'}
       </p>
-      <p
-        style={{
-          margin: '0.5rem 0 0',
-          fontSize: '0.875rem',
-          color: 'var(--color-text-secondary)',
-        }}
-      >
+      <p style={{ margin: '0.5rem 0 0', fontSize: '0.85rem', color: 'var(--color-text-secondary)' }}>
         {multiple ? 'или нажмите для выбора файлов' : 'или нажмите для выбора файла'}
       </p>
-      <p
-        style={{
-          margin: '1rem 0 0',
-          fontSize: '0.75rem',
-          color: 'var(--color-text-secondary)',
-        }}
-      >
+      <p style={{ margin: '1rem 0 0', fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>
         Поддерживаются: JPG, PNG, GIF, WebP, Excel (.xlsx, .xls) (до 10MB)
       </p>
-    </label>
+    </motion.label>
   );
 }

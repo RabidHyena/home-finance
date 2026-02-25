@@ -6,8 +6,8 @@ export function IncomePage() {
     <TransactionListPage
       type="income"
       title="Доходы"
-      titleColor="#16a34a"
-      buttonColor="#16a34a"
+      titleColor="#22d3ee"
+      buttonColor="#22d3ee"
       categories={INCOME_CATEGORIES}
       categoryLabels={INCOME_CATEGORY_LABELS}
       emptyLabel="Нет доходов"

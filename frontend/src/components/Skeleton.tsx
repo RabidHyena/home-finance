@@ -8,7 +8,7 @@ interface SkeletonProps {
 export function Skeleton({
   width = '100%',
   height = '1rem',
-  borderRadius = '0.375rem',
+  borderRadius = 'var(--radius-sm)',
   style,
 }: SkeletonProps) {
   return (
@@ -21,16 +21,16 @@ export function Skeleton({
 
 export function TransactionCardSkeleton() {
   return (
-    <div
-      className="card"
-      style={{
-        display: 'flex',
-        alignItems: 'center',
-        gap: '1rem',
-        padding: '1rem 1.5rem',
-      }}
-    >
-      <Skeleton width="4px" height="40px" borderRadius="2px" />
+    <div style={{
+      display: 'flex',
+      alignItems: 'center',
+      gap: '1rem',
+      padding: '0.875rem 1.25rem',
+      background: 'var(--color-surface)',
+      borderRadius: 'var(--radius-lg)',
+      border: '1px solid var(--color-border)',
+    }}>
+      <Skeleton width="4px" height="40px" borderRadius="var(--radius-full)" />
       <div style={{ flex: 1 }}>
         <Skeleton width="60%" height="1rem" />
         <Skeleton width="40%" height="0.875rem" style={{ marginTop: '0.5rem' }} />
@@ -42,7 +42,12 @@ export function TransactionCardSkeleton() {
 
 export function StatCardSkeleton() {
   return (
-    <div className="card">
+    <div style={{
+      background: 'var(--color-surface)',
+      borderRadius: 'var(--radius-lg)',
+      border: '1px solid var(--color-border)',
+      padding: 'var(--space-lg)',
+    }}>
       <Skeleton width="50%" height="0.875rem" />
       <Skeleton width="70%" height="1.75rem" style={{ marginTop: '0.5rem' }} />
     </div>
@@ -51,9 +56,14 @@ export function StatCardSkeleton() {
 
 export function ChartSkeleton({ height = '300px' }: { height?: string }) {
   return (
-    <div className="card">
+    <div style={{
+      background: 'var(--color-surface)',
+      borderRadius: 'var(--radius-lg)',
+      border: '1px solid var(--color-border)',
+      padding: 'var(--space-lg)',
+    }}>
       <Skeleton width="40%" height="1.125rem" style={{ marginBottom: '1rem' }} />
-      <Skeleton width="100%" height={height} borderRadius="0.5rem" />
+      <Skeleton width="100%" height={height} borderRadius="var(--radius-md)" />
     </div>
   );
 }
