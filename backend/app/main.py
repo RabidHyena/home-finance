@@ -142,6 +142,21 @@ def root():
     return {"message": "Home Finance API", "docs": "/docs"}
 
 
+@app.post("/api/debug/reset", tags=["debug"], include_in_schema=settings.debug)
+def debug_reset():
+    """Reset in-memory rate limiter and brute-force state. Only available in DEBUG mode."""
+    if not settings.debug:
+        from fastapi import HTTPException
+        raise HTTPException(status_code=404, detail="Not found")
+    from app.routers.auth import _auth_limiter, _failed_logins, _failed_logins_lock
+    from app.cache import analytics_cache
+    _auth_limiter.clear()
+    with _failed_logins_lock:
+        _failed_logins.clear()
+    analytics_cache.clear()
+    return {"reset": True}
+
+
 @app.get("/health", response_model=HealthResponse, tags=["health"])
 def health_check():
     """Health check endpoint."""
