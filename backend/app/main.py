@@ -144,13 +144,14 @@ def root():
 
 @app.post("/api/debug/reset", tags=["debug"], include_in_schema=settings.debug)
 def debug_reset():
-    """Reset in-memory rate limiter and brute-force state. Only available in DEBUG mode."""
+    """Reset all in-memory rate limiters and brute-force state. Only available in DEBUG mode."""
     if not settings.debug:
         from fastapi import HTTPException
         raise HTTPException(status_code=404, detail="Not found")
-    from app.routers.auth import _auth_limiter, _failed_logins, _failed_logins_lock
+    from app.rate_limiter import clear_all_limiters
+    from app.routers.auth import _failed_logins, _failed_logins_lock
     from app.cache import analytics_cache
-    _auth_limiter.clear()
+    clear_all_limiters()
     with _failed_logins_lock:
         _failed_logins.clear()
     analytics_cache.clear()

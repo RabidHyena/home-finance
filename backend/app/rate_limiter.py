@@ -20,7 +20,16 @@ from starlette.middleware.base import BaseHTTPMiddleware
 logger = logging.getLogger(__name__)
 
 # Paths that are exempt from global rate limiting (health checks, docs).
-_EXEMPT_PATHS = frozenset({"/health", "/", "/docs", "/openapi.json", "/redoc"})
+_EXEMPT_PATHS = frozenset({"/health", "/", "/docs", "/openapi.json", "/redoc", "/api/debug/reset"})
+
+# Registry of all RateLimiter instances — used by debug reset to clear all state at once.
+_registry: list["RateLimiter"] = []
+
+
+def clear_all_limiters() -> None:
+    """Clear every registered RateLimiter (debug/test use only)."""
+    for limiter in _registry:
+        limiter.clear()
 
 
 class RateLimiter:
@@ -41,6 +50,7 @@ class RateLimiter:
         self._store: dict[str, list[float]] = {}
         self._lock = threading.Lock()
         self._last_cleanup = 0.0
+        _registry.append(self)
 
     def _cleanup(self, now: float) -> None:
         """Remove expired entries. Caller must hold the lock."""
