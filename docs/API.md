@@ -625,7 +625,7 @@ Get budget status with current spending for a given month.
 |-------|------|----------|-------------|
 | id | integer | No | Unique identifier |
 | amount | decimal | No | Transaction amount (0.01–9,999,999,999) |
-| description | string | No | Merchant name or description (max 500) |
+| description | string | No | Merchant name or description (1–500 chars) |
 | category | string | No | Category (default: "Other") |
 | currency | string | No | Currency code: RUB, USD, EUR, GBP |
 | type | string | No | "expense" or "income" (default: "expense") |
@@ -706,6 +706,7 @@ All errors follow this format:
 
 All transaction inputs are validated and sanitized:
 - **Amount**: must be between `0.01` and `9,999,999,999`
+- **Description**: 1–500 characters (empty string rejected with 422)
 - **Type**: must be `expense` or `income` (validated via `Literal` on all endpoints)
 - **Date range**: must be between year 2000 and 2100
 - **String sanitization**: null bytes, control characters, surrogates, and HTML tags are stripped from `description` and `category` (transactions and budgets)
@@ -718,7 +719,8 @@ All transaction inputs are validated and sanitized:
 Authentication endpoints (`/api/auth/register`, `/api/auth/login`) are rate limited:
 - **Window**: configurable via `RATE_LIMIT_WINDOW` env var (default: 60 seconds)
 - **Max requests**: configurable via `RATE_LIMIT_MAX_REQUESTS` env var (default: 10 per IP; 100 in docker-compose)
-- **Response**: `429 Too Many Requests` when exceeded
+- **Response**: `429 Too Many Requests` when exceeded, includes `Retry-After` header (seconds until retry is allowed)
+- **Brute force**: accounts are locked for 15 minutes after 5 failed login attempts; lockout is per account (not per login alias — email and username share the same counter)
 
 ---
 

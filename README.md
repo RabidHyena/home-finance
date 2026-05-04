@@ -67,7 +67,7 @@ docker compose up --build
 | `OPENROUTER_API_KEY` | да | — | API ключ OpenRouter для AI-распознавания |
 | `OPENROUTER_MODEL` | нет | `google/gemini-3-flash-preview` | Модель для OCR |
 | `DATABASE_URL` | нет | `postgresql://postgres:postgres@db:5432/home_finance` | URL базы данных |
-| `SECRET_KEY` | **да** (prod) | `change-me-in-production` | Секретный ключ для JWT. В production обязателен (RuntimeError при запуске) |
+| `SECRET_KEY` | **да** | — | Секретный ключ для JWT. Обязателен всегда — без него контейнер не стартует |
 | `DEBUG` | нет | `false` | Режим отладки (разрешает default SECRET_KEY, cookie_secure=false) |
 | `SEED_ADMIN_PASSWORD` | нет | `admin` | Пароль admin пользователя при первой миграции |
 | `RATE_LIMIT_WINDOW` | нет | `60` | Окно rate limiter в секундах |

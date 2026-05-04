@@ -90,7 +90,7 @@
 | ID | Требование | Статус |
 |----|------------|--------|
 | NFR-030 | HTTPS в продакшене | 📋 Планируется |
-| NFR-031 | Валидация всех входных данных (Pydantic, EmailStr, amount 0.01–9999999999, date 2000–2100, password max 72, username pattern, type Literal) | ✅ Готово |
+| NFR-031 | Валидация всех входных данных (Pydantic, EmailStr, amount 0.01–9999999999, description 1–500, date 2000–2100, password max 72, username pattern, type Literal) | ✅ Готово |
 | NFR-032 | Защита от SQL-инъекций (ORM) | ✅ Готово |
 | NFR-033 | CORS настройки (ограниченные методы и заголовки) | ✅ Готово |
 | NFR-034 | JWT SECRET_KEY валидация при запуске | ✅ Готово |
