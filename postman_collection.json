@@ -332,6 +332,42 @@
       "name": "2. Expenses CRUD",
       "item": [
         {
+          "name": "Delete all transactions (cleanup)",
+          "request": {
+            "method": "DELETE",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/transactions?confirm=true",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "transactions"
+              ],
+              "query": [
+                {
+                  "key": "confirm",
+                  "value": "true"
+                }
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('Transactions cleaned up', function () {",
+                  "    pm.expect([204, 401]).to.include(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
           "name": "Create expense (Food)",
           "event": [
             {
@@ -849,7 +885,7 @@
           ],
           "request": {
             "method": "GET",
-            "url": "{{baseUrl}}/api/transactions"
+            "url": "{{baseUrl}}/api/transactions?per_page=100"
           }
         }
       ]
