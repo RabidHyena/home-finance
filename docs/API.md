@@ -716,11 +716,30 @@ All transaction inputs are validated and sanitized:
 
 ## Rate Limiting
 
-Authentication endpoints (`/api/auth/register`, `/api/auth/login`) are rate limited:
+**Global** (all endpoints): 100 requests per minute per IP.
+
+**Auth endpoints** (`/api/auth/register`, `/api/auth/login`):
 - **Window**: configurable via `RATE_LIMIT_WINDOW` env var (default: 60 seconds)
 - **Max requests**: configurable via `RATE_LIMIT_MAX_REQUESTS` env var (default: 10 per IP; 100 in docker-compose)
 - **Response**: `429 Too Many Requests` when exceeded, includes `Retry-After` header (seconds until retry is allowed)
 - **Brute force**: accounts are locked for 15 minutes after 5 failed login attempts; lockout is per account (not per login alias — email and username share the same counter)
+
+**Upload endpoint** (`/api/upload`): 10 requests per minute per IP.
+
+---
+
+## Debug Endpoint
+
+Available only when `DEBUG=true`. Returns 404 in production.
+
+### `POST /api/debug/reset`
+
+Clears all in-memory rate limiter counters and brute-force state. Used by the Postman collection before each test run to ensure idempotent execution.
+
+**Response:** `200 OK`
+```json
+{"reset": true}
+```
 
 ---
 

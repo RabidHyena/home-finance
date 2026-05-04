@@ -341,7 +341,7 @@ home-finance/
 | ErrorBoundary | React ErrorBoundary без раскрытия stack trace пользователю |
 | DB Pool | pool_pre_ping=True (обнаружение разорванных соединений), pool_size=5, max_overflow=10 |
 | Input Sanitization | Null bytes, control chars, surrogates, HTML tags stripped from strings (transactions + budgets) |
-| Rate Limiting | In-memory rate limiter на auth endpoints (configurable via env, auto-cleanup) |
+| Rate Limiting | In-memory rate limiter: глобальный (100 rpm), auth endpoints (configurable), upload (10 rpm). Middleware возвращает `JSONResponse(429)` напрямую — не бросает HTTPException, т.к. в Python 3.12 + Starlette это вызывает ExceptionGroup crash |
 | Cookie Security | cookie_secure автоматически из DEBUG (secure=true в production) |
 | nginx CSP | Content-Security-Policy headers на всех location блоках |
 

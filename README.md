@@ -67,7 +67,7 @@ docker compose up --build
 | `OPENROUTER_API_KEY` | да | — | API ключ OpenRouter для AI-распознавания |
 | `OPENROUTER_MODEL` | нет | `google/gemini-3-flash-preview` | Модель для OCR |
 | `DATABASE_URL` | нет | `postgresql://postgres:postgres@db:5432/home_finance` | URL базы данных |
-| `SECRET_KEY` | **да** | — | Секретный ключ для JWT. Обязателен всегда — без него контейнер не стартует |
+| `SECRET_KEY` | **да** | — | Секретный ключ для JWT. В dev можно использовать `change-me-in-production` (при `DEBUG=true`); в production — случайная строка 32+ символов |
 | `DEBUG` | нет | `false` | Режим отладки (разрешает default SECRET_KEY, cookie_secure=false) |
 | `SEED_ADMIN_PASSWORD` | нет | `admin` | Пароль admin пользователя при первой миграции |
 | `RATE_LIMIT_WINDOW` | нет | `60` | Окно rate limiter в секундах |
@@ -115,6 +115,14 @@ cd backend
 pip install -r requirements-dev.txt
 DEBUG=true pytest -v
 ```
+
+### Postman-коллекция
+
+Коллекция находится в `postman_collection.json`. Требует запущенного Docker-стека (`docker compose up`).
+
+Первый запрос коллекции (`Reset server state (debug)`) вызывает `POST /api/debug/reset` — сбрасывает in-memory rate limiter и brute-force счётчики перед прогоном. Это позволяет запускать коллекцию неограниченное количество раз подряд без фэйлов из-за накопленного состояния.
+
+> **Важно:** сервер должен быть запущен с `DEBUG=true` (задан в `.env` по умолчанию). В production `DEBUG=false`, и эндпоинт `/api/debug/reset` возвращает 404.
 
 ## Структура проекта
 
