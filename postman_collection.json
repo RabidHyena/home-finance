@@ -31,6 +31,37 @@
       "name": "1. Auth",
       "item": [
         {
+          "name": "Reset server state (debug)",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": {
+              "raw": "{{baseUrl}}/api/debug/reset",
+              "host": [
+                "{{baseUrl}}"
+              ],
+              "path": [
+                "api",
+                "debug",
+                "reset"
+              ]
+            }
+          },
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('State reset (or not in debug mode)', function () {",
+                  "    pm.expect([200, 404]).to.include(pm.response.code);",
+                  "});"
+                ]
+              }
+            }
+          ]
+        },
+        {
           "name": "Register new user (idempotent)",
           "event": [
             {
@@ -47,22 +78,6 @@
                   "        pm.expect(json).to.have.property('created_at').that.is.a('string');",
                   "        pm.expect(json).to.not.have.property('password');",
                   "        pm.expect(json).to.not.have.property('hashed_password');",
-                  "    }",
-                  "});"
-                ]
-              }
-            },
-            {
-              "listen": "prerequest",
-              "script": {
-                "type": "text/javascript",
-                "exec": [
-                  "pm.sendRequest({",
-                  "    url: pm.collectionVariables.get('baseUrl') + '/api/debug/reset',",
-                  "    method: 'POST'",
-                  "}, function (err, res) {",
-                  "    if (err || res.code !== 200) {",
-                  "        console.warn('[pre-request] /api/debug/reset failed - server may not be in DEBUG mode');",
                   "    }",
                   "});"
                 ]
