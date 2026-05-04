@@ -12,11 +12,11 @@ from app.models import User
 from app.rate_limiter import RateLimiter
 from app.schemas_auth import UserLogin, UserRegister, UserResponse
 from app.services.auth_service import (
-    authenticate_user,
     create_access_token,
     create_user,
     get_user_by_email,
     get_user_by_username,
+    verify_password,
 )
 
 logger = logging.getLogger(__name__)
@@ -94,11 +94,14 @@ def register(data: UserRegister, response: Response, request: Request, db: Sessi
 @router.post("/login", response_model=UserResponse)
 def login(data: UserLogin, response: Response, request: Request, db: Session = Depends(get_db)):
     _auth_limiter.check(request.client.host if request.client else "unknown")
-    login_key = data.login.lower()
+
+    # Resolve to canonical user first so both email and username map to the same lockout counter.
+    # Without this, an attacker gets _MAX_FAILED_ATTEMPTS guesses per login alias (email + username).
+    user = get_user_by_email(db, data.login) or get_user_by_username(db, data.login)
+    login_key = str(user.id) if user else f"unknown:{data.login.lower()}"
     _check_brute_force(login_key)
 
-    user = authenticate_user(db, data.login, data.password)
-    if not user:
+    if not user or not verify_password(data.password, user.hashed_password):
         _record_failed_login(login_key)
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
