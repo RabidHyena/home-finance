@@ -15,6 +15,7 @@ import threading
 import time
 
 from fastapi import HTTPException, Request
+from fastapi.responses import JSONResponse
 from starlette.middleware.base import BaseHTTPMiddleware
 
 logger = logging.getLogger(__name__)
@@ -126,13 +127,22 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
 
         # Check per-prefix limiter first. Prefixes are matched in insertion order —
         # add more specific prefixes before less specific ones in prefix_limits.
-        for prefix, limiter in self._prefix_limiters.items():
-            if request.url.path.startswith(prefix):
-                limiter.check(client_ip)
-                break
-        else:
-            # No prefix match — use default
-            self._default.check(client_ip)
+        try:
+            for prefix, limiter in self._prefix_limiters.items():
+                if request.url.path.startswith(prefix):
+                    limiter.check(client_ip)
+                    break
+            else:
+                self._default.check(client_ip)
+        except HTTPException as exc:
+            # Return a Response directly — never raise HTTPException inside
+            # BaseHTTPMiddleware.dispatch(): in Python 3.12 + Starlette it wraps
+            # the exception in an ExceptionGroup that crashes the ASGI app.
+            return JSONResponse(
+                status_code=exc.status_code,
+                content={"detail": exc.detail},
+                headers=dict(exc.headers) if exc.headers else {},
+            )
 
         return await call_next(request)
 
