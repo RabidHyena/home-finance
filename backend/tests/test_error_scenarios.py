@@ -254,9 +254,7 @@ class TestValidationEdgeCases:
             "description": "",
             "date": "2026-01-15T12:00:00",
         })
-        # Empty string is technically valid by schema but should at least not crash
-        # (no min_length on description currently)
-        assert resp.status_code in (201, 422)
+        assert resp.status_code == 422
 
 
 # --- Auth Edge Cases ---
@@ -374,12 +372,6 @@ class TestDeleteSafety:
 # --- Brute Force Protection ---
 
 class TestBruteForceProtection:
-
-    def setup_method(self):
-        """Clear brute force tracking between tests."""
-        from app.routers.auth import _failed_logins, _failed_logins_lock
-        with _failed_logins_lock:
-            _failed_logins.clear()
 
     def test_lockout_after_max_failed_attempts(self, client, test_user):
         from app.routers.auth import _MAX_FAILED_ATTEMPTS

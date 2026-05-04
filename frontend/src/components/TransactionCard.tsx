@@ -28,7 +28,7 @@ export const TransactionCard = memo(function TransactionCard({
 
   return (
     <motion.div
-      whileHover={{ scale: 1.01, y: -1 }}
+      whileHover={{ scale: 1.01, y: -1, borderColor: categoryColor + '40', boxShadow: `0 0 16px ${categoryColor}15` }}
       transition={{ type: 'spring', stiffness: 400, damping: 30 }}
       style={{
         display: 'flex',
@@ -39,14 +39,6 @@ export const TransactionCard = memo(function TransactionCard({
         borderRadius: 'var(--radius-lg)',
         border: '1px solid var(--color-border)',
         boxShadow: 'var(--shadow-sm)',
-        transition: 'border-color 0.25s, box-shadow 0.25s',
-      }}
-      onHoverStart={(_, info) => {
-        const el = (info as { target?: HTMLElement })?.target;
-        if (el) {
-          el.style.borderColor = categoryColor + '40';
-          el.style.boxShadow = `0 0 16px ${categoryColor}15`;
-        }
       }}
     >
       {/* Category indicator */}

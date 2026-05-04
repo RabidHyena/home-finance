@@ -50,6 +50,11 @@ Thumbs.db
 htmlcov/
 .pytest_cache/
 *.db
+frontend/test-results/
+frontend/e2e/.auth-state.json
+
+# Local dev artifacts
+cookies.txt
 
 # Logs
 *.log

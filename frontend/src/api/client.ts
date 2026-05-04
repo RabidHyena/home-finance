@@ -396,11 +396,17 @@ export const api = {
     });
     if (response.status === 401) {
       window.dispatchEvent(new CustomEvent('auth:unauthorized'));
-      throw new Error('Unauthorized');
+      throw new ApiError('Unauthorized', 401);
     }
     if (!response.ok) {
       const err = await response.json().catch(() => null);
-      throw new Error(err?.detail || 'Failed to export');
+      const message = err?.detail || `Request failed (${response.status})`;
+      let retryAfter: number | undefined;
+      if (response.status === 429) {
+        const header = response.headers.get('Retry-After');
+        if (header) retryAfter = parseInt(header, 10) || undefined;
+      }
+      throw new ApiError(message, response.status, retryAfter);
     }
     return response.blob();
   },

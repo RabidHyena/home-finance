@@ -60,7 +60,7 @@ class TransactionBase(BaseModel):
     """Base schema for transaction data (no validation, for responses)."""
 
     amount: Decimal = Field(..., description="Transaction amount", ge=Decimal('0.01'), le=Decimal('9999999999'))
-    description: str = Field(..., description="Transaction description", max_length=500)
+    description: str = Field(..., description="Transaction description", min_length=1, max_length=500)
     category: Optional[str] = Field(None, description="Transaction category", max_length=100)
     date: datetime = Field(..., description="Transaction date")
     currency: str = Field(default='RUB', max_length=3, pattern=CURRENCY_PATTERN)
@@ -80,7 +80,7 @@ class TransactionUpdate(_InputValidationMixin, BaseModel):
     """Schema for updating a transaction (with validation)."""
 
     amount: Optional[Decimal] = Field(None, ge=Decimal('0.01'), le=Decimal('9999999999'))
-    description: Optional[str] = Field(None, max_length=500)
+    description: Optional[str] = Field(None, min_length=1, max_length=500)
     category: Optional[str] = Field(None, max_length=100)
     date: Optional[datetime] = None
     currency: Optional[str] = Field(None, max_length=3, pattern=CURRENCY_PATTERN)

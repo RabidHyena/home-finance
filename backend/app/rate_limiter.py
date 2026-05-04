@@ -2,6 +2,12 @@
 
 Provides both a callable checker (for per-endpoint use) and a FastAPI middleware
 for global per-IP rate limiting.
+
+NOTE: All state is process-local (module-level dicts + threading.Lock). This is
+intentional for a single-worker deployment. If the app is ever scaled to multiple
+workers (e.g., uvicorn --workers N or gunicorn), counters will be per-process and
+rate limits will multiply by the worker count. Replace with a shared backend
+(Redis, PostgreSQL) before enabling multi-worker mode.
 """
 
 import logging
@@ -63,6 +69,7 @@ class RateLimiter:
                 raise HTTPException(
                     status_code=429,
                     detail="Too many requests. Please try again later.",
+                    headers={"Retry-After": str(self.window)},
                 )
             attempts.append(now)
             self._store[key] = attempts
@@ -107,7 +114,8 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         if client_ip == "testclient":
             return await call_next(request)
 
-        # Check per-prefix limiter first (most specific match)
+        # Check per-prefix limiter first. Prefixes are matched in insertion order —
+        # add more specific prefixes before less specific ones in prefix_limits.
         for prefix, limiter in self._prefix_limiters.items():
             if request.url.path.startswith(prefix):
                 limiter.check(client_ip)

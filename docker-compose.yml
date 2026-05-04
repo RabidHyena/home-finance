@@ -31,7 +31,7 @@ services:
     environment:
       DATABASE_URL: ${DATABASE_URL:-postgresql://postgres:postgres@db:5432/home_finance}
       OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
-      SECRET_KEY: ${SECRET_KEY:-change-me-in-production}
+      SECRET_KEY: ${SECRET_KEY}
       DEBUG: ${DEBUG:-false}
       RATE_LIMIT_WINDOW: ${RATE_LIMIT_WINDOW:-60}
       RATE_LIMIT_MAX_REQUESTS: ${RATE_LIMIT_MAX_REQUESTS:-100}

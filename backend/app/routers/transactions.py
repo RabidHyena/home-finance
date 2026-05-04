@@ -256,13 +256,13 @@ def get_monthly_reports(
     if type:
         query = query.filter(Transaction.type == type)
 
+    if year:
+        query = query.filter(extract("year", Transaction.date) == year)
+
     query = query.group_by(
         extract("year", Transaction.date),
         extract("month", Transaction.date),
     )
-
-    if year:
-        query = query.filter(extract("year", Transaction.date) == year)
 
     results = query.order_by(
         extract("year", Transaction.date).desc(),

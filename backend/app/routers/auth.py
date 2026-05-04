@@ -50,6 +50,7 @@ def _check_brute_force(login_key: str) -> None:
             raise HTTPException(
                 status_code=429,
                 detail="Too many failed login attempts. Please try again later.",
+                headers={"Retry-After": str(_LOCKOUT_DURATION)},
             )
 
 
