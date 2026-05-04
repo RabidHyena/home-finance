@@ -51,6 +51,22 @@
                   "});"
                 ]
               }
+            },
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.sendRequest({",
+                  "    url: pm.collectionVariables.get('baseUrl') + '/api/debug/reset',",
+                  "    method: 'POST'",
+                  "}, function (err, res) {",
+                  "    if (err || res.code !== 200) {",
+                  "        console.warn('[pre-request] /api/debug/reset failed - server may not be in DEBUG mode');",
+                  "    }",
+                  "});"
+                ]
+              }
             }
           ],
           "request": {
@@ -2209,22 +2225,5 @@
       ]
     }
   ],
-  "event": [
-    {
-      "listen": "prerequest",
-      "script": {
-        "type": "text/javascript",
-        "exec": [
-          "pm.sendRequest({",
-          "    url: pm.collectionVariables.get('baseUrl') + '/api/debug/reset',",
-          "    method: 'POST'",
-          "}, function (err, res) {",
-          "    if (err || res.code !== 200) {",
-          "        console.warn('[pre-request] /api/debug/reset failed - server may not be in DEBUG mode');",
-          "    }",
-          "});"
-        ]
-      }
-    }
-  ]
+  "event": []
 }
