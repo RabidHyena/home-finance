@@ -1,5 +1,6 @@
 import logging
 import logging.config
+import secrets
 import time
 import uuid
 from contextlib import asynccontextmanager
@@ -93,6 +94,36 @@ app.add_middleware(
 )
 
 _request_logger = logging.getLogger("app.requests")
+
+_CSRF_EXEMPT_PATHS = {
+    "/api/auth/login",
+    "/api/auth/register",
+    "/api/auth/forgot-password",
+    "/api/auth/reset-password",
+    "/api/auth/csrf",
+    "/health",
+    "/api/debug/reset",
+}
+
+
+@app.middleware("http")
+async def csrf_middleware(request: Request, call_next):
+    """Double-submit cookie CSRF protection for authenticated state-mutating requests."""
+    if request.method in ("GET", "HEAD", "OPTIONS") or request.url.path in _CSRF_EXEMPT_PATHS:
+        return await call_next(request)
+
+    # Only enforce CSRF for sessions that have an auth cookie — unauthenticated
+    # requests will fail at the dependency level with 401, not here.
+    if not request.cookies.get(settings.cookie_name):
+        return await call_next(request)
+
+    csrf_cookie = request.cookies.get("csrf_token", "")
+    csrf_header = request.headers.get("X-CSRF-Token", "")
+
+    if not csrf_cookie or not csrf_header or not secrets.compare_digest(csrf_cookie, csrf_header):
+        return JSONResponse(status_code=403, content={"detail": "CSRF validation failed"})
+
+    return await call_next(request)
 
 
 @app.middleware("http")

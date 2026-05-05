@@ -6,3 +6,5 @@ export { ReportsPage } from './ReportsPage';
 export { BudgetsPage } from './BudgetsPage';
 export { LoginPage } from './LoginPage';
 export { RegisterPage } from './RegisterPage';
+export { ForgotPasswordPage } from './ForgotPasswordPage';
+export { ResetPasswordPage } from './ResetPasswordPage';

@@ -3,8 +3,7 @@ import { useNavigate } from 'react-router-dom';
 import { CheckCircle } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { UploadZone, MultipleTransactionsForm, RecognizedChartDisplay, useToast, ErrorBoundary } from '../components';
-import { useUploadAndParse, useBatchUploadAndParse } from '../hooks/useApi';
-import { api } from '../api/client';
+import { useUploadAndParse, useBatchUploadAndParse, useCreateTransactionsBulk } from '../hooks/useApi';
 import type { TransactionCreate, BatchUploadResponse } from '../types';
 import { slideUp, scaleIn } from '../motion';
 
@@ -17,6 +16,7 @@ export function UploadPage() {
   const toast = useToast();
   const uploadMutation = useUploadAndParse();
   const batchUploadMutation = useBatchUploadAndParse();
+  const createBulkMutation = useCreateTransactionsBulk();
   const [isSaving, setIsSaving] = useState(false);
   const [saveError, setSaveError] = useState<Error | null>(null);
   const [batchResults, setBatchResults] = useState<BatchUploadResponse | null>(null);
@@ -93,7 +93,7 @@ export function UploadPage() {
         };
       });
 
-      const result = await api.createTransactionsBulk(enrichedTransactions);
+      const result = await createBulkMutation.mutateAsync(enrichedTransactions);
       const succeeded = result.length;
 
       if (succeeded > 0 && batchIndex !== undefined) {
@@ -114,7 +114,7 @@ export function UploadPage() {
     setIsSaving(true);
     setSaveError(null);
     try {
-      const result = await api.createTransactionsBulk(transactions);
+      const result = await createBulkMutation.mutateAsync(transactions);
       toast.success(`Создано транзакций из диаграммы: ${result.length}`);
 
       if (batchIndex !== undefined) {

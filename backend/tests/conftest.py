@@ -6,7 +6,7 @@ from sqlalchemy.pool import StaticPool
 
 from app.main import app
 from app.database import Base, get_db
-from app.models import User
+from app.models import User, PasswordResetToken  # noqa: F401 — needed for table creation
 from app.services.auth_service import create_access_token
 import bcrypt
 from app.config import get_settings
@@ -69,13 +69,17 @@ def test_user():
     return user
 
 
+_CSRF_TEST_TOKEN = "csrf-test-token-fixture-abcdef0123456789abcdef0123456789"
+
+
 @pytest.fixture
 def auth_client(test_user):
-    """Test client with JWT cookie set for authentication."""
+    """Test client with JWT cookie and CSRF token set for authentication."""
     settings = get_settings()
     token = create_access_token(test_user.id)
-    client = TestClient(app)
+    client = TestClient(app, headers={"X-CSRF-Token": _CSRF_TEST_TOKEN})
     client.cookies.set(settings.cookie_name, token)
+    client.cookies.set("csrf_token", _CSRF_TEST_TOKEN)
     return client
 
 
@@ -97,9 +101,10 @@ def second_user():
 
 @pytest.fixture
 def second_auth_client(second_user):
-    """Test client authenticated as second user."""
+    """Test client authenticated as second user, with CSRF token."""
     settings = get_settings()
     token = create_access_token(second_user.id)
-    client = TestClient(app)
+    client = TestClient(app, headers={"X-CSRF-Token": _CSRF_TEST_TOKEN})
     client.cookies.set(settings.cookie_name, token)
+    client.cookies.set("csrf_token", _CSRF_TEST_TOKEN)
     return client

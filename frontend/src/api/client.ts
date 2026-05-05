@@ -37,6 +37,22 @@ const API_BASE = import.meta.env.VITE_API_URL || '';
 // Flag to use mock data (default: false — use real backend)
 const USE_MOCK = import.meta.env.VITE_USE_MOCK === 'true';
 
+function getCsrfToken(): string {
+  const match = document.cookie.match(/(?:^|; )csrf_token=([^;]*)/);
+  return match ? decodeURIComponent(match[1]) : '';
+}
+
+function csrfHeaders(): Record<string, string> {
+  const token = getCsrfToken();
+  return token ? { 'X-CSRF-Token': token } : {};
+}
+
+async function ensureCsrfToken(): Promise<void> {
+  if (!getCsrfToken()) {
+    await fetch(`${API_BASE}/api/auth/csrf`, { credentials: 'include' });
+  }
+}
+
 // Custom error that preserves HTTP status and Retry-After header
 class ApiError extends Error {
   status: number;
@@ -78,6 +94,7 @@ async function handleResponse<T>(response: Response): Promise<T> {
 export const api = {
   // Auth
   async login(data: LoginRequest): Promise<User> {
+    await ensureCsrfToken();
     const response = await fetch(`${API_BASE}/api/auth/login`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -88,6 +105,7 @@ export const api = {
   },
 
   async register(data: RegisterRequest): Promise<User> {
+    await ensureCsrfToken();
     const response = await fetch(`${API_BASE}/api/auth/register`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
@@ -100,8 +118,29 @@ export const api = {
   async logout(): Promise<void> {
     await fetch(`${API_BASE}/api/auth/logout`, {
       method: 'POST',
+      headers: { ...csrfHeaders() },
       credentials: 'include',
     });
+  },
+
+  async forgotPassword(email: string): Promise<void> {
+    const response = await fetch(`${API_BASE}/api/auth/forgot-password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ email }),
+      credentials: 'include',
+    });
+    return handleResponse<void>(response);
+  },
+
+  async resetPassword(token: string, newPassword: string): Promise<void> {
+    const response = await fetch(`${API_BASE}/api/auth/reset-password`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ token, new_password: newPassword }),
+      credentials: 'include',
+    });
+    return handleResponse<void>(response);
   },
 
   async getMe(): Promise<User> {
@@ -213,7 +252,7 @@ export const api = {
 
     const response = await fetch(`${API_BASE}/api/transactions`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...csrfHeaders() },
       body: JSON.stringify(data),
       credentials: 'include',
     });
@@ -247,7 +286,7 @@ export const api = {
 
     const response = await fetch(`${API_BASE}/api/transactions/bulk`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...csrfHeaders() },
       body: JSON.stringify(data),
       credentials: 'include',
     });
@@ -273,7 +312,7 @@ export const api = {
 
     const response = await fetch(`${API_BASE}/api/transactions/${id}`, {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...csrfHeaders() },
       body: JSON.stringify(data),
       credentials: 'include',
     });
@@ -291,6 +330,7 @@ export const api = {
 
     const response = await fetch(`${API_BASE}/api/transactions/${id}`, {
       method: 'DELETE',
+      headers: { ...csrfHeaders() },
       credentials: 'include',
     });
     await handleResponse<void>(response);
@@ -308,6 +348,7 @@ export const api = {
     const qs = params.toString();
     const response = await fetch(`${API_BASE}/api/transactions?${qs}`, {
       method: 'DELETE',
+      headers: { ...csrfHeaders() },
       credentials: 'include',
     });
     await handleResponse<void>(response);
@@ -347,6 +388,7 @@ export const api = {
 
     const response = await fetch(`${API_BASE}/api/upload`, {
       method: 'POST',
+      headers: { ...csrfHeaders() },
       body: formData,
       credentials: 'include',
     });
@@ -595,7 +637,7 @@ export const api = {
 
     const response = await fetch(`${API_BASE}/api/budgets`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...csrfHeaders() },
       body: JSON.stringify(data),
       credentials: 'include',
     });
@@ -618,7 +660,7 @@ export const api = {
 
     const response = await fetch(`${API_BASE}/api/budgets/${id}`, {
       method: 'PUT',
-      headers: { 'Content-Type': 'application/json' },
+      headers: { 'Content-Type': 'application/json', ...csrfHeaders() },
       body: JSON.stringify(data),
       credentials: 'include',
     });
@@ -633,6 +675,7 @@ export const api = {
 
     const response = await fetch(`${API_BASE}/api/budgets/${id}`, {
       method: 'DELETE',
+      headers: { ...csrfHeaders() },
       credentials: 'include',
     });
     await handleResponse<void>(response);
@@ -650,6 +693,7 @@ export const api = {
 
     const response = await fetch(`${API_BASE}/api/upload/batch`, {
       method: 'POST',
+      headers: { ...csrfHeaders() },
       body: formData,
       credentials: 'include',
     });

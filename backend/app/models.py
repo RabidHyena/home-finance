@@ -2,6 +2,7 @@ from sqlalchemy import Column, Index, Integer, String, Numeric, DateTime, Text, 
 from sqlalchemy.orm import relationship
 from sqlalchemy.sql import func
 from app.database import Base
+from app.crypto import EncryptedText
 
 
 class User(Base):
@@ -19,6 +20,7 @@ class User(Base):
     budgets = relationship("Budget", back_populates="user")
     category_corrections = relationship("CategoryCorrection", back_populates="user")
     merchant_mappings = relationship("MerchantCategoryMapping", back_populates="user")
+    reset_tokens = relationship("PasswordResetToken", back_populates="user")
 
 
 class Transaction(Base):
@@ -34,8 +36,8 @@ class Transaction(Base):
     date = Column(DateTime, nullable=False, index=True)
     currency = Column(String(3), nullable=False, default='RUB')
     type = Column(String(10), nullable=False, default='expense', index=True)
-    image_path = Column(String(500), nullable=True)
-    raw_text = Column(Text, nullable=True)
+    image_path = Column(EncryptedText, nullable=True)
+    raw_text = Column(EncryptedText, nullable=True)
     ai_category = Column(String(100), nullable=True)  # Original AI prediction
     ai_confidence = Column(Numeric(3, 2), nullable=True)  # AI confidence 0.00-1.00
     created_at = Column(DateTime, server_default=func.now())
@@ -86,6 +88,20 @@ class MerchantCategoryMapping(Base):
     __table_args__ = (
         UniqueConstraint('user_id', 'merchant_normalized', name='uq_user_merchant'),
     )
+
+
+class PasswordResetToken(Base):
+    """Single-use tokens for password reset."""
+    __tablename__ = "password_reset_tokens"
+
+    id = Column(Integer, primary_key=True, index=True)
+    user_id = Column(Integer, ForeignKey('users.id', ondelete='CASCADE'), nullable=False, index=True)
+    token_hash = Column(String(64), unique=True, nullable=False, index=True)
+    expires_at = Column(DateTime(timezone=True), nullable=False)
+    used_at = Column(DateTime(timezone=True), nullable=True)
+    created_at = Column(DateTime, server_default=func.now())
+
+    user = relationship("User", back_populates="reset_tokens")
 
 
 class Budget(Base):

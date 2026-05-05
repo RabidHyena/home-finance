@@ -4,7 +4,7 @@ import { QueryClientProvider } from '@tanstack/react-query';
 import { AnimatePresence } from 'framer-motion';
 import { Layout, ToastProvider, ProtectedRoute, ErrorBoundary, PageTransition } from './components';
 import { AuthProvider } from './contexts/AuthContext';
-import { HomePage, LoginPage, RegisterPage } from './pages';
+import { HomePage, LoginPage, RegisterPage, ForgotPasswordPage, ResetPasswordPage } from './pages';
 import { queryClient } from './queryClient';
 
 // Lazy-loaded pages (heavy: Recharts, file upload, etc.)
@@ -21,6 +21,8 @@ function AnimatedRoutes() {
       <Routes location={location} key={location.pathname}>
         <Route path="/login" element={<PageTransition><LoginPage /></PageTransition>} />
         <Route path="/register" element={<PageTransition><RegisterPage /></PageTransition>} />
+        <Route path="/forgot-password" element={<PageTransition><ForgotPasswordPage /></PageTransition>} />
+        <Route path="/reset-password" element={<PageTransition><ResetPasswordPage /></PageTransition>} />
         <Route
           path="/"
           element={

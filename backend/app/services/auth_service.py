@@ -1,3 +1,5 @@
+import hashlib
+import secrets
 from datetime import datetime, timedelta, timezone
 from typing import Optional
 
@@ -7,7 +9,7 @@ from jwt.exceptions import PyJWTError
 from sqlalchemy.orm import Session
 
 from app.config import get_settings
-from app.models import User
+from app.models import PasswordResetToken, User
 
 
 def hash_password(password: str) -> str:
@@ -49,6 +51,48 @@ def get_user_by_email(db: Session, email: str) -> Optional[User]:
 
 def get_user_by_username(db: Session, username: str) -> Optional[User]:
     return db.query(User).filter(User.username == username).first()
+
+
+def create_reset_token(db: Session, email: str) -> Optional[str]:
+    """Create a password reset token. Returns raw hex token, or None if user not found."""
+    user = get_user_by_email(db, email)
+    if not user:
+        return None
+
+    raw_token = secrets.token_hex(32)
+    token_hash = hashlib.sha256(raw_token.encode()).hexdigest()
+
+    # Invalidate any pending tokens for this user
+    db.query(PasswordResetToken).filter(
+        PasswordResetToken.user_id == user.id,
+        PasswordResetToken.used_at.is_(None),
+    ).delete()
+
+    expires_at = datetime.now(timezone.utc) + timedelta(hours=1)
+    db.add(PasswordResetToken(user_id=user.id, token_hash=token_hash, expires_at=expires_at))
+    db.commit()
+    return raw_token
+
+
+def consume_reset_token(db: Session, raw_token: str, new_password: str) -> bool:
+    """Validate token, update password, mark token used. Returns True on success."""
+    token_hash = hashlib.sha256(raw_token.encode()).hexdigest()
+    now = datetime.now(timezone.utc)
+
+    token_obj = db.query(PasswordResetToken).filter(
+        PasswordResetToken.token_hash == token_hash,
+        PasswordResetToken.used_at.is_(None),
+        PasswordResetToken.expires_at > now,
+    ).first()
+
+    if not token_obj:
+        return False
+
+    token_obj.used_at = now
+    user = db.query(User).filter(User.id == token_obj.user_id).first()
+    user.hashed_password = hash_password(new_password)
+    db.commit()
+    return True
 
 
 def create_user(db: Session, email: str, username: str, password: str) -> User:

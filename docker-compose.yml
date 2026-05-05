@@ -66,6 +66,10 @@ services:
     container_name: home-finance-frontend
     ports:
       - "127.0.0.1:3000:80"
+      # Uncomment and mount certs to enable HTTPS (see nginx.conf for SSL server block):
+      # - "0.0.0.0:443:443"
+      # volumes:
+      #   - /etc/letsencrypt/live/yourdomain:/etc/nginx/certs:ro
     depends_on:
       backend:
         condition: service_healthy

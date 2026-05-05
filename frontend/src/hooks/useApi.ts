@@ -184,6 +184,18 @@ export function useDeleteAllTransactions() {
   });
 }
 
+export function useCreateTransactionsBulk() {
+  const qc = useQueryClient();
+  return useMutation({
+    mutationFn: (data: TransactionCreate[]) => api.createTransactionsBulk(data),
+    onSuccess: () => {
+      qc.invalidateQueries({ queryKey: keys.transactions });
+      qc.invalidateQueries({ queryKey: keys.reports });
+      qc.invalidateQueries({ queryKey: keys.budgetsStatus });
+    },
+  });
+}
+
 export function useUploadAndParse() {
   return useMutation({
     mutationFn: (file: File) => api.uploadAndParse(file),

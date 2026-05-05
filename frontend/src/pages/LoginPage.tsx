@@ -241,10 +241,21 @@ export function LoginPage() {
         <motion.p
           initial={{ opacity: 0 }}
           animate={{ opacity: 1 }}
+          transition={{ delay: 0.4 }}
+          style={{ textAlign: 'center', marginTop: '1rem', fontSize: '0.875rem', color: 'var(--color-text-muted)' }}
+        >
+          <Link to="/forgot-password" style={{ color: 'var(--color-text-secondary)', textDecoration: 'none', transition: 'color 0.2s' }}>
+            Забыли пароль?
+          </Link>
+        </motion.p>
+
+        <motion.p
+          initial={{ opacity: 0 }}
+          animate={{ opacity: 1 }}
           transition={{ delay: 0.5 }}
           style={{
             textAlign: 'center',
-            marginTop: '1.5rem',
+            marginTop: '0.75rem',
             fontSize: '0.875rem',
             color: 'var(--color-text-muted)',
           }}

@@ -1,4 +1,5 @@
 import logging
+import secrets
 import threading
 import time
 
@@ -10,9 +11,11 @@ from app.database import get_db
 from app.dependencies import get_current_user
 from app.models import User
 from app.rate_limiter import RateLimiter
-from app.schemas_auth import UserLogin, UserRegister, UserResponse
+from app.schemas_auth import ForgotPasswordRequest, ResetPasswordRequest, UserLogin, UserRegister, UserResponse
 from app.services.auth_service import (
+    consume_reset_token,
     create_access_token,
+    create_reset_token,
     create_user,
     get_user_by_email,
     get_user_by_username,
@@ -127,3 +130,37 @@ def logout(response: Response):
 @router.get("/me", response_model=UserResponse)
 def get_me(current_user: User = Depends(get_current_user)):
     return current_user
+
+
+@router.get("/csrf")
+def get_csrf_token(response: Response):
+    """Issue a CSRF token as a JS-readable cookie for the double-submit pattern."""
+    settings = get_settings()
+    token = secrets.token_hex(32)
+    response.set_cookie(
+        key="csrf_token",
+        value=token,
+        httponly=False,
+        secure=settings.cookie_secure,
+        samesite="strict",
+        max_age=3600,
+        path="/",
+    )
+    return {"csrf_token": token}
+
+
+@router.post("/forgot-password")
+def forgot_password(data: ForgotPasswordRequest, request: Request, db: Session = Depends(get_db)):
+    _auth_limiter.check(request.client.host if request.client else "unknown")
+    raw_token = create_reset_token(db, data.email)
+    result: dict = {"message": "If the email exists, a reset link has been sent."}
+    if raw_token and settings.debug:
+        result["debug_token"] = raw_token
+    return result
+
+
+@router.post("/reset-password")
+def reset_password(data: ResetPasswordRequest, db: Session = Depends(get_db)):
+    if not consume_reset_token(db, data.token, data.new_password):
+        raise HTTPException(status_code=400, detail="Invalid or expired reset token")
+    return {"message": "Password updated successfully"}
