@@ -5,7 +5,6 @@ class TestEncryptedFields:
     def test_raw_text_is_stored_encrypted_in_db(self, auth_client, test_user):
         """raw_text in DB should not be plaintext after creating a transaction."""
         from tests.conftest import TestingSessionLocal
-        from app.models import Transaction
         import sqlalchemy as sa
 
         auth_client.post("/api/transactions", json={

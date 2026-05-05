@@ -1,5 +1,4 @@
 """Tests for password reset flow."""
-import time
 
 
 class TestForgotPassword:
