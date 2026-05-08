@@ -37,9 +37,12 @@ class EncryptedText(TypeDecorator):
     def process_result_value(self, value, dialect):
         if value is None:
             return None
+        # Fernet tokens always start with "gAAAAA" (base64 of version+IV prefix).
+        # Values without this prefix are legacy plaintext stored before encryption.
+        if not value.startswith("gAAAAA"):
+            return value
         try:
             return _get_fernet().decrypt(value.encode()).decode()
         except (InvalidToken, Exception):
-            # Fallback for plaintext values stored before encryption was enabled
-            logger.warning("Failed to decrypt field value, returning raw value")
-            return value
+            logger.error("Failed to decrypt field value — key mismatch or corrupted data")
+            return None

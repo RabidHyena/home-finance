@@ -2,6 +2,7 @@ import logging
 from decimal import Decimal
 from typing import Optional
 
+from sqlalchemy import case, func
 from sqlalchemy.orm import Session
 
 from app.models import Transaction, CategoryCorrection, MerchantCategoryMapping
@@ -35,17 +36,15 @@ def log_correction(db: Session, transaction: Transaction, user_id: int):
 
 def _update_merchant_mapping(db: Session, merchant: str, category: str, user_id: int):
     """Update or create merchant-category mapping if threshold met."""
-    # Count corrections for this merchant → category
-    category_count = db.query(CategoryCorrection).filter_by(
-        user_id=user_id,
-        merchant_normalized=merchant,
-        corrected_category=category
-    ).count()
-
-    total_count = db.query(CategoryCorrection).filter_by(
-        user_id=user_id,
-        merchant_normalized=merchant
-    ).count()
+    row = db.query(
+        func.count().label("total"),
+        func.count(case((CategoryCorrection.corrected_category == category, 1))).label("category_count"),
+    ).filter(
+        CategoryCorrection.user_id == user_id,
+        CategoryCorrection.merchant_normalized == merchant,
+    ).one()
+    category_count = row.category_count
+    total_count = row.total
 
     # Require: 3+ corrections AND 70%+ agreement
     if category_count >= 3 and (category_count / total_count) >= 0.7:

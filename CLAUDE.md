@@ -69,15 +69,16 @@ React 19 + TypeScript SPA → FastAPI backend → PostgreSQL. The frontend proxi
 
 ### Backend (`backend/app/`)
 
-- **`main.py`** — wires FastAPI app: CORS, `RateLimitMiddleware`, CSRF middleware, request logging middleware, global exception handler. The rate limiter uses `JSONResponse(429)` directly rather than raising `HTTPException` — this is intentional because Python 3.12 + Starlette converts unhandled `HTTPException` to `ExceptionGroup`, which crashes the process.
-- **`config.py`** — single `Settings` object via `get_settings()`. `cookie_secure` is auto-set from `DEBUG`. `SECRET_KEY` raises `RuntimeError` at startup if unset in production.
-- **`models.py`** — SQLAlchemy models: `User`, `Transaction`, `Budget`, `CategoryCorrection`, `MerchantCategoryMapping`, `PasswordResetToken`, `AuditLog`. All user-owned models carry `user_id` FK — every query filters by it for data isolation.
-- **`schemas.py`** — Pydantic schemas with `_SanitizationMixin` stripping null bytes, HTML tags, and control characters from string fields. `amount` is constrained `ge=0.01, le=9999999999`; dates validated to 2000–2100.
-- **`routers/`** — four routers: `auth`, `transactions`, `upload`, `budgets`. Analytics endpoints (comparison, trends, forecast, ai-accuracy) live inside `transactions.py`. Cached results via `cache.py` TTL cache, invalidated on any write.
+- **`main.py`** — wires FastAPI app: CORS, `RateLimitMiddleware`, CSRF middleware, request logging middleware, global exception handler. The rate limiter uses `JSONResponse(429)` directly rather than raising `HTTPException` — this is intentional because Python 3.12 + Starlette converts unhandled `HTTPException` to `ExceptionGroup`, which crashes the process. `X-CSRF-Token` is included in `allow_headers` so cross-origin preflight requests succeed.
+- **`config.py`** — single `Settings` object via `get_settings()`. `cookie_secure` is auto-set from `DEBUG`. `SECRET_KEY` raises `RuntimeError` at startup if unset in production. Default JWT TTL is 60 minutes (`ACCESS_TOKEN_EXPIRE_MINUTES`). `CORS_ORIGINS` must be set for any split-host deployment.
+- **`models.py`** — SQLAlchemy models: `User`, `Transaction`, `Budget`, `CategoryCorrection`, `MerchantCategoryMapping`, `PasswordResetToken`, `AuditLog`. All user-owned models carry `user_id` FK — every query filters by it for data isolation. `Transaction.image_path` is server-set only (populated by the upload service, never accepted from client API requests).
+- **`schemas.py`** — Pydantic schemas with `_SanitizationMixin` stripping null bytes, HTML tags, and control characters from string fields. `amount` is constrained `ge=0.01, le=9999999999`; dates validated to 2000–2100. `TransactionCreate` does not accept `image_path` — that field is set server-side only.
+- **`routers/`** — four routers: `auth`, `transactions`, `upload`, `budgets`. Analytics endpoints (comparison, trends, forecast, ai-accuracy) live inside `transactions.py`. Cached results via `cache.py` TTL cache, invalidated on any write. Search filters apply only to `description` (not `raw_text`, which is encrypted).
 - **`services/ocr_service.py`** — calls OpenRouter with `temperature=0`; uses `JSONDecoder.raw_decode()` (not regex) to extract JSON from the response; retries once on parse failure.
 - **`services/learning_service.py`** — builds `MerchantCategoryMapping` from user corrections (threshold: 3+ corrections, 70% agreement). Applied during OCR parsing.
-- **`crypto.py`** — AES-GCM encryption for PII fields (`image_path`, `raw_text`) derived from `SECRET_KEY` via PBKDF2.
-- **`rate_limiter.py`** — in-memory limiter: 100 rpm global, 10 rpm for `/api/upload`. Auth endpoints add brute-force lockout (5 failures → 15 min).
+- **`services/audit_service.py`** — writes audit log entries using a savepoint (`db.begin_nested()`) so a flush failure rolls back only the audit entry without corrupting the caller's transaction.
+- **`crypto.py`** — Fernet symmetric encryption for PII fields (`raw_text`, `image_path`) with key derived from `SECRET_KEY` via HKDF-SHA256. Legacy plaintext values (no `gAAAAA` prefix) are returned as-is; key-mismatch failures return `None`.
+- **`rate_limiter.py`** — in-memory limiter: 100 rpm global, 10 rpm for `/api/upload`. Auth endpoints add brute-force lockout (5 failures → 15 min). **Single-worker only** — counters are process-local; replace with a shared backend (Redis) before enabling `--workers N`.
 
 ### Frontend (`frontend/src/`)
 
@@ -96,7 +97,9 @@ Backend tests use real PostgreSQL 16. `conftest.py` checks `TEST_DATABASE_URL` f
 
 ### Environment variables
 
-Copy `.env.example` to `.env`. Required for running the full stack: `OPENROUTER_API_KEY`, `SECRET_KEY`. Set `DEBUG=true` in development (relaxes cookie security and allows the default `SECRET_KEY`).
+Copy `.env.example` to `.env`. Required for running the full stack: `OPENROUTER_API_KEY`, `SECRET_KEY`, `POSTGRES_PASSWORD` (change before any non-local deployment). Set `DEBUG=true` in development (relaxes cookie security and allows the default `SECRET_KEY`).
+
+For split-host deployments (frontend and backend on different origins): set `CORS_ORIGINS` to a comma-separated list of allowed frontend origins. Without this, browser preflight requests will be blocked.
 
 ### Key files for common tasks
 

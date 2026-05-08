@@ -54,7 +54,10 @@ def get_user_by_username(db: Session, username: str) -> Optional[User]:
 
 
 def create_reset_token(db: Session, email: str) -> Optional[str]:
-    """Create a password reset token. Returns raw hex token, or None if user not found."""
+    """Create a password reset token. Returns raw hex token, or None if user not found.
+
+    Uses flush() — caller owns the transaction boundary.
+    """
     user = get_user_by_email(db, email)
     if not user:
         return None
@@ -70,12 +73,15 @@ def create_reset_token(db: Session, email: str) -> Optional[str]:
 
     expires_at = datetime.now(timezone.utc) + timedelta(hours=1)
     db.add(PasswordResetToken(user_id=user.id, token_hash=token_hash, expires_at=expires_at))
-    db.commit()
+    db.flush()
     return raw_token
 
 
-def consume_reset_token(db: Session, raw_token: str, new_password: str) -> bool:
-    """Validate token, update password, mark token used. Returns True on success."""
+def consume_reset_token(db: Session, raw_token: str, new_password: str) -> Optional[int]:
+    """Validate token, update password, mark token used.
+
+    Returns user_id on success, None on failure. Uses flush() — caller owns the commit.
+    """
     token_hash = hashlib.sha256(raw_token.encode()).hexdigest()
     now = datetime.now(timezone.utc)
 
@@ -86,22 +92,24 @@ def consume_reset_token(db: Session, raw_token: str, new_password: str) -> bool:
     ).first()
 
     if not token_obj:
-        return False
+        return None
 
     token_obj.used_at = now
     user = db.query(User).filter(User.id == token_obj.user_id).first()
+    if not user:
+        return None
     user.hashed_password = hash_password(new_password)
-    db.commit()
-    return True
+    db.flush()
+    return user.id
 
 
 def create_user(db: Session, email: str, username: str, password: str) -> User:
+    """Create a user. Uses flush() — caller owns the transaction boundary."""
     user = User(
         email=email,
         username=username,
         hashed_password=hash_password(password),
     )
     db.add(user)
-    db.commit()
-    db.refresh(user)
+    db.flush()
     return user

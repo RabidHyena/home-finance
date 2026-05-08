@@ -79,13 +79,12 @@ class TestCRUDLifecycle:
                 "description": "Full data transaction",
                 "category": "Shopping",
                 "date": "2026-02-01T08:30:00",
-                "image_path": "/uploads/test.jpg",
                 "raw_text": "Some OCR text",
             },
         )
         assert resp.status_code == 201
         data = resp.json()
-        assert data["image_path"] == "/uploads/test.jpg"
+        assert data["image_path"] is None  # image_path is server-set only
         assert data["raw_text"] == "Some OCR text"
 
 

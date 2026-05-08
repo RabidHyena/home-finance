@@ -70,7 +70,6 @@ class TransactionBase(BaseModel):
 class TransactionCreate(_InputValidationMixin, TransactionBase):
     """Schema for creating a transaction (with validation)."""
 
-    image_path: Optional[str] = None
     raw_text: Optional[str] = None
     ai_category: Optional[str] = None
     ai_confidence: Optional[Decimal] = Field(None, ge=0, le=1)

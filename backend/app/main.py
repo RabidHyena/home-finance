@@ -1,5 +1,6 @@
 import logging
 import logging.config
+import os
 import secrets
 import time
 import uuid
@@ -16,6 +17,8 @@ from app.models import Transaction, Budget, User, AuditLog  # noqa: F401 - neede
 from app.rate_limiter import RateLimitMiddleware
 from app.routers import transactions, upload, budgets, auth
 from app.schemas import HealthResponse
+
+_DEBUG = os.getenv("DEBUG", "").lower() in ("1", "true", "yes")
 
 LOGGING_CONFIG = {
     "version": 1,
@@ -40,7 +43,7 @@ LOGGING_CONFIG = {
     "loggers": {
         "uvicorn": {"level": "INFO"},
         "sqlalchemy.engine": {"level": "WARNING"},
-        "app": {"level": "DEBUG"},
+        "app": {"level": "DEBUG" if _DEBUG else "INFO"},
     },
 }
 
@@ -82,7 +85,7 @@ app.add_middleware(
     allow_origins=settings.cors_origins,
     allow_credentials=True,
     allow_methods=["GET", "POST", "PUT", "DELETE", "OPTIONS"],
-    allow_headers=["Content-Type", "Authorization"],
+    allow_headers=["Content-Type", "Authorization", "X-CSRF-Token"],
 )
 
 # Global rate limiting: 100 req/min default, 10 req/min for uploads

@@ -4,11 +4,12 @@ services:
     container_name: home-finance-db
     restart: unless-stopped
     environment:
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
-      POSTGRES_DB: home_finance
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
+      POSTGRES_DB: ${POSTGRES_DB:-home_finance}
     volumes:
       - postgres_data:/var/lib/postgresql/data
+      - ./docker/init-test-db.sql:/docker-entrypoint-initdb.d/init-test-db.sql:ro
     ports:
       - "127.0.0.1:5432:5432"
     healthcheck:
@@ -30,10 +31,11 @@ services:
     container_name: home-finance-backend
     environment:
       DATABASE_URL: ${DATABASE_URL:-postgresql://postgres:postgres@db:5432/home_finance}
-      TEST_DATABASE_URL: postgresql://postgres:postgres@db:5432/home_finance
+      TEST_DATABASE_URL: ${TEST_DATABASE_URL:-postgresql://postgres:postgres@db:5432/home_finance_test}
       OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
       SECRET_KEY: ${SECRET_KEY}
       DEBUG: ${DEBUG:-false}
+      CORS_ORIGINS: ${CORS_ORIGINS:-http://localhost:3000}
       RATE_LIMIT_WINDOW: ${RATE_LIMIT_WINDOW:-60}
       RATE_LIMIT_MAX_REQUESTS: ${RATE_LIMIT_MAX_REQUESTS:-100}
       SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD:-}
@@ -97,9 +99,9 @@ services:
     restart: unless-stopped
     environment:
       POSTGRES_HOST: db
-      POSTGRES_DB: home_finance
-      POSTGRES_USER: postgres
-      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: ${POSTGRES_DB:-home_finance}
+      POSTGRES_USER: ${POSTGRES_USER:-postgres}
+      POSTGRES_PASSWORD: ${POSTGRES_PASSWORD:-postgres}
       SCHEDULE: "@daily"
       BACKUP_KEEP_DAYS: 7
       BACKUP_KEEP_WEEKS: 4

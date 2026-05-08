@@ -9,7 +9,7 @@ from statistics import mean, pstdev
 from dateutil.relativedelta import relativedelta
 from fastapi import APIRouter, Depends, HTTPException, Query
 from fastapi.responses import StreamingResponse
-from sqlalchemy import case, func, extract, or_
+from sqlalchemy import case, func, extract
 from sqlalchemy.orm import Session
 
 import openpyxl
@@ -53,12 +53,7 @@ def _apply_filters(query, user_id: int, category=None, date_from=None, date_to=N
     if search:
         escaped = search.replace('\\', '\\\\').replace('%', '\\%').replace('_', '\\_')
         pattern = f"%{escaped}%"
-        query = query.filter(
-            or_(
-                Transaction.description.ilike(pattern),
-                Transaction.raw_text.ilike(pattern)
-            )
-        )
+        query = query.filter(Transaction.description.ilike(pattern))
     return query
 
 
@@ -77,7 +72,6 @@ def create_transaction(
         date=transaction.date,
         currency=transaction.currency,
         type=transaction.type,
-        image_path=transaction.image_path,
         raw_text=transaction.raw_text,
         ai_category=transaction.ai_category,
         ai_confidence=transaction.ai_confidence,
@@ -115,7 +109,6 @@ def create_transactions_bulk(
             date=tx.date,
             currency=tx.currency,
             type=tx.type,
-            image_path=tx.image_path,
             raw_text=tx.raw_text,
             ai_category=tx.ai_category,
             ai_confidence=tx.ai_confidence,
@@ -143,7 +136,7 @@ def get_transactions(
     category: Optional[str] = None,
     date_from: Optional[datetime] = None,
     date_to: Optional[datetime] = None,
-    search: Optional[str] = None,
+    search: Optional[str] = Query(None, max_length=200),
     type: Optional[Literal['expense', 'income']] = Query(None, description="Filter by type: expense or income"),
     db: Session = Depends(get_db),
     current_user: User = Depends(get_current_user),

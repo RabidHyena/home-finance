@@ -92,17 +92,24 @@ def get_budgets_status(
     # Weekly spending by category (only if any budget uses weekly)
     weekly_spent: dict[str, Decimal] = {}
     if any(b.period == 'weekly' for b in budgets):
-        today = datetime.now(timezone.utc)
-        week_start = today - timedelta(days=today.weekday())
-        week_end = week_start + timedelta(days=6)
+        now = datetime.now(timezone.utc)
+        if year == now.year and month == now.month:
+            # Current period: use the actual current week
+            week_start = now - timedelta(days=now.weekday())
+            week_end = week_start + timedelta(days=6)
+        else:
+            # Historical period: use the week containing the 1st of the requested month
+            first_of_month = datetime(year, month, 1, tzinfo=timezone.utc)
+            week_start = first_of_month - timedelta(days=first_of_month.weekday())
+            week_end = week_start + timedelta(days=6)
         weekly_spent_rows = db.query(
             Transaction.category,
             func.coalesce(func.sum(Transaction.amount), 0).label("total"),
         ).filter(
             Transaction.user_id == current_user.id,
             Transaction.type == 'expense',
-            Transaction.date >= week_start.replace(hour=0, minute=0, second=0),
-            Transaction.date <= week_end.replace(hour=23, minute=59, second=59),
+            Transaction.date >= week_start.replace(hour=0, minute=0, second=0, microsecond=0),
+            Transaction.date <= week_end.replace(hour=23, minute=59, second=59, microsecond=999999),
         ).group_by(Transaction.category).all()
         weekly_spent = {row.category: Decimal(str(row.total)) for row in weekly_spent_rows}
 

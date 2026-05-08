@@ -38,8 +38,8 @@ class TestEncryptedFields:
         get_resp = auth_client.get(f"/api/transactions/{tx_id}")
         assert get_resp.json()["raw_text"] == "secret bank receipt text"
 
-    def test_image_path_is_stored_encrypted_in_db(self, auth_client):
-        """image_path in DB should not be plaintext."""
+    def test_image_path_is_not_user_settable(self, auth_client):
+        """image_path is server-set only; user-supplied values must be ignored."""
         from tests.conftest import TestingSessionLocal
         import sqlalchemy as sa
 
@@ -47,15 +47,14 @@ class TestEncryptedFields:
             "amount": 100,
             "description": "Test",
             "date": "2026-01-15T10:00:00",
-            "image_path": "/app/uploads/test-image.jpg",
+            "image_path": "/app/uploads/test-image.jpg",  # should be stripped by API
         })
 
         db = TestingSessionLocal()
         try:
             result = db.execute(sa.text("SELECT image_path FROM transactions LIMIT 1")).fetchone()
             raw_value = result[0]
-            assert raw_value is not None
-            assert raw_value != "/app/uploads/test-image.jpg"
+            assert raw_value is None  # user-supplied image_path not accepted
         finally:
             db.close()
 

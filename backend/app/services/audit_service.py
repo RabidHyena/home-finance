@@ -14,7 +14,11 @@ def log_audit(
     ip_address: str | None = None,
     details: str | None = None,
 ) -> None:
-    """Write an audit log entry. Uses flush() so the entry is in the same transaction as the caller. Never raises."""
+    """Write an audit log entry in the same transaction as the caller. Never raises.
+
+    Uses a savepoint so a flush failure rolls back only the audit entry — the
+    outer transaction remains usable and the caller can still commit its own work.
+    """
     try:
         entry = AuditLog(
             user_id=user_id,
@@ -24,7 +28,8 @@ def log_audit(
             ip_address=ip_address,
             details=details,
         )
-        db.add(entry)
-        db.flush()
+        with db.begin_nested():
+            db.add(entry)
+            db.flush()
     except Exception:
         logger.exception("Failed to write audit log: action=%s user_id=%s", action, user_id)

@@ -62,6 +62,29 @@ class TestCsrfProtection:
         assert response.status_code == 200
 
 
+class TestCsrfEndToEnd:
+    def test_csrf_token_from_endpoint_satisfies_post(self, test_user):
+        """Verify: GET /csrf issues a token that a subsequent POST accepts."""
+        settings = get_settings()
+        token = create_access_token(test_user.id)
+        c = TestClient(app)
+        c.cookies.set(settings.cookie_name, token)
+
+        # Get real CSRF token from the endpoint
+        csrf_response = c.get("/api/auth/csrf")
+        assert csrf_response.status_code == 200
+        csrf_token = csrf_response.json()["csrf_token"]
+        assert csrf_token == c.cookies.get("csrf_token")
+
+        # Use the token in a state-mutating request
+        response = c.post(
+            "/api/transactions",
+            json={"amount": 50, "description": "e2e csrf test", "date": "2026-01-15T10:00:00"},
+            headers={"X-CSRF-Token": csrf_token},
+        )
+        assert response.status_code == 201
+
+
 class TestCsrfExemptions:
     def test_login_exempt_from_csrf(self, client, test_user):
         response = client.post("/api/auth/login", json={

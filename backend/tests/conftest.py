@@ -18,6 +18,8 @@ TestingSessionLocal = None
 
 
 def override_get_db():
+    if TestingSessionLocal is None:
+        raise RuntimeError("_start_postgres fixture has not run yet")
     db = TestingSessionLocal()
     try:
         yield db
@@ -45,7 +47,7 @@ def _start_postgres():
         app.dependency_overrides[get_db] = override_get_db
         Base.metadata.create_all(bind=engine)
         yield
-        Base.metadata.drop_all(bind=engine)
+        # Don't drop tables — they persist for the next run (TRUNCATE handles isolation).
         engine.dispose()
     else:
         from testcontainers.postgres import PostgresContainer
@@ -69,20 +71,21 @@ def setup_database():
     from app.cache import analytics_cache
     analytics_cache.clear()
 
-    # Terminate any connections left open by previous test's ASGI thread
-    # before acquiring the AccessExclusiveLock needed for TRUNCATE.
+    # table_names comes from ORM metadata, not user input — no injection risk.
+    table_names = ", ".join(
+        f'"{t.name}"' for t in reversed(Base.metadata.sorted_tables)
+    )
     with engine.begin() as conn:
+        # Terminate connections left open by previous test's ASGI thread before TRUNCATE.
+        # Covers idle, idle-in-transaction, and aborted-transaction states.
+        # Does not kill active connections (e.g. parallel pytest-xdist workers).
         conn.execute(text("""
             SELECT pg_terminate_backend(pid)
             FROM pg_stat_activity
             WHERE datname = current_database()
               AND pid <> pg_backend_pid()
+              AND state IN ('idle', 'idle in transaction', 'idle in transaction (aborted)')
         """))
-
-    table_names = ", ".join(
-        f'"{t.name}"' for t in reversed(Base.metadata.sorted_tables)
-    )
-    with engine.begin() as conn:
         conn.execute(text(f"TRUNCATE {table_names} RESTART IDENTITY CASCADE"))
 
     yield

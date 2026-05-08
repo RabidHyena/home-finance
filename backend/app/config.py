@@ -22,7 +22,7 @@ class Settings(BaseSettings):
     # Auth / JWT
     secret_key: str = "change-me-in-production"
     jwt_algorithm: str = "HS256"
-    access_token_expire_minutes: int = 1440  # 24h
+    access_token_expire_minutes: int = 60  # 1h
     cookie_name: str = "access_token"
     cookie_samesite: str = "lax"
     cookie_secure: bool | None = None  # auto: True when debug=False
@@ -51,7 +51,7 @@ class Settings(BaseSettings):
     @field_validator("database_url")
     @classmethod
     def _validate_database_url(cls, v: str) -> str:
-        if not v.startswith(("postgresql://", "postgresql+psycopg2://", "sqlite://")):
+        if not v.startswith(("postgresql://", "postgresql+psycopg2://")):
             raise ValueError(
                 "DATABASE_URL must start with postgresql:// or postgresql+psycopg2://"
             )

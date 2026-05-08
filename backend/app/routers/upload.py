@@ -6,7 +6,7 @@ from fastapi import APIRouter, Depends, File, HTTPException, UploadFile
 from sqlalchemy.orm import Session
 
 from app.config import get_settings
-from app.database import get_db
+from app.database import get_db, SessionLocal
 from app.dependencies import get_current_user
 from app.models import User
 from app.schemas import ParsedTransaction, ParsedTransactions, BatchUploadResult, BatchUploadResponse
@@ -223,10 +223,13 @@ def upload_and_parse_batch(
                 error="Failed to validate file",
             ))
 
+    user_id = current_user.id
+
     def _process_one(filename: str, content: bytes, file_type: str) -> BatchUploadResult:
         file_path = _save_file(content, filename)
+        worker_db = SessionLocal()
         try:
-            parsed = _parse_file(content, filename, file_type, db, current_user.id)
+            parsed = _parse_file(content, filename, file_type, worker_db, user_id)
             return BatchUploadResult(
                 filename=filename,
                 status="success",
@@ -240,6 +243,7 @@ def upload_and_parse_batch(
                 error="Failed to parse file",
             )
         finally:
+            worker_db.close()
             if file_path.exists():
                 file_path.unlink(missing_ok=True)
 

@@ -93,6 +93,7 @@ def register(data: UserRegister, response: Response, request: Request, db: Sessi
     log_audit(db, "register", user_id=user.id, resource_type="user", resource_id=user.id,
               ip_address=request.client.host if request.client else None)
     db.commit()
+    db.refresh(user)
     token = create_access_token(user.id)
     _set_token_cookie(response, token)
     return user
@@ -159,33 +160,48 @@ def get_csrf_token(response: Response):
 @router.post("/forgot-password")
 def forgot_password(data: ForgotPasswordRequest, request: Request, db: Session = Depends(get_db)):
     _auth_limiter.check(request.client.host if request.client else "unknown")
+    ip = request.client.host if request.client else None
+    user = get_user_by_email(db, data.email)
     raw_token = create_reset_token(db, data.email)
     result: dict = {"message": "If the email exists, a reset link has been sent."}
-    if raw_token and settings.debug:
-        result["debug_token"] = raw_token
-    if raw_token:
-        user = get_user_by_email(db, data.email)
-        if user:
-            def _send():
-                from app.services.email_service import send_password_reset_email
-                send_password_reset_email(
-                    to_email=user.email,
-                    reset_token=raw_token,
-                    username=user.username,
-                    smtp_host=settings.smtp_host,
-                    smtp_port=settings.smtp_port,
-                    smtp_user=settings.smtp_user,
-                    smtp_password=settings.smtp_password,
-                    smtp_from=settings.smtp_from,
-                    smtp_tls=settings.smtp_tls,
-                    frontend_url=settings.frontend_url,
-                )
-            threading.Thread(target=_send, daemon=True).start()
+    if raw_token and user:
+        # Capture user data as plain strings before commit — the commit expires
+        # SQLAlchemy instance attributes, and the background email thread must
+        # not access them after the session is closed.
+        user_email = user.email
+        user_username = user.username
+        user_id_val = user.id
+        log_audit(db, "password_reset_requested", user_id=user_id_val, resource_type="user",
+                  resource_id=user_id_val, ip_address=ip)
+        db.commit()
+        if settings.debug:
+            result["debug_token"] = raw_token
+
+        def _send():
+            from app.services.email_service import send_password_reset_email
+            send_password_reset_email(
+                to_email=user_email,
+                reset_token=raw_token,
+                username=user_username,
+                smtp_host=settings.smtp_host,
+                smtp_port=settings.smtp_port,
+                smtp_user=settings.smtp_user,
+                smtp_password=settings.smtp_password,
+                smtp_from=settings.smtp_from,
+                smtp_tls=settings.smtp_tls,
+                frontend_url=settings.frontend_url,
+            )
+        threading.Thread(target=_send, daemon=True).start()
     return result
 
 
 @router.post("/reset-password")
-def reset_password(data: ResetPasswordRequest, db: Session = Depends(get_db)):
-    if not consume_reset_token(db, data.token, data.new_password):
+def reset_password(data: ResetPasswordRequest, request: Request, db: Session = Depends(get_db)):
+    ip = request.client.host if request.client else None
+    user_id = consume_reset_token(db, data.token, data.new_password)
+    if user_id is None:
         raise HTTPException(status_code=400, detail="Invalid or expired reset token")
+    log_audit(db, "password_reset_completed", user_id=user_id, resource_type="user",
+              resource_id=user_id, ip_address=ip)
+    db.commit()
     return {"message": "Password updated successfully"}
