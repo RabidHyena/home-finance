@@ -69,6 +69,16 @@ def setup_database():
     from app.cache import analytics_cache
     analytics_cache.clear()
 
+    # Terminate any connections left open by previous test's ASGI thread
+    # before acquiring the AccessExclusiveLock needed for TRUNCATE.
+    with engine.begin() as conn:
+        conn.execute(text("""
+            SELECT pg_terminate_backend(pid)
+            FROM pg_stat_activity
+            WHERE datname = current_database()
+              AND pid <> pg_backend_pid()
+        """))
+
     table_names = ", ".join(
         f'"{t.name}"' for t in reversed(Base.metadata.sorted_tables)
     )
