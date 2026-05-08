@@ -261,11 +261,9 @@ home-finance/
 
 ## Тестирование API (Postman)
 
-Два Postman collection в папке `postman/`:
-- `Home_Finance_Strict_Tests.postman_collection.json` — 55 запросов, strict validation
-- `Home_Finance_Brutal_Tests.postman_collection.json` — расширенная версия с edge-case тестами
+Коллекция находится в `postman_collection.json` (корень репозитория).
 
-1. **Импортируйте:** Postman → File → Import → выбрать collection
+1. **Импортируйте:** Postman → File → Import → выбрать `postman_collection.json`
 2. **Запускайте папки по порядку**
 
 **Collection включает:**
