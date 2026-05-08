@@ -4,11 +4,11 @@ from unittest.mock import MagicMock
 
 from app.models import AuditLog
 from app.services.audit_service import log_audit
-from tests.conftest import TestingSessionLocal
+import tests.conftest as _conftest
 
 
 def _get_audit_entries(action: str | None = None) -> list[AuditLog]:
-    db = TestingSessionLocal()
+    db = _conftest.TestingSessionLocal()
     try:
         q = db.query(AuditLog)
         if action:
