@@ -443,7 +443,8 @@ class TestXlsxExportEdgeCases:
 
     def test_export_xlsx_empty_returns_headers_only(self, auth_client):
         """Empty dataset: response is valid xlsx with header row only."""
-        import openpyxl, io
+        import io
+        import openpyxl
         resp = auth_client.get("/api/transactions/export/xlsx")
         assert resp.status_code == 200
         assert "spreadsheetml" in resp.headers["content-type"]
@@ -452,14 +453,16 @@ class TestXlsxExportEdgeCases:
         assert ws.max_row == 1  # header only
 
     def test_export_xlsx_header_row_is_bold(self, auth_client):
-        import openpyxl, io
+        import io
+        import openpyxl
         resp = auth_client.get("/api/transactions/export/xlsx")
         wb = openpyxl.load_workbook(io.BytesIO(resp.content))
         ws = wb.active
         assert ws["A1"].font.bold is True
 
     def test_export_xlsx_contains_data(self, auth_client):
-        import openpyxl, io
+        import io
+        import openpyxl
         auth_client.post("/api/transactions", json={
             "amount": 42.50,
             "description": "Coffee",
@@ -474,7 +477,8 @@ class TestXlsxExportEdgeCases:
 
     def test_export_xlsx_formula_injection_sanitized(self, auth_client):
         """Descriptions starting with = or + must be prefixed with ' to prevent injection."""
-        import openpyxl, io
+        import io
+        import openpyxl
         auth_client.post("/api/transactions", json={
             "amount": 100,
             "description": "=SUM(A1:A10)",
@@ -488,7 +492,8 @@ class TestXlsxExportEdgeCases:
         assert not str(desc).startswith("=")
 
     def test_export_xlsx_filters_by_type(self, auth_client):
-        import openpyxl, io
+        import io
+        import openpyxl
         auth_client.post("/api/transactions", json={
             "amount": 100, "description": "Expense", "date": "2024-06-01T09:00:00", "type": "expense",
         })
