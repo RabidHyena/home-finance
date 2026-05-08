@@ -12,6 +12,7 @@ from app.dependencies import get_current_user
 from app.models import User
 from app.rate_limiter import RateLimiter
 from app.schemas_auth import ForgotPasswordRequest, ResetPasswordRequest, UserLogin, UserRegister, UserResponse
+from app.services.audit_service import log_audit
 from app.services.auth_service import (
     consume_reset_token,
     create_access_token,
@@ -89,6 +90,8 @@ def register(data: UserRegister, response: Response, request: Request, db: Sessi
         raise HTTPException(status_code=400, detail="Registration failed. Email or username may already be in use.")
 
     user = create_user(db, data.email, data.username, data.password)
+    log_audit(db, "register", user_id=user.id, resource_type="user", resource_id=user.id,
+              ip_address=request.client.host if request.client else None)
     token = create_access_token(user.id)
     _set_token_cookie(response, token)
     return user
@@ -109,6 +112,8 @@ def login(data: UserLogin, response: Response, request: Request, db: Session = D
         raise HTTPException(status_code=401, detail="Invalid credentials")
 
     _clear_failed_logins(login_key)
+    log_audit(db, "login", user_id=user.id, resource_type="user", resource_id=user.id,
+              ip_address=request.client.host if request.client else None)
     token = create_access_token(user.id)
     _set_token_cookie(response, token)
     return user
@@ -156,6 +161,24 @@ def forgot_password(data: ForgotPasswordRequest, request: Request, db: Session =
     result: dict = {"message": "If the email exists, a reset link has been sent."}
     if raw_token and settings.debug:
         result["debug_token"] = raw_token
+    if raw_token:
+        user = get_user_by_email(db, data.email)
+        if user:
+            def _send():
+                from app.services.email_service import send_password_reset_email
+                send_password_reset_email(
+                    to_email=user.email,
+                    reset_token=raw_token,
+                    username=user.username,
+                    smtp_host=settings.smtp_host,
+                    smtp_port=settings.smtp_port,
+                    smtp_user=settings.smtp_user,
+                    smtp_password=settings.smtp_password,
+                    smtp_from=settings.smtp_from,
+                    smtp_tls=settings.smtp_tls,
+                    frontend_url=settings.frontend_url,
+                )
+            threading.Thread(target=_send, daemon=True).start()
     return result
 
 

@@ -184,6 +184,29 @@ export function TransactionListPage({
     }
   }, [filter, dateFrom, dateTo, debouncedSearch, type, exportPrefix, toast]);
 
+  const handleExportXlsx = useCallback(async () => {
+    try {
+      const blob = await api.exportTransactionsXlsx(
+        filter || undefined,
+        dateFrom || undefined,
+        dateTo || undefined,
+        debouncedSearch || undefined,
+        type,
+      );
+      const url = window.URL.createObjectURL(blob);
+      const a = document.createElement('a');
+      a.href = url;
+      a.download = `${exportPrefix}_${new Date().toISOString().split('T')[0]}.xlsx`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      window.URL.revokeObjectURL(url);
+      toast.success('Excel-экспорт завершён');
+    } catch {
+      toast.error('Ошибка экспорта');
+    }
+  }, [filter, dateFrom, dateTo, debouncedSearch, type, exportPrefix, toast]);
+
   const btnStyle = buttonColor
     ? { background: `linear-gradient(135deg, ${buttonColor}, ${buttonColor}dd)`, borderColor: 'transparent' }
     : undefined;
@@ -250,8 +273,17 @@ export function TransactionListPage({
             className="btn btn-secondary"
             onClick={handleExport}
             disabled={total === 0}
+            title="Экспорт в CSV"
           >
-            <Download size={16} /> Экспорт
+            <Download size={16} /> CSV
+          </button>
+          <button
+            className="btn btn-secondary"
+            onClick={handleExportXlsx}
+            disabled={total === 0}
+            title="Экспорт в Excel"
+          >
+            <Download size={16} /> Excel
           </button>
           <button
             className="btn btn-primary"

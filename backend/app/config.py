@@ -37,6 +37,15 @@ class Settings(BaseSettings):
     # App settings
     debug: bool = False
 
+    # Email / SMTP (optional — leave smtp_host empty to disable email sending)
+    smtp_host: str = ""
+    smtp_port: int = 587
+    smtp_user: str = ""
+    smtp_password: str = ""
+    smtp_from: str = ""
+    smtp_tls: bool = True
+    frontend_url: str = "http://localhost:3000"
+
     model_config = SettingsConfigDict(env_file=".env")
 
     @field_validator("database_url")

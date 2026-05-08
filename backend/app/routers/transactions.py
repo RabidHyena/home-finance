@@ -2,7 +2,7 @@ import csv
 import logging
 from datetime import datetime, timezone
 from decimal import Decimal
-from io import StringIO
+from io import BytesIO, StringIO
 from typing import Literal, Optional
 
 from statistics import mean, pstdev
@@ -12,6 +12,8 @@ from fastapi.responses import StreamingResponse
 from sqlalchemy import case, func, extract, or_
 from sqlalchemy.orm import Session
 
+import openpyxl
+from openpyxl.styles import Font, PatternFill
 from app.cache import analytics_cache, make_cache_key
 from app.database import get_db
 from app.dependencies import get_current_user
@@ -23,6 +25,7 @@ from app.schemas import (
     TransactionList,
     MonthlyReport,
 )
+from app.services.audit_service import log_audit
 from app.services.learning_service import log_correction
 
 logger = logging.getLogger(__name__)
@@ -84,6 +87,7 @@ def create_transaction(
 
     # Log correction if category was changed
     log_correction(db, db_transaction, current_user.id)
+    log_audit(db, "create", user_id=current_user.id, resource_type="transaction", resource_id=db_transaction.id)
 
     db.commit()
     db.refresh(db_transaction)
@@ -227,6 +231,78 @@ def export_transactions(
         media_type="text/csv; charset=utf-8",
         headers={
             "Content-Disposition": f"attachment; filename=transactions_{datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')}.csv"
+        }
+    )
+
+
+@router.get("/export/xlsx")
+def export_transactions_xlsx(
+    category: Optional[str] = None,
+    date_from: Optional[datetime] = None,
+    date_to: Optional[datetime] = None,
+    search: Optional[str] = None,
+    type: Optional[Literal['expense', 'income']] = Query(None, description="Filter by type: expense or income"),
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user),
+):
+    """Export transactions as Excel (.xlsx) with filters."""
+    query = _apply_filters(
+        db.query(Transaction), current_user.id,
+        category=category, date_from=date_from, date_to=date_to, search=search, tx_type=type,
+    ).order_by(Transaction.date.desc())
+
+    type_labels = {"expense": "Расход", "income": "Доход"}
+
+    def sanitize_cell(value: str) -> str:
+        """Prevent formula injection by prefixing dangerous characters."""
+        if value and value[0] in ('=', '+', '-', '@', '\t', '\r'):
+            return f"'{value}"
+        return value
+
+    wb = openpyxl.Workbook()
+    ws = wb.active
+
+    # Header row
+    headers = ['ID', 'Дата', 'Сумма', 'Валюта', 'Тип', 'Описание', 'Категория', 'Создано']
+    header_font = Font(bold=True)
+    header_fill = PatternFill("solid", fgColor="DBEAFE")
+    ws.append(headers)
+    for cell in ws[1]:
+        cell.font = header_font
+        cell.fill = header_fill
+
+    # Column widths: A=8, B=22, C=14, D=8, E=10, F=50, G=20, H=22
+    col_widths = [8, 22, 14, 8, 10, 50, 20, 22]
+    for i, width in enumerate(col_widths, start=1):
+        ws.column_dimensions[openpyxl.utils.get_column_letter(i)].width = width
+
+    # Freeze first row
+    ws.freeze_panes = "A2"
+
+    # Data rows
+    for tx in query.yield_per(500):
+        ws.append([
+            tx.id,
+            tx.date.isoformat(),
+            float(tx.amount),
+            sanitize_cell(tx.currency or ''),
+            type_labels.get(tx.type, tx.type or ''),
+            sanitize_cell(tx.description or ''),
+            sanitize_cell(tx.category or ''),
+            tx.created_at.isoformat(),
+        ])
+
+    # Write to in-memory buffer
+    buf = BytesIO()
+    wb.save(buf)
+    buf.seek(0)
+
+    timestamp = datetime.now(timezone.utc).strftime('%Y%m%d_%H%M%S')
+    return StreamingResponse(
+        buf,
+        media_type="application/vnd.openxmlformats-officedocument.spreadsheetml.sheet",
+        headers={
+            "Content-Disposition": f"attachment; filename=transactions_{timestamp}.xlsx"
         }
     )
 
@@ -723,6 +799,7 @@ def update_transaction(
 
     # Log correction if category was changed (for AI learning)
     log_correction(db, transaction, current_user.id)
+    log_audit(db, "update", user_id=current_user.id, resource_type="transaction", resource_id=transaction_id)
 
     db.commit()
     db.refresh(transaction)
@@ -768,6 +845,7 @@ def delete_transaction(
     if not transaction:
         raise HTTPException(status_code=404, detail="Transaction not found")
 
+    log_audit(db, "delete", user_id=current_user.id, resource_type="transaction", resource_id=transaction_id)
     db.delete(transaction)
     db.commit()
     _invalidate_user_cache(current_user.id)

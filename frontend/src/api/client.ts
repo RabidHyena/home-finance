@@ -453,6 +453,35 @@ export const api = {
     return response.blob();
   },
 
+  // Export to XLSX
+  async exportTransactionsXlsx(
+    category?: string,
+    dateFrom?: string,
+    dateTo?: string,
+    search?: string,
+    type?: TransactionType
+  ): Promise<Blob> {
+    const params = new URLSearchParams();
+    if (category) params.append('category', category);
+    if (dateFrom) params.append('date_from', dateFrom);
+    if (dateTo) params.append('date_to', dateTo);
+    if (search) params.append('search', search);
+    if (type) params.append('type', type);
+
+    const response = await fetch(`${API_BASE}/api/transactions/export/xlsx?${params}`, {
+      credentials: 'include',
+    });
+    if (response.status === 401) {
+      window.dispatchEvent(new CustomEvent('auth:unauthorized'));
+      throw new ApiError('Unauthorized', 401);
+    }
+    if (!response.ok) {
+      const err = await response.json().catch(() => null);
+      throw new ApiError(err?.detail || `Request failed (${response.status})`, response.status);
+    }
+    return response.blob();
+  },
+
   // Month comparison
   async getMonthComparison(year: number, month: number, type?: TransactionType): Promise<MonthComparisonData> {
     if (USE_MOCK) {

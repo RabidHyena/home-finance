@@ -103,6 +103,30 @@ def _save_file(content: bytes, filename: str) -> Path:
     return file_path
 
 
+def _resize_image_if_needed(content: bytes, max_dimension: int = 2048) -> bytes:
+    """Resize image to max_dimension on longest side if needed. Falls back to original on error."""
+    try:
+        from PIL import Image
+        import io as _io
+        img = Image.open(_io.BytesIO(content))
+        if img.mode not in ('RGB', 'L'):
+            img = img.convert('RGB')
+        w, h = img.size
+        if w <= max_dimension and h <= max_dimension:
+            return content
+        ratio = max_dimension / max(w, h)
+        new_w, new_h = int(w * ratio), int(h * ratio)
+        img = img.resize((new_w, new_h), Image.LANCZOS)
+        buf = _io.BytesIO()
+        img.save(buf, format='JPEG', quality=85, optimize=True)
+        resized = buf.getvalue()
+        logger.info("Resized image from %dx%d to %dx%d (%d -> %d bytes)", w, h, new_w, new_h, len(content), len(resized))
+        return resized
+    except Exception:
+        logger.warning("Failed to resize image, using original", exc_info=True)
+        return content
+
+
 def _parse_file(content: bytes, filename: str, file_type: str, db, user_id: int) -> dict:
     """Route parsing to the appropriate service based on file type."""
     if file_type == "excel":
@@ -110,6 +134,7 @@ def _parse_file(content: bytes, filename: str, file_type: str, db, user_id: int)
         service = ExcelParsingService(db=db, user_id=user_id)
         return service.parse_excel_bytes(content, filename or "file.xlsx")
     else:
+        content = _resize_image_if_needed(content)
         ocr_service = OCRService(db=db, user_id=user_id)
         return ocr_service.parse_image_bytes_multiple(content, filename or "image.jpg")
 

@@ -12,7 +12,7 @@ from sqlalchemy import text
 
 from app.config import get_settings
 from app.database import engine
-from app.models import Transaction, Budget, User  # noqa: F401 - needed for table creation
+from app.models import Transaction, Budget, User, AuditLog  # noqa: F401 - needed for table creation
 from app.rate_limiter import RateLimitMiddleware
 from app.routers import transactions, upload, budgets, auth
 from app.schemas import HealthResponse
