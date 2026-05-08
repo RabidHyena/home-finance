@@ -30,7 +30,7 @@
 - Валидация всех входных данных: amount, date range, password (буква + цифра, max 72 байта), username pattern
 - Санитизация строк (null bytes, HTML-теги, control chars), formula injection в CSV/XLSX
 - Magic byte валидация загружаемых файлов
-- Шифрование PII-полей в БД (AES-GCM, cryptography)
+- Шифрование PII-полей в БД (Fernet/HKDF-SHA256, cryptography)
 - Аудит-лог операций (login, register, create/update/delete транзакций)
 - Security headers: CSP, HSTS, Permissions-Policy, X-Frame-Options
 
@@ -88,8 +88,11 @@ docker compose up --build
 |------------|:---:|---|---|
 | `OPENROUTER_API_KEY` | **да** | — | API ключ OpenRouter для AI-распознавания |
 | `SECRET_KEY` | **да** | — | Ключ для JWT. В dev: `change-me-in-production` при `DEBUG=true`; в prod: случайная строка 32+ символов |
-| `DATABASE_URL` | нет | `postgresql://postgres:postgres@db:5432/home_finance` | URL базы данных |
+| `POSTGRES_PASSWORD` | **prod** | `postgres` | Пароль PostgreSQL — **обязательно сменить** перед любым нелокальным деплоем |
+| `DATABASE_URL` | нет | `postgresql://postgres:postgres@db:5432/home_finance` | URL базы данных (если задан, POSTGRES_PASSWORD игнорируется) |
+| `CORS_ORIGINS` | **prod** | `http://localhost:3000` | Разрешённые origins через запятую. Обязателен при раздельном деплое фронта и бэка на разных доменах/портах |
 | `OPENROUTER_MODEL` | нет | `google/gemini-3-flash-preview` | Модель для OCR |
+| `ACCESS_TOKEN_EXPIRE_MINUTES` | нет | `60` | Время жизни JWT-токена в минутах |
 | `DEBUG` | нет | `false` | Режим отладки (разрешает default SECRET_KEY, отключает secure cookie) |
 | `SEED_ADMIN_PASSWORD` | нет | `admin` | Пароль admin при первой миграции |
 | `RATE_LIMIT_WINDOW` | нет | `60` | Окно rate limiter (секунды) |
@@ -169,7 +172,7 @@ home-finance/
 │   │   ├── schemas_auth.py      # Auth схемы
 │   │   ├── rate_limiter.py      # Rate limiting (глобальный + per-prefix)
 │   │   ├── cache.py             # TTL-кэш аналитики
-│   │   ├── crypto.py            # AES-GCM шифрование PII
+│   │   ├── crypto.py            # Fernet шифрование PII (HKDF-SHA256)
 │   │   ├── dependencies.py      # get_current_user
 │   │   ├── routers/
 │   │   │   ├── auth.py          # Регистрация, вход, выход, сброс пароля
