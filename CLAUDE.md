@@ -92,7 +92,7 @@ On login the backend sets two cookies: `access_token` (httpOnly, JWT) and `csrf_
 
 ### Tests
 
-Backend tests use real PostgreSQL 16. `conftest.py` checks `TEST_DATABASE_URL` first — if set, connects directly (used by CI and `docker compose exec`); otherwise spins up a container via `testcontainers` (requires Docker Desktop locally, Python 3.12+). Each test gets a fresh schema via the `setup_database` autouse fixture (create/drop per test). `DEBUG=true` is required to bypass the `SECRET_KEY` production check. The production Docker image does not include pytest — tests run on the host or in CI.
+Backend tests use real PostgreSQL 16. `conftest.py` checks `TEST_DATABASE_URL` first — if set, connects directly (used by CI and `docker compose exec`); otherwise spins up a container via `testcontainers` (requires Docker Desktop locally, Python 3.12+). Tables are created once per session; each test gets isolation via `TRUNCATE ... RESTART IDENTITY CASCADE` (faster and avoids lock contention vs drop/create per test). `DEBUG=true` is required to bypass the `SECRET_KEY` production check. The production Docker image does not include pytest — tests run on the host or in CI.
 
 ### Environment variables
 
