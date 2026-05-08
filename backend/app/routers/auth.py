@@ -92,6 +92,7 @@ def register(data: UserRegister, response: Response, request: Request, db: Sessi
     user = create_user(db, data.email, data.username, data.password)
     log_audit(db, "register", user_id=user.id, resource_type="user", resource_id=user.id,
               ip_address=request.client.host if request.client else None)
+    db.commit()
     token = create_access_token(user.id)
     _set_token_cookie(response, token)
     return user
@@ -114,6 +115,7 @@ def login(data: UserLogin, response: Response, request: Request, db: Session = D
     _clear_failed_logins(login_key)
     log_audit(db, "login", user_id=user.id, resource_type="user", resource_id=user.id,
               ip_address=request.client.host if request.client else None)
+    db.commit()
     token = create_access_token(user.id)
     _set_token_cookie(response, token)
     return user
