@@ -1,8 +1,20 @@
+import json
 import warnings
+from functools import lru_cache
 
 from pydantic import field_validator, model_validator
-from pydantic_settings import BaseSettings, SettingsConfigDict
-from functools import lru_cache
+from pydantic_settings import BaseSettings, EnvSettingsSource, SettingsConfigDict
+
+
+class _CommaListEnvSource(EnvSettingsSource):
+    """Allow comma-separated or plain-string env vars for list[str] fields."""
+
+    def prepare_field_value(self, field_name: str, field, value, value_is_complex: bool):  # type: ignore[override]
+        if value_is_complex and isinstance(value, str):
+            v = value.strip()
+            if not v.startswith(("[", "{")):
+                return json.dumps([o.strip() for o in v.split(",") if o.strip()])
+        return super().prepare_field_value(field_name, field, value, value_is_complex)
 
 
 class Settings(BaseSettings):
@@ -47,6 +59,10 @@ class Settings(BaseSettings):
     frontend_url: str = "http://localhost:3000"
 
     model_config = SettingsConfigDict(env_file=".env")
+
+    @classmethod
+    def settings_customise_sources(cls, settings_cls, init_settings, env_settings, dotenv_settings, **kwargs):  # type: ignore[override]
+        return (init_settings, _CommaListEnvSource(settings_cls), dotenv_settings)
 
     @field_validator("database_url")
     @classmethod
