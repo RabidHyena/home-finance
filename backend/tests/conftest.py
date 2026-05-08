@@ -1,23 +1,20 @@
+import os
 import pytest
-from fastapi.testclient import TestClient
+import bcrypt
 from sqlalchemy import create_engine
 from sqlalchemy.orm import sessionmaker
-from sqlalchemy.pool import StaticPool
+from sqlalchemy.pool import NullPool
+from fastapi.testclient import TestClient
 
 from app.main import app
 from app.database import Base, get_db
 from app.models import User, PasswordResetToken  # noqa: F401 — needed for table creation
 from app.services.auth_service import create_access_token
-import bcrypt
 from app.config import get_settings
 
-# Shared in-memory SQLite for all tests
-engine = create_engine(
-    "sqlite:///:memory:",
-    connect_args={"check_same_thread": False},
-    poolclass=StaticPool,
-)
-TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+# Set by session-scoped fixture before any test runs
+engine = None
+TestingSessionLocal = None
 
 
 def override_get_db():
@@ -28,13 +25,36 @@ def override_get_db():
         db.close()
 
 
-app.dependency_overrides[get_db] = override_get_db
+@pytest.fixture(scope="session", autouse=True)
+def _start_postgres():
+    """
+    Provide a PostgreSQL engine for the test session.
+
+    If TEST_DATABASE_URL is set (CI / docker compose exec), connect directly.
+    Otherwise spin up a temporary container via testcontainers (local dev, requires Docker).
+    """
+    global engine, TestingSessionLocal
+
+    test_db_url = os.getenv("TEST_DATABASE_URL")
+    if test_db_url:
+        engine = create_engine(test_db_url, poolclass=NullPool)
+        TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+        app.dependency_overrides[get_db] = override_get_db
+        yield
+        engine.dispose()
+    else:
+        from testcontainers.postgres import PostgresContainer
+        with PostgresContainer("postgres:16-alpine") as pg:
+            engine = create_engine(pg.get_connection_url(), poolclass=NullPool)
+            TestingSessionLocal = sessionmaker(autocommit=False, autoflush=False, bind=engine)
+            app.dependency_overrides[get_db] = override_get_db
+            yield
+        engine.dispose()
 
 
 @pytest.fixture(autouse=True)
 def setup_database():
     """Create tables before each test and drop after."""
-    # Clear auth state and caches before each test
     from app.routers.auth import _failed_logins, _failed_logins_lock, _auth_limiter
     with _failed_logins_lock:
         _failed_logins.clear()

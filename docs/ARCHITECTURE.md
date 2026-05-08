@@ -155,7 +155,7 @@ home-finance/
 │   │       └── merchant_normalization.py  # Нормализация названий
 │   ├── alembic/                 # Миграции БД
 │   ├── tests/                   # pytest
-│   │   ├── conftest.py          # Фикстуры (in-memory SQLite, auth)
+│   │   ├── conftest.py          # Фикстуры (PostgreSQL via testcontainers или TEST_DATABASE_URL, auth)
 │   │   ├── test_auth.py         # Auth, registration, data isolation
 │   │   ├── test_transactions.py # CRUD, поиск, фильтры, валюта, CSV экспорт
 │   │   ├── test_budgets.py      # Бюджеты CRUD + статус расходов

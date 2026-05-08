@@ -92,7 +92,7 @@ cd backend && uvicorn app.main:app --reload
 cd frontend && npm run dev
 
 # Backend тесты (CRUD, пагинация, фильтрация, отчёты, валидация)
-cd backend && DATABASE_URL="sqlite:///:memory:" pytest -v
+cd backend && DEBUG=true pytest -v
 
 # Frontend E2E тесты (требует запущенный стек через docker-compose)
 cd frontend && npm run test:e2e

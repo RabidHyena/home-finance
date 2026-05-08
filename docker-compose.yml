@@ -30,6 +30,7 @@ services:
     container_name: home-finance-backend
     environment:
       DATABASE_URL: ${DATABASE_URL:-postgresql://postgres:postgres@db:5432/home_finance}
+      TEST_DATABASE_URL: postgresql://postgres:postgres@db:5432/home_finance
       OPENROUTER_API_KEY: ${OPENROUTER_API_KEY:-}
       SECRET_KEY: ${SECRET_KEY}
       DEBUG: ${DEBUG:-false}
