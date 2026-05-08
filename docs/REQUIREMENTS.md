@@ -105,6 +105,12 @@
 | NFR-043 | Автоудаление загруженных файлов после обработки | ✅ Готово |
 | NFR-044 | Budget category sanitization (_SanitizationMixin) | ✅ Готово |
 | NFR-045 | Frontend port привязан к localhost (Docker) | ✅ Готово |
+| NFR-046 | CSRF защита (X-CSRF-Token + cookie double-submit) на все state-changing запросы | ✅ Готово |
+| NFR-047 | Шифрование PII-полей в БД (image_path, raw_text) — AES-GCM (cryptography) | ✅ Готово |
+| NFR-048 | Аудит-лог безопасных операций в БД (login, register, create/update/delete транзакций) | ✅ Готово |
+| NFR-049 | Сброс пароля через одноразовый токен (24ч) с доставкой по email (SMTP) | ✅ Готово |
+| NFR-050 | Автоматическое сжатие загружаемых изображений (max 2048px, aspect ratio сохраняется) | ✅ Готово |
+| NFR-051 | XLSX-экспорт: защита от formula injection (описания с `=`/`+` получают префикс `'`) | ✅ Готово |
 
 ---
 
@@ -185,6 +191,29 @@
 | category_corrections | Журнал исправлений AI-категоризации (user_id FK) |
 | merchant_category_mappings | Выученные связи «продавец → категория» (user_id FK) |
 
+### 5.5 Сброс пароля (PasswordResetToken)
+
+| Поле | Тип | Описание |
+|------|-----|----------|
+| id | Integer | Уникальный идентификатор |
+| user_id | Integer (FK) | Пользователь |
+| token | String (unique) | Одноразовый токен |
+| expires_at | DateTime | Срок действия (24 ч) |
+| used | Boolean | Использован ли токен |
+| created_at | DateTime | Дата создания |
+
+### 5.6 Аудит-лог (AuditLog)
+
+| Поле | Тип | Описание |
+|------|-----|----------|
+| id | Integer | Уникальный идентификатор |
+| action | String | Действие: login, register, create, update, delete |
+| user_id | Integer | ID пользователя (nullable для неавторизованных) |
+| resource_type | String | Тип ресурса: user, transaction |
+| resource_id | Integer | ID ресурса (nullable) |
+| ip_address | String | IP адрес запроса |
+| created_at | DateTime | Дата и время события |
+
 ---
 
 ## 6. API Endpoints
@@ -201,6 +230,7 @@
 | DELETE | /api/transactions | Удалить все (с фильтром по type) |
 | GET | /api/transactions/reports/monthly | Месячные отчёты по категориям |
 | GET | /api/transactions/export | Экспорт в CSV (с учётом фильтров) |
+| GET | /api/transactions/export/xlsx | Экспорт в Excel .xlsx (с форматированием) |
 
 ### 6.2 Аналитика
 
@@ -230,7 +260,18 @@
 | DELETE | /api/budgets/{id} | Удалить бюджет |
 | GET | /api/budgets/status | Статус бюджетов (траты vs лимиты) |
 
-### 6.5 Системные
+### 6.5 Аутентификация (расширенная)
+
+| Метод | Endpoint | Описание |
+|-------|----------|----------|
+| POST | /api/auth/register | Регистрация |
+| POST | /api/auth/login | Вход |
+| POST | /api/auth/logout | Выход |
+| GET | /api/auth/me | Текущий пользователь |
+| POST | /api/auth/forgot-password | Запрос сброса пароля (отправляет email) |
+| POST | /api/auth/reset-password | Сброс пароля по токену |
+
+### 6.6 Системные
 
 | Метод | Endpoint | Описание |
 |-------|----------|----------|
@@ -298,5 +339,5 @@
 
 ---
 
-*Версия документа: 6.0*
-*Дата: 18 февраля 2026*
+*Версия документа: 7.0*
+*Дата: 8 мая 2026*

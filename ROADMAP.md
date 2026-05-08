@@ -18,6 +18,7 @@
 | Фаза 5.1 | ✅ Готово | Security testing, input sanitization, Postman collection |
 | Фаза 6 | ✅ Готово | Доходы (income), Excel импорт, strict Postman collection |
 | Фаза 7 | ✅ Готово | Код-ревью: баг-фиксы, безопасность, рефакторинг, OCR улучшения |
+| Фаза 8 | ✅ Готово | Email-уведомления, аудит-лог, Excel-экспорт, оптимизация изображений, CSRF, PII-шифрование |
 
 ---
 
@@ -360,4 +361,52 @@ Backend тесты (pytest), strict + brutal Postman collections, TypeScript к�
 
 ---
 
-*Обновлено: 18 февраля 2026 — Фазы 0-7 завершены*
+---
+
+## Фаза 8: Email, аудит, xlsx-экспорт, безопасность ✅ ЗАВЕРШЕНО
+
+### 8.1 Email-уведомления и сброс пароля
+- [x] `EmailService` (SMTP/STARTTLS): отправка HTML+text писем
+- [x] `POST /api/auth/forgot-password` — генерация одноразового токена (24 ч)
+- [x] `POST /api/auth/reset-password` — смена пароля по токену
+- [x] Модель `PasswordResetToken` (токен, expiry, used flag)
+- [x] SMTP конфигурация через env vars: SMTP_HOST, SMTP_PORT, SMTP_USER, SMTP_PASSWORD, SMTP_FROM, SMTP_TLS, FRONTEND_URL
+- [x] Страницы ForgotPasswordPage и ResetPasswordPage во фронтенде
+
+### 8.2 Аудит-лог
+- [x] Модель `AuditLog` (action, user_id, resource_type, resource_id, ip_address, created_at)
+- [x] `AuditService.log_audit()` — атомарная запись, никогда не бросает исключений
+- [x] Покрытие: login, register, create/update/delete транзакций
+- [x] Записи сохраняются при удалении транзакции (нет CASCADE)
+
+### 8.3 Excel-экспорт
+- [x] `GET /api/transactions/export/xlsx` — экспорт в .xlsx (openpyxl)
+- [x] Жирный заголовок, автоширина колонок
+- [x] Защита от formula injection (описания с `=`/`+` получают префикс `'`)
+- [x] Фильтрация по type/category/date_from/date_to (как в CSV-экспорте)
+
+### 8.4 Оптимизация изображений
+- [x] `_resize_image_if_needed()` в `upload.py` (Pillow)
+- [x] Автоматическое уменьшение до max 2048px с сохранением aspect ratio
+- [x] Fallback: при ошибке Pillow возвращает оригинальные байты
+
+### 8.5 CSRF защита
+- [x] Cookie `csrf_token` + заголовок `X-CSRF-Token` (double-submit cookie pattern)
+- [x] Middleware проверяет все state-changing методы (POST/PUT/DELETE)
+- [x] Исключены публичные эндпоинты (/api/auth/login, /api/auth/register)
+
+### 8.6 PII-шифрование
+- [x] Поля `image_path` и `raw_text` шифруются AES-GCM (библиотека `cryptography`)
+- [x] Ключ шифрования — SECRET_KEY через PBKDF2
+
+### 8.7 Тесты
+- [x] `test_email.py` — 15 тестов SMTP-сервиса
+- [x] `test_audit.py` — 13 тестов аудит-лога
+- [x] `test_password_reset.py` — 9 тестов сброса пароля
+- [x] `test_csrf.py` — 12 тестов CSRF-защиты
+- [x] `test_crypto.py` — 5 тестов PII-шифрования
+- [x] `test_error_scenarios.py` расширен: edge-cases для xlsx, image resize, аудит-лога
+
+---
+
+*Обновлено: 8 мая 2026 — Фазы 0-8 завершены*

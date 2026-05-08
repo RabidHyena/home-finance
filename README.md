@@ -4,17 +4,20 @@
 
 ## Возможности
 
-- **Аутентификация**: регистрация, вход, JWT-токены в httpOnly cookies (bcrypt + PyJWT)
+- **Аутентификация**: регистрация, вход, JWT-токены в httpOnly cookies (bcrypt + PyJWT), сброс пароля по email
 - **Мультипользовательность**: изоляция данных между пользователями (user_id FK)
-- **Безопасность**: CORS, CSP/HSTS/Permissions-Policy headers, rate limiting (глобальный 100 req/min + 10 req/min для upload), brute force защита (5 попыток → 15 мин блокировка), валидация паролей (буква + цифра), magic byte валидация файлов, CSV sanitization, SECRET_KEY enforcement, input sanitization (null bytes, HTML, control chars), amount/date range validation, password max 72 bytes (bcrypt), username pattern validation, budget category sanitization
+- **Безопасность**: CORS, CSP/HSTS/Permissions-Policy headers, CSRF защита (X-CSRF-Token + cookie double-submit), rate limiting (глобальный 100 req/min + 10 req/min для upload), brute force защита (5 попыток → 15 мин блокировка), валидация паролей (буква + цифра), magic byte валидация файлов, CSV/XLSX sanitization (formula injection), SECRET_KEY enforcement, input sanitization (null bytes, HTML, control chars), amount/date range validation, password max 72 bytes (bcrypt), username pattern validation, budget category sanitization, шифрование PII-полей (AES-GCM, cryptography)
 - **Расходы и доходы**: тип транзакции (expense/income) с раздельными категориями и фильтрацией
 - Загрузка скриншотов банковских приложений (одиночная и пакетная до 10 штук)
+- Автоматическое сжатие изображений при загрузке (Pillow, max 2048px, сохранение aspect ratio)
 - Импорт выписок из Excel (.xlsx, .xls)
 - AI-распознавание транзакций и диаграмм (Gemini 3 Flash через OpenRouter)
 - Авто-категоризация с обучением на исправлениях пользователя
 - CRUD транзакций с поиском, фильтрами по датам, категориям и типу
 - Мультивалютность (RUB, USD, EUR, GBP)
-- Экспорт в CSV
+- Экспорт в CSV и Excel (.xlsx с форматированием и защитой от formula injection)
+- Аудит-лог операций (login, register, create/update/delete транзакций)
+- Email-уведомления: сброс пароля через SMTP
 - Бюджеты по категориям (месячные/недельные) с уведомлениями о превышении
 - Аналитика: сравнение месяцев, тренды, прогнозирование
 - Отчёты с интерактивными графиками (Recharts)
@@ -22,7 +25,7 @@
 - Адаптивный интерфейс (mobile + desktop)
 - REST API с Swagger UI документацией
 - **Производительность**: TTL-кэш аналитики с автоинвалидацией, lazy loading страниц (React.lazy + Suspense), retry с экспоненциальным backoff (OCR + React Query)
-- **Наблюдаемость**: структурированное логирование с request ID и замером времени, health check эндпоинт
+- **Наблюдаемость**: структурированное логирование с request ID и замером времени, health check эндпоинт, аудит-лог в БД
 - **CI/CD**: GitHub Actions (ruff, pytest, tsc, eslint, vitest)
 - **Docker hardening**: read-only FS, ограничение CPU/RAM, tmpfs, graceful shutdown
 
@@ -72,6 +75,13 @@ docker compose up --build
 | `SEED_ADMIN_PASSWORD` | нет | `admin` | Пароль admin пользователя при первой миграции |
 | `RATE_LIMIT_WINDOW` | нет | `60` | Окно rate limiter в секундах |
 | `RATE_LIMIT_MAX_REQUESTS` | нет | `100` (docker) / `10` (default) | Максимум запросов на IP за окно |
+| `SMTP_HOST` | нет | `""` | SMTP сервер (оставьте пустым для отключения email) |
+| `SMTP_PORT` | нет | `587` | SMTP порт |
+| `SMTP_USER` | нет | `""` | SMTP логин |
+| `SMTP_PASSWORD` | нет | `""` | SMTP пароль |
+| `SMTP_FROM` | нет | `""` | Email отправителя (обязателен при заданном SMTP_HOST) |
+| `SMTP_TLS` | нет | `true` | Использовать STARTTLS |
+| `FRONTEND_URL` | нет | `http://localhost:3000` | URL фронтенда (для ссылок в письмах) |
 
 ## Разработка
 
@@ -149,9 +159,11 @@ home-finance/
 │   │       ├── ocr_service.py   # Gemini Vision через OpenRouter (retry + backoff)
 │   │       ├── excel_service.py # Парсинг банковских выписок Excel
 │   │       ├── learning_service.py  # Обучение категоризации
+│   │       ├── email_service.py     # SMTP: сброс пароля
+│   │       ├── audit_service.py     # Аудит-лог операций
 │   │       └── merchant_normalization.py
 │   ├── alembic/                 # Миграции БД
-│   ├── tests/                   # pytest
+│   ├── tests/                   # pytest (~280 тестов)
 │   │   ├── conftest.py          # Фикстуры (in-memory SQLite)
 │   │   ├── test_auth.py         # Auth, data isolation
 │   │   ├── test_transactions.py # CRUD, поиск, фильтры, CSV
@@ -160,7 +172,12 @@ home-finance/
 │   │   ├── test_services.py     # OCR parsing, merchant norm, learning
 │   │   ├── test_upload.py       # Magic bytes, file validation
 │   │   ├── test_rate_limiter.py # Rate limiter, chart parsing
-│   │   ├── test_error_scenarios.py # Edge cases, brute force, валидация
+│   │   ├── test_error_scenarios.py # Edge cases, xlsx export, image resize
+│   │   ├── test_audit.py        # Аудит-лог операций
+│   │   ├── test_email.py        # Email сервис (SMTP)
+│   │   ├── test_password_reset.py  # Сброс пароля
+│   │   ├── test_csrf.py         # CSRF защита
+│   │   ├── test_crypto.py       # PII шифрование
 │   │   └── test_e2e.py          # E2E integration
 │   ├── Dockerfile
 │   ├── requirements.txt
@@ -203,6 +220,8 @@ home-finance/
 | POST | `/api/auth/login` | Вход (login, password). Rate limited (configurable) |
 | POST | `/api/auth/logout` | Выход (очистка cookie) |
 | GET | `/api/auth/me` | Текущий пользователь |
+| POST | `/api/auth/forgot-password` | Запрос сброса пароля (отправляет письмо) |
+| POST | `/api/auth/reset-password` | Сброс пароля по токену |
 
 ### Транзакции
 
@@ -220,6 +239,7 @@ home-finance/
 | GET | `/api/transactions/analytics/forecast` | Прогноз |
 | GET | `/api/transactions/analytics/ai-accuracy` | Точность AI |
 | GET | `/api/transactions/export` | Экспорт в CSV |
+| GET | `/api/transactions/export/xlsx` | Экспорт в Excel (.xlsx) |
 
 ### Загрузка
 

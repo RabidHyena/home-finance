@@ -97,6 +97,55 @@ Clear the session cookie.
 
 ---
 
+#### POST /api/auth/forgot-password
+
+Initiate a password reset. Sends an email with a reset link if the account exists.
+
+**Request Body:**
+```json
+{
+  "email": "user@example.com"
+}
+```
+
+**Response:** `200 OK` (always — does not reveal whether the email exists)
+```json
+{
+  "message": "If that email is registered, a reset link has been sent."
+}
+```
+
+> Requires `SMTP_HOST` and `SMTP_FROM` to be configured. If SMTP is not configured, the endpoint returns 200 but no email is sent.
+
+---
+
+#### POST /api/auth/reset-password
+
+Complete the password reset using the token from the email link.
+
+**Request Body:**
+```json
+{
+  "token": "abc123...",
+  "new_password": "newpassword123"
+}
+```
+
+**Validation:** Same rules as registration (8–72 chars, must contain a letter and a digit).
+
+**Response:** `200 OK`
+```json
+{
+  "message": "Password updated successfully."
+}
+```
+
+**Errors:**
+- `400 Bad Request` — Token invalid, expired, or already used
+- `422 Unprocessable Entity` — Password validation failed
+
+---
+
 #### GET /api/auth/me
 
 Get the current authenticated user.
@@ -318,6 +367,21 @@ Export transactions to CSV. Supports all filters from GET /api/transactions plus
 - Content-Type: `text/csv; charset=utf-8`
 - Content-Disposition: `attachment; filename=transactions_YYYYMMDD_HHMMSS.csv`
 - Includes UTF-8 BOM for Excel compatibility
+
+#### GET /api/transactions/export/xlsx
+
+Export transactions to Excel (.xlsx). Supports the same filters as the CSV export.
+
+**Query Parameters:** same as `/api/transactions/export`
+
+**Response:** `200 OK`
+- Content-Type: `application/vnd.openxmlformats-officedocument.spreadsheetml.sheet`
+- Content-Disposition: `attachment; filename=transactions_YYYYMMDD_HHMMSS.xlsx`
+
+**Features:**
+- Bold header row
+- Descriptions starting with `=` or `+` are prefixed with `'` to prevent formula injection
+- Columns: ID, Date, Amount, Currency, Type, Description, Category
 
 ---
 
@@ -714,6 +778,37 @@ All transaction inputs are validated and sanitized:
 
 ---
 
+## CSRF Protection
+
+All state-changing requests (POST, PUT, DELETE) except `/api/auth/login` and `/api/auth/register` require a valid CSRF token.
+
+**How it works (double-submit cookie pattern):**
+1. On login the server sets a `csrf_token` cookie (not httpOnly, readable by JS)
+2. The client reads the cookie and sends it as the `X-CSRF-Token` header on every mutating request
+3. The server validates that the header matches the cookie
+
+**Example:**
+```bash
+# Login first (sets both access_token and csrf_token cookies)
+curl -X POST http://localhost:3000/api/auth/login \
+  -H "Content-Type: application/json" \
+  -c cookies.txt \
+  -d '{"login": "user@example.com", "password": "password123"}'
+
+# Extract CSRF token from cookie jar and pass it as a header
+CSRF=$(grep csrf_token cookies.txt | awk '{print $NF}')
+
+curl -X POST http://localhost:3000/api/transactions \
+  -H "Content-Type: application/json" \
+  -H "X-CSRF-Token: $CSRF" \
+  -b cookies.txt \
+  -d '{"amount": 100, "description": "Coffee", "date": "2026-01-15T10:00:00"}'
+```
+
+**Error:** `403 Forbidden` when the header is missing or does not match the cookie.
+
+---
+
 ## Rate Limiting
 
 **Global** (all endpoints): 100 requests per minute per IP.
@@ -832,5 +927,5 @@ Import into Postman and run folders in order.
 
 ---
 
-*Version: 7.0*
-*Date: 18 February 2026*
+*Version: 8.0*
+*Date: 8 May 2026*
