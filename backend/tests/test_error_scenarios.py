@@ -435,3 +435,167 @@ class TestBruteForceProtection:
             "password": "password456",
         })
         assert resp.status_code == 200
+
+
+# --- Excel Export Edge Cases ---
+
+class TestXlsxExportEdgeCases:
+
+    def test_export_xlsx_empty_returns_headers_only(self, auth_client):
+        """Empty dataset: response is valid xlsx with header row only."""
+        import openpyxl, io
+        resp = auth_client.get("/api/transactions/export/xlsx")
+        assert resp.status_code == 200
+        assert "spreadsheetml" in resp.headers["content-type"]
+        wb = openpyxl.load_workbook(io.BytesIO(resp.content))
+        ws = wb.active
+        assert ws.max_row == 1  # header only
+
+    def test_export_xlsx_header_row_is_bold(self, auth_client):
+        import openpyxl, io
+        resp = auth_client.get("/api/transactions/export/xlsx")
+        wb = openpyxl.load_workbook(io.BytesIO(resp.content))
+        ws = wb.active
+        assert ws["A1"].font.bold is True
+
+    def test_export_xlsx_contains_data(self, auth_client):
+        import openpyxl, io
+        auth_client.post("/api/transactions", json={
+            "amount": 42.50,
+            "description": "Coffee",
+            "date": "2024-06-01T09:00:00",
+            "category": "Food",
+        })
+        resp = auth_client.get("/api/transactions/export/xlsx")
+        wb = openpyxl.load_workbook(io.BytesIO(resp.content))
+        ws = wb.active
+        assert ws.max_row == 2  # header + 1 data row
+        assert ws["C2"].value == 42.5  # amount column
+
+    def test_export_xlsx_formula_injection_sanitized(self, auth_client):
+        """Descriptions starting with = or + must be prefixed with ' to prevent injection."""
+        import openpyxl, io
+        auth_client.post("/api/transactions", json={
+            "amount": 100,
+            "description": "=SUM(A1:A10)",
+            "date": "2024-06-01T09:00:00",
+        })
+        resp = auth_client.get("/api/transactions/export/xlsx")
+        wb = openpyxl.load_workbook(io.BytesIO(resp.content))
+        ws = wb.active
+        desc = ws["F2"].value  # description column
+        assert desc is not None
+        assert not str(desc).startswith("=")
+
+    def test_export_xlsx_filters_by_type(self, auth_client):
+        import openpyxl, io
+        auth_client.post("/api/transactions", json={
+            "amount": 100, "description": "Expense", "date": "2024-06-01T09:00:00", "type": "expense",
+        })
+        auth_client.post("/api/transactions", json={
+            "amount": 5000, "description": "Salary", "date": "2024-06-01T09:00:00", "type": "income",
+        })
+        resp = auth_client.get("/api/transactions/export/xlsx?type=expense")
+        wb = openpyxl.load_workbook(io.BytesIO(resp.content))
+        ws = wb.active
+        assert ws.max_row == 2  # header + 1 expense row
+
+    def test_export_xlsx_content_disposition_header(self, auth_client):
+        resp = auth_client.get("/api/transactions/export/xlsx")
+        cd = resp.headers.get("content-disposition", "")
+        assert "attachment" in cd
+        assert ".xlsx" in cd
+
+    def test_export_xlsx_requires_auth(self, client):
+        resp = client.get("/api/transactions/export/xlsx")
+        assert resp.status_code == 401
+
+
+# --- Audit Log Edge Cases ---
+
+class TestAuditLogEdgeCases:
+
+    def test_audit_entry_ip_address_stored(self, client, test_user):
+        from app.models import AuditLog
+        from tests.conftest import TestingSessionLocal
+        client.post("/api/auth/login", json={
+            "login": "test@example.com",
+            "password": "password123",
+        })
+        db = TestingSessionLocal()
+        entry = db.query(AuditLog).filter(AuditLog.action == "login").first()
+        db.close()
+        assert entry.ip_address is not None
+
+    def test_audit_entry_resource_id_stored_for_transaction(self, auth_client):
+        from app.models import AuditLog
+        from tests.conftest import TestingSessionLocal
+        r = auth_client.post("/api/transactions", json={
+            "amount": 99, "description": "Test", "date": "2024-01-01T00:00:00",
+        })
+        tx_id = r.json()["id"]
+        db = TestingSessionLocal()
+        entry = db.query(AuditLog).filter(AuditLog.action == "create").first()
+        db.close()
+        assert entry.resource_id == tx_id
+
+    def test_audit_log_survives_transaction_deletion(self, auth_client):
+        """Audit entries must persist even after the audited resource is deleted."""
+        from app.models import AuditLog
+        from tests.conftest import TestingSessionLocal
+        r = auth_client.post("/api/transactions", json={
+            "amount": 50, "description": "Gone", "date": "2024-01-01T00:00:00",
+        })
+        tx_id = r.json()["id"]
+        auth_client.delete(f"/api/transactions/{tx_id}")
+
+        db = TestingSessionLocal()
+        entries = db.query(AuditLog).filter(AuditLog.resource_id == tx_id).all()
+        db.close()
+        assert len(entries) == 2  # create + delete both preserved
+
+
+# --- Image Resize Edge Cases ---
+
+class TestImageResizeEdgeCases:
+
+    def _make_jpeg(self, width: int, height: int) -> bytes:
+        """Create a minimal valid JPEG of given dimensions using Pillow."""
+        from PIL import Image
+        import io
+        img = Image.new("RGB", (width, height), color=(128, 64, 32))
+        buf = io.BytesIO()
+        img.save(buf, format="JPEG")
+        return buf.getvalue()
+
+    def test_small_image_passes_through_unchanged(self):
+        from app.routers.upload import _resize_image_if_needed
+        original = self._make_jpeg(800, 600)
+        result = _resize_image_if_needed(original, max_dimension=2048)
+        assert result == original
+
+    def test_large_image_is_resized(self):
+        from PIL import Image
+        import io
+        from app.routers.upload import _resize_image_if_needed
+        original = self._make_jpeg(4000, 3000)
+        result = _resize_image_if_needed(original, max_dimension=2048)
+        assert len(result) < len(original)
+        img = Image.open(io.BytesIO(result))
+        assert max(img.size) <= 2048
+
+    def test_aspect_ratio_preserved_after_resize(self):
+        from PIL import Image
+        import io
+        from app.routers.upload import _resize_image_if_needed
+        original = self._make_jpeg(4000, 2000)  # 2:1 ratio
+        result = _resize_image_if_needed(original, max_dimension=2048)
+        img = Image.open(io.BytesIO(result))
+        w, h = img.size
+        assert abs(w / h - 2.0) < 0.01
+
+    def test_corrupt_bytes_falls_back_to_original(self):
+        from app.routers.upload import _resize_image_if_needed
+        corrupt = b"\xff\xd8\xff" + b"\x00" * 50  # JPEG magic + garbage
+        result = _resize_image_if_needed(corrupt)
+        assert result == corrupt  # fallback: return original
