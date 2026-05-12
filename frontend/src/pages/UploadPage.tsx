@@ -319,14 +319,12 @@ export function UploadPage() {
 
             {allBatchFilesSaved && (
               <div style={{ textAlign: 'center', marginTop: '1rem' }}>
-                <motion.button
+                <button
                   className="btn btn-primary"
                   onClick={() => setStep('success')}
-                  whileHover={{ scale: 1.03 }}
-                  whileTap={{ scale: 0.97 }}
                 >
                   Готово
-                </motion.button>
+                </button>
               </div>
             )}
           </motion.div>

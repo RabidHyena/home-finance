@@ -93,12 +93,6 @@ export function BudgetsPage() {
     return '#f87171';
   }, []);
 
-  const getProgressGlow = useCallback((percentage: number): string => {
-    if (percentage < 70) return 'rgba(52, 211, 153, 0.25)';
-    if (percentage < 90) return 'rgba(251, 191, 36, 0.25)';
-    return 'rgba(248, 113, 113, 0.25)';
-  }, []);
-
   const usedCategories = useMemo(() => new Set(budgetStatuses.map(s => s.budget.category)), [budgetStatuses]);
   const availableCategories = useMemo(() => {
     const editingCategory = editingId
@@ -127,20 +121,18 @@ export function BudgetsPage() {
       <motion.div variants={staggerItem} style={{ display: 'flex', justifyContent: 'space-between', alignItems: 'center', marginBottom: '1.5rem' }}>
         <h1 style={{ fontSize: '1.4rem', fontFamily: 'var(--font-heading)', letterSpacing: '0.04em', margin: 0 }}>Бюджеты</h1>
         {!showForm && availableCategories.length > 0 && (
-          <motion.button
+          <button
             onClick={() => {
               setShowForm(true);
               setEditingId(null);
               setFormData({ category: availableCategories[0], limit_amount: '', period: 'monthly' });
             }}
             className="btn btn-primary"
-            whileHover={{ scale: 1.03 }}
-            whileTap={{ scale: 0.97 }}
             style={{ display: 'flex', alignItems: 'center', gap: '0.5rem' }}
           >
             <Plus size={16} />
             Добавить бюджет
-          </motion.button>
+          </button>
         )}
       </motion.div>
 
@@ -268,7 +260,6 @@ export function BudgetsPage() {
             <motion.div
               key={status.budget.id}
               variants={staggerItem}
-              whileHover={{ scale: 1.005, borderColor: getProgressColor(status.percentage) + '40' }}
               style={{
                 background: 'var(--color-surface)',
                 borderRadius: 'var(--radius-lg)',
@@ -288,26 +279,22 @@ export function BudgetsPage() {
                   </p>
                 </div>
                 <div style={{ display: 'flex', gap: '0.25rem' }}>
-                  <motion.button
+                  <button
                     onClick={() => handleEdit(status)}
-                    whileHover={{ scale: 1.1 }}
-                    whileTap={{ scale: 0.9 }}
                     className="btn btn-secondary"
                     style={{ padding: '0.4rem' }}
                     title="Редактировать"
                   >
                     <Edit2 size={14} />
-                  </motion.button>
-                  <motion.button
+                  </button>
+                  <button
                     onClick={() => setDeleteId(status.budget.id)}
-                    whileHover={{ scale: 1.1 }}
-                    whileTap={{ scale: 0.9 }}
                     className="btn btn-secondary"
                     style={{ padding: '0.4rem', color: 'var(--color-danger)' }}
                     title="Удалить"
                   >
                     <Trash2 size={14} />
-                  </motion.button>
+                  </button>
                 </div>
               </div>
 
@@ -330,7 +317,6 @@ export function BudgetsPage() {
                       backgroundColor: getProgressColor(status.percentage),
                       height: '100%',
                       borderRadius: 'var(--radius-full)',
-                      boxShadow: `0 0 12px ${getProgressGlow(status.percentage)}`,
                     }}
                   />
                   <div style={{

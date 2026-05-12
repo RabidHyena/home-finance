@@ -90,7 +90,7 @@ export function ReportsPage() {
               borderRadius: 'var(--radius-full)',
               border: 'none',
               background: activeTab === tab
-                ? (tab === 'expense' ? 'var(--gradient-warm)' : 'var(--gradient-cool)')
+                ? 'var(--color-accent)'
                 : 'transparent',
               color: activeTab === tab ? 'white' : 'var(--color-text-muted)',
               fontWeight: activeTab === tab ? 600 : 400,

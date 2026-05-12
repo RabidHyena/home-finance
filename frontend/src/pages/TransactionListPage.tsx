@@ -208,7 +208,7 @@ export function TransactionListPage({
   }, [filter, dateFrom, dateTo, debouncedSearch, type, exportPrefix, toast]);
 
   const btnStyle = buttonColor
-    ? { background: `linear-gradient(135deg, ${buttonColor}, ${buttonColor}dd)`, borderColor: 'transparent' }
+    ? { background: buttonColor, borderColor: 'transparent' }
     : undefined;
 
   const modalOverlayStyle: React.CSSProperties = {

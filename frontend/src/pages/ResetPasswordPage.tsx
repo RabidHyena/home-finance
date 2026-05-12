@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate, useSearchParams } from 'react-router-dom';
-import { KeyRound, Wallet } from 'lucide-react';
+import { KeyRound } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { api } from '../api/client';
 import { slideUp } from '../motion';
@@ -37,7 +37,7 @@ export function ResetPasswordPage() {
     width: '100%',
     padding: '0.75rem 1rem',
     borderRadius: 'var(--radius-md)',
-    border: '2px solid var(--color-border)',
+    border: '1px solid var(--color-border-strong)',
     fontSize: '1rem',
     boxSizing: 'border-box',
     background: 'var(--color-surface)',
@@ -49,8 +49,8 @@ export function ResetPasswordPage() {
 
   if (!token) {
     return (
-      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--gradient-hero)' }}>
-        <div style={{ background: 'var(--color-surface)', borderRadius: 'var(--radius-xl)', padding: '2.5rem 2rem', maxWidth: '420px', textAlign: 'center', border: '1px solid var(--color-border)' }}>
+      <div style={{ minHeight: '100vh', display: 'flex', alignItems: 'center', justifyContent: 'center', background: 'var(--color-bg)' }}>
+        <div style={{ background: 'var(--color-surface)', borderRadius: 'var(--radius-lg)', padding: '2.5rem 2rem', maxWidth: '420px', textAlign: 'center', border: '1px solid var(--color-border)' }}>
           <p style={{ color: 'var(--color-danger)', marginBottom: '1rem' }}>Ссылка для сброса недействительна.</p>
           <Link to="/forgot-password" style={{ color: 'var(--color-accent)', fontWeight: 500 }}>Запросить новую</Link>
         </div>
@@ -64,7 +64,7 @@ export function ResetPasswordPage() {
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
-      background: 'var(--gradient-hero)',
+      background: 'var(--color-bg)',
       padding: '1rem',
     }}>
       <motion.div
@@ -73,7 +73,7 @@ export function ResetPasswordPage() {
         animate="animate"
         style={{
           background: 'var(--color-surface)',
-          borderRadius: 'var(--radius-xl)',
+          borderRadius: 'var(--radius-lg)',
           boxShadow: 'var(--shadow-lg)',
           border: '1px solid var(--color-border)',
           padding: '2.5rem 2rem',
@@ -81,12 +81,11 @@ export function ResetPasswordPage() {
           maxWidth: '420px',
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.6rem', marginBottom: '2rem' }}>
-          <Wallet size={28} color="var(--color-primary)" />
-          <h1 style={{
-            fontSize: '1.2rem', fontWeight: 700, fontFamily: 'var(--font-heading)', letterSpacing: '0.06em',
-            background: 'var(--gradient-primary)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', backgroundClip: 'text', margin: 0,
-          }}>HOME FINANCE</h1>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', marginBottom: '2rem' }}>
+          <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'var(--color-accent)', display: 'inline-block' }} />
+          <span style={{ fontSize: 'var(--text-md)', fontWeight: 600, color: 'var(--color-text)', fontFamily: 'var(--font-body)' }}>
+            Home Finance
+          </span>
         </div>
 
         <div style={{ display: 'flex', justifyContent: 'center', marginBottom: '1rem' }}>
@@ -124,25 +123,38 @@ export function ResetPasswordPage() {
                 required
                 minLength={8}
                 style={inputStyle}
-                onFocus={e => { e.currentTarget.style.borderColor = 'var(--color-accent)'; e.currentTarget.style.boxShadow = '0 0 0 3px var(--color-accent-glow)'; }}
-                onBlur={e => { e.currentTarget.style.borderColor = 'var(--color-border)'; e.currentTarget.style.boxShadow = 'none'; }}
+                onFocus={e => { e.currentTarget.style.borderColor = 'var(--color-accent)'; }}
+                onBlur={e => { e.currentTarget.style.borderColor = 'var(--color-border-strong)'; }}
               />
             </div>
           ))}
-          <motion.button
+          <button
             type="submit"
             disabled={isLoading}
-            whileHover={{ scale: 1.02 }}
-            whileTap={{ scale: 0.97 }}
             style={{
-              width: '100%', padding: '0.8rem', borderRadius: 'var(--radius-full)', border: 'none',
-              background: 'var(--gradient-primary)', color: 'var(--color-text-inverse)',
-              fontSize: '1rem', fontWeight: 600, fontFamily: 'var(--font-body)',
-              cursor: isLoading ? 'not-allowed' : 'pointer', opacity: isLoading ? 0.7 : 1, marginTop: '0.5rem',
+              width: '100%',
+              padding: '0.5rem 1rem',
+              borderRadius: 'var(--radius-md)',
+              border: 'none',
+              background: 'var(--color-accent)',
+              color: 'white',
+              fontSize: 'var(--text-md)',
+              fontWeight: 500,
+              fontFamily: 'var(--font-body)',
+              cursor: isLoading ? 'not-allowed' : 'pointer',
+              opacity: isLoading ? 0.7 : 1,
+              display: 'flex',
+              alignItems: 'center',
+              justifyContent: 'center',
+              gap: '0.5rem',
+              transition: 'background 120ms ease-out',
+              marginTop: '0.5rem',
             }}
+            onMouseEnter={(e) => { if (!isLoading) e.currentTarget.style.background = 'var(--color-accent-hover)'; }}
+            onMouseLeave={(e) => { if (!isLoading) e.currentTarget.style.background = 'var(--color-accent)'; }}
           >
             {isLoading ? 'Сохранение...' : 'Сохранить пароль'}
-          </motion.button>
+          </button>
         </form>
       </motion.div>
     </div>

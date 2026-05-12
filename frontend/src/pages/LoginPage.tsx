@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { LogIn, Wallet } from 'lucide-react';
+import { LogIn } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../contexts/useAuth';
 import { slideUp, staggerContainer, staggerItem } from '../motion';
@@ -31,7 +31,7 @@ export function LoginPage() {
     width: '100%',
     padding: '0.75rem 1rem',
     borderRadius: 'var(--radius-md)',
-    border: '2px solid var(--color-border)',
+    border: '1px solid var(--color-border-strong)',
     fontSize: '1rem',
     boxSizing: 'border-box',
     background: 'var(--color-surface)',
@@ -58,40 +58,18 @@ export function LoginPage() {
       display: 'flex',
       alignItems: 'center',
       justifyContent: 'center',
-      background: 'var(--gradient-hero)',
+      background: 'var(--color-bg)',
       padding: '1rem',
       position: 'relative',
       overflow: 'hidden',
     }}>
-      {/* Decorative background circles */}
-      <div style={{
-        position: 'absolute',
-        top: '10%',
-        left: '-5%',
-        width: '300px',
-        height: '300px',
-        borderRadius: '50%',
-        background: 'radial-gradient(circle, rgba(129, 140, 248, 0.08) 0%, transparent 70%)',
-        pointerEvents: 'none',
-      }} />
-      <div style={{
-        position: 'absolute',
-        bottom: '5%',
-        right: '-8%',
-        width: '400px',
-        height: '400px',
-        borderRadius: '50%',
-        background: 'radial-gradient(circle, rgba(34, 211, 238, 0.06) 0%, transparent 70%)',
-        pointerEvents: 'none',
-      }} />
-
       <motion.div
         variants={slideUp}
         initial="initial"
         animate="animate"
         style={{
           background: 'var(--color-surface)',
-          borderRadius: 'var(--radius-xl)',
+          borderRadius: 'var(--radius-lg)',
           boxShadow: 'var(--shadow-lg)',
           border: '1px solid var(--color-border)',
           padding: '2.5rem 2rem',
@@ -100,36 +78,12 @@ export function LoginPage() {
           position: 'relative',
         }}
       >
-        <motion.div
-          initial={{ scale: 0.8, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          transition={{ delay: 0.1, type: 'spring', stiffness: 300, damping: 20 }}
-          style={{
-            display: 'flex',
-            alignItems: 'center',
-            justifyContent: 'center',
-            gap: '0.6rem',
-            marginBottom: '2rem',
-          }}
-        >
-          <motion.div
-            animate={{ rotate: [0, 5, -5, 0] }}
-            transition={{ duration: 3, repeat: Infinity, ease: 'easeInOut' }}
-          >
-            <Wallet size={32} color="var(--color-primary)" />
-          </motion.div>
-          <h1 style={{
-            fontSize: '1.3rem',
-            fontWeight: 700,
-            fontFamily: 'var(--font-heading)',
-            letterSpacing: '0.06em',
-            background: 'var(--gradient-primary)',
-            WebkitBackgroundClip: 'text',
-            WebkitTextFillColor: 'transparent',
-            backgroundClip: 'text',
-            margin: 0,
-          }}>HOME FINANCE</h1>
-        </motion.div>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', marginBottom: '2rem' }}>
+          <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'var(--color-accent)', display: 'inline-block' }} />
+          <span style={{ fontSize: 'var(--text-md)', fontWeight: 600, color: 'var(--color-text)', fontFamily: 'var(--font-body)' }}>
+            Home Finance
+          </span>
+        </div>
 
         <h2 style={{
           fontSize: '1.1rem',
@@ -177,14 +131,8 @@ export function LoginPage() {
               onChange={(e) => setFormData({ ...formData, login: e.target.value })}
               required
               style={inputStyle}
-              onFocus={(e) => {
-                e.currentTarget.style.borderColor = 'var(--color-accent)';
-                e.currentTarget.style.boxShadow = '0 0 0 3px var(--color-accent-glow)';
-              }}
-              onBlur={(e) => {
-                e.currentTarget.style.borderColor = 'var(--color-border)';
-                e.currentTarget.style.boxShadow = 'none';
-              }}
+              onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--color-accent)'; }}
+              onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--color-border-strong)'; }}
             />
           </motion.div>
 
@@ -196,32 +144,24 @@ export function LoginPage() {
               onChange={(e) => setFormData({ ...formData, password: e.target.value })}
               required
               style={inputStyle}
-              onFocus={(e) => {
-                e.currentTarget.style.borderColor = 'var(--color-accent)';
-                e.currentTarget.style.boxShadow = '0 0 0 3px var(--color-accent-glow)';
-              }}
-              onBlur={(e) => {
-                e.currentTarget.style.borderColor = 'var(--color-border)';
-                e.currentTarget.style.boxShadow = 'none';
-              }}
+              onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--color-accent)'; }}
+              onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--color-border-strong)'; }}
             />
           </motion.div>
 
           <motion.div variants={staggerItem}>
-            <motion.button
+            <button
               type="submit"
               disabled={isLoading}
-              whileHover={{ scale: 1.02, boxShadow: '0 0 24px rgba(129, 140, 248, 0.25)' }}
-              whileTap={{ scale: 0.97 }}
               style={{
                 width: '100%',
-                padding: '0.8rem',
-                borderRadius: 'var(--radius-full)',
+                padding: '0.5rem 1rem',
+                borderRadius: 'var(--radius-md)',
                 border: 'none',
-                background: 'var(--gradient-primary)',
-                color: 'var(--color-text-inverse)',
-                fontSize: '1rem',
-                fontWeight: 600,
+                background: 'var(--color-accent)',
+                color: 'white',
+                fontSize: 'var(--text-md)',
+                fontWeight: 500,
                 fontFamily: 'var(--font-body)',
                 cursor: isLoading ? 'not-allowed' : 'pointer',
                 opacity: isLoading ? 0.7 : 1,
@@ -229,12 +169,14 @@ export function LoginPage() {
                 alignItems: 'center',
                 justifyContent: 'center',
                 gap: '0.5rem',
-                letterSpacing: '0.02em',
+                transition: 'background 120ms ease-out',
               }}
+              onMouseEnter={(e) => { if (!isLoading) e.currentTarget.style.background = 'var(--color-accent-hover)'; }}
+              onMouseLeave={(e) => { if (!isLoading) e.currentTarget.style.background = 'var(--color-accent)'; }}
             >
               <LogIn size={20} />
               {isLoading ? 'Вход...' : 'Войти'}
-            </motion.button>
+            </button>
           </motion.div>
         </motion.form>
 
