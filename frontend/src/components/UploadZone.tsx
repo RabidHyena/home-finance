@@ -256,17 +256,17 @@ export function UploadZone({
 
   return (
     <motion.label
-      className="card-lift"
+      className="zone-expand"
       onDrop={handleDrop}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
       animate={{
-        borderColor: isDragging ? 'var(--color-accent)' : 'var(--color-border-strong)',
+        borderColor: isDragging ? 'var(--color-accent)' : 'var(--color-border)',
         background: isDragging ? 'var(--color-accent-bg)' : 'transparent',
       }}
       style={{
         display: 'block',
-        border: '1.5px dashed var(--color-border-strong)',
+        border: '1px solid var(--color-border)',
         borderRadius: 'var(--radius-lg)',
         padding: '4rem 3rem',
         textAlign: 'center',
