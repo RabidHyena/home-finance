@@ -222,7 +222,7 @@ export function UploadPage() {
                     </div>
                     <p style={{
                       margin: 0,
-                      fontSize: 'var(--text-sm)',
+                      fontSize: 'var(--text-base)',
                       color: 'var(--color-text-secondary)',
                       lineHeight: 1.5,
                     }}>
