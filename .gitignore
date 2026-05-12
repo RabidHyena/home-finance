@@ -63,3 +63,10 @@ CLAUDE.md
 # Logs
 *.log
 logs/
+
+# Screenshots & debug artifacts
+*.png
+*.jpg
+*.jpeg
+.playwright-mcp/
+docker/
