@@ -398,13 +398,24 @@ h1, h2, h3, h4, h5, h6 {
 /* Card hover lift */
 .card-lift {
   transition: transform 150ms ease-out, box-shadow 150ms ease-out, border-color 150ms ease-out;
+  box-shadow: 0 0 16px rgba(6,182,212,0.05);
 }
 .card-lift:hover {
   transform: translateY(-2px);
-  box-shadow: 0 8px 20px rgba(0,0,0,0.14), 0 2px 6px rgba(0,0,0,0.08);
+  box-shadow: 0 0 24px rgba(6,182,212,0.14), 0 8px 20px rgba(0,0,0,0.12);
   border-color: var(--color-border-strong) !important;
 }
 .card-lift:active {
   transform: translateY(0px);
+  box-shadow: 0 0 16px rgba(6,182,212,0.05);
+}
+
+[data-theme="light"] .card-lift {
+  box-shadow: none;
+}
+[data-theme="light"] .card-lift:hover {
+  box-shadow: 0 8px 20px rgba(0,0,0,0.10), 0 2px 6px rgba(0,0,0,0.06);
+}
+[data-theme="light"] .card-lift:active {
   box-shadow: none;
 }
