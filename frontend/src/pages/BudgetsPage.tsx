@@ -254,6 +254,7 @@ export function BudgetsPage() {
             <motion.div
               key={status.budget.id}
               variants={staggerItem}
+              className="card-lift"
               style={{
                 background: 'var(--color-surface)',
                 borderRadius: 'var(--radius-lg)',

@@ -178,7 +178,7 @@ export function UploadPage() {
       <AnimatePresence mode="wait">
         {step === 'upload' && (
           <motion.div key="upload" variants={slideUp} initial="initial" animate="animate" exit="exit">
-            <div style={{
+            <div className="card-lift" style={{
               background: 'var(--color-surface)',
               borderRadius: 'var(--radius-lg)',
               border: '1px solid var(--color-border)',
@@ -233,6 +233,7 @@ export function UploadPage() {
                 <details
                   key={idx}
                   open={idx === 0 && !isSaved}
+                  className="card-lift"
                   style={{
                     marginBottom: '1rem',
                     border: '1px solid var(--color-border)',
@@ -364,6 +365,7 @@ export function UploadPage() {
             initial="initial"
             animate="animate"
             exit="exit"
+            className="card-lift"
             style={{
               textAlign: 'center',
               background: 'var(--color-surface)',

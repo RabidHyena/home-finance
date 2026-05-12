@@ -162,7 +162,7 @@ export function ReportsPage() {
               gap: '1rem',
               marginBottom: '1.5rem',
             }}>
-              <div style={{
+              <div className="card-lift" style={{
                 background: 'var(--color-surface)',
                 borderRadius: 'var(--radius-lg)',
                 border: '1px solid var(--color-border)',
@@ -182,7 +182,7 @@ export function ReportsPage() {
                   {selectedReport.total_amount.toLocaleString('ru-RU')} ₽
                 </p>
               </div>
-              <div style={{
+              <div className="card-lift" style={{
                 background: 'var(--color-surface)',
                 borderRadius: 'var(--radius-lg)',
                 border: '1px solid var(--color-border)',
@@ -196,7 +196,7 @@ export function ReportsPage() {
                   {selectedReport.transaction_count}
                 </p>
               </div>
-              <div style={{
+              <div className="card-lift" style={{
                 background: 'var(--color-surface)',
                 borderRadius: 'var(--radius-lg)',
                 border: '1px solid var(--color-border)',
@@ -257,7 +257,7 @@ export function ReportsPage() {
           )}
 
           {/* Monthly Chart */}
-          <motion.div variants={staggerItem} style={{
+          <motion.div variants={staggerItem} className="card-lift" style={{
             marginBottom: '1.5rem',
             background: 'var(--color-surface)',
             borderRadius: 'var(--radius-lg)',
@@ -273,7 +273,7 @@ export function ReportsPage() {
 
           {/* Category Chart */}
           {selectedReport && (
-            <motion.div variants={staggerItem} style={{
+            <motion.div variants={staggerItem} className="card-lift" style={{
               marginBottom: '1.5rem',
               background: 'var(--color-surface)',
               borderRadius: 'var(--radius-lg)',
