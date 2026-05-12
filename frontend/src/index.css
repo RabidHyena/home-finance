@@ -194,6 +194,7 @@ h1, h2, h3, h4, h5, h6 {
 .btn-primary:hover:not(:disabled) {
   background: linear-gradient(to bottom, rgba(255,255,255,0.07) 0%, transparent 100%), var(--color-accent-hover);
   box-shadow: 0 4px 14px rgba(5,150,105,0.40), 0 1px 3px rgba(0,0,0,0.15);
+  transform: translateY(-1px);
 }
 
 .btn-secondary {
@@ -226,6 +227,7 @@ h1, h2, h3, h4, h5, h6 {
 .btn-success:hover:not(:disabled) {
   background: linear-gradient(to bottom, rgba(255,255,255,0.07) 0%, transparent 100%), var(--color-accent-hover);
   box-shadow: 0 4px 14px rgba(5,150,105,0.40), 0 1px 3px rgba(0,0,0,0.15);
+  transform: translateY(-1px);
 }
 
 /* ============================================
