@@ -102,8 +102,12 @@ function AnimatedRoutes() {
 
 function App() {
   useEffect(() => {
-    const saved = localStorage.getItem('theme');
-    document.documentElement.setAttribute('data-theme', saved === 'light' ? 'light' : 'dark');
+    try {
+      const saved = localStorage.getItem('theme');
+      document.documentElement.setAttribute('data-theme', saved === 'light' ? 'light' : 'dark');
+    } catch {
+      document.documentElement.setAttribute('data-theme', 'dark');
+    }
   }, []);
 
   return (
