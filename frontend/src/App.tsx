@@ -1,4 +1,4 @@
-import { lazy, Suspense } from 'react';
+import { lazy, Suspense, useEffect } from 'react';
 import { BrowserRouter, Routes, Route, useLocation } from 'react-router-dom';
 import { QueryClientProvider } from '@tanstack/react-query';
 import { AnimatePresence } from 'framer-motion';
@@ -101,6 +101,11 @@ function AnimatedRoutes() {
 }
 
 function App() {
+  useEffect(() => {
+    const saved = localStorage.getItem('theme');
+    document.documentElement.setAttribute('data-theme', saved === 'light' ? 'light' : 'dark');
+  }, []);
+
   return (
     <ErrorBoundary>
     <QueryClientProvider client={queryClient}>
