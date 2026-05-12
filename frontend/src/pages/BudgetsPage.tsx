@@ -87,12 +87,6 @@ export function BudgetsPage() {
     }
   }, [deleteMutation, toast]);
 
-  const getProgressColor = useCallback((percentage: number): string => {
-    if (percentage < 70) return '#34d399';
-    if (percentage < 90) return '#fbbf24';
-    return '#f87171';
-  }, []);
-
   const usedCategories = useMemo(() => new Set(budgetStatuses.map(s => s.budget.category)), [budgetStatuses]);
   const availableCategories = useMemo(() => {
     const editingCategory = editingId
@@ -314,7 +308,7 @@ export function BudgetsPage() {
                     animate={{ width: `${Math.min(status.percentage, 100)}%` }}
                     transition={{ duration: 0.8, ease: [0.25, 0.46, 0.45, 0.94] }}
                     style={{
-                      backgroundColor: getProgressColor(status.percentage),
+                      background: 'var(--color-accent)',
                       height: '100%',
                       borderRadius: 'var(--radius-full)',
                     }}
