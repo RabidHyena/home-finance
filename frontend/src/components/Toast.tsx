@@ -71,7 +71,6 @@ export function ToastProvider({ children }: { children: React.ReactNode }) {
                 minWidth: '280px',
                 maxWidth: '400px',
                 pointerEvents: 'auto',
-                backdropFilter: 'blur(12px)',
               }}
             >
               {toast.type === 'success' ? (

@@ -209,10 +209,8 @@ export function UploadZone({
             <Image size={20} color="var(--color-accent)" />
             <span style={{ fontWeight: 500, fontSize: '0.9rem', color: 'var(--color-text)' }}>{fileName}</span>
           </div>
-          <motion.button
+          <button
             onClick={clearPreview}
-            whileHover={{ scale: 1.1 }}
-            whileTap={{ scale: 0.9 }}
             style={{
               padding: '0.25rem',
               border: 'none',
@@ -222,7 +220,7 @@ export function UploadZone({
             }}
           >
             <X size={20} />
-          </motion.button>
+          </button>
         </div>
         {preview === 'excel' ? (
           <div style={{
