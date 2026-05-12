@@ -72,13 +72,13 @@ export function ReportsPage() {
       {/* Type Tab Switcher */}
       <motion.div variants={staggerItem} style={{
         display: 'flex',
-        gap: '0.25rem',
         marginBottom: '1.5rem',
         background: 'var(--color-surface)',
         borderRadius: 'var(--radius-full)',
         padding: '0.25rem',
         border: '1px solid var(--color-border)',
         width: 'fit-content',
+        position: 'relative',
       }}>
         {(['expense', 'income'] as TransactionType[]).map((tab) => (
           <button
@@ -89,17 +89,29 @@ export function ReportsPage() {
               padding: '0.5rem 1.5rem',
               borderRadius: 'var(--radius-full)',
               border: 'none',
-              background: activeTab === tab
-                ? 'var(--color-accent)'
-                : 'transparent',
+              background: 'transparent',
               color: activeTab === tab ? 'white' : 'var(--color-text-muted)',
-              fontWeight: activeTab === tab ? 600 : 400,
+              fontWeight: activeTab === tab ? 500 : 400,
               cursor: 'pointer',
               fontSize: '0.875rem',
               fontFamily: 'var(--font-body)',
-              transition: 'all 0.25s ease-out',
+              zIndex: 1,
+              transition: 'color 150ms ease-out',
             }}
           >
+            {activeTab === tab && (
+              <motion.div
+                layoutId="reports-tab-indicator"
+                style={{
+                  position: 'absolute',
+                  inset: 0,
+                  borderRadius: 'var(--radius-full)',
+                  background: 'var(--color-accent)',
+                  zIndex: -1,
+                }}
+                transition={{ type: 'spring', bounce: 0.2, duration: 0.35 }}
+              />
+            )}
             {tab === 'expense' ? 'Расходы' : 'Доходы'}
           </button>
         ))}
