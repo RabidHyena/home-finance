@@ -17,7 +17,7 @@ export const TransactionCard = memo(function TransactionCard({
   onDelete,
 }: TransactionCardProps) {
   const isIncome = transaction.type === 'income';
-  const category = transaction.category as (Category & IncomeCategory) | null;
+  const category = transaction.category as (Category | IncomeCategory) | null;
   const categoryColor = category
     ? (isIncome ? INCOME_CATEGORY_COLORS[category as IncomeCategory] : CATEGORY_COLORS[category as Category]) || '#6b7280'
     : '#6b7280';
@@ -154,8 +154,6 @@ export const TransactionCard = memo(function TransactionCard({
           )}
         </div>
       )}
-
-      <style>{`.tx-row:hover .tx-actions { opacity: 1 !important; }`}</style>
     </div>
   );
 });
