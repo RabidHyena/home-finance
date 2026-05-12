@@ -203,20 +203,22 @@ export function UploadPage() {
                   { n: '4', text: 'Сохраните — транзакция добавлена' },
                 ].map(({ n, text }) => (
                   <div key={n} style={{
-                    padding: '0.875rem 1rem',
+                    padding: '1.25rem 1rem',
                     background: 'var(--color-surface)',
                     border: '1px solid var(--color-border)',
                     borderRadius: 'var(--radius-md)',
+                    textAlign: 'center',
                   }}>
                     <div style={{
-                      fontSize: 'var(--text-xs)',
+                      fontSize: 'var(--text-2xl)',
                       fontFamily: 'var(--font-mono)',
                       fontWeight: 600,
                       color: 'var(--color-accent)',
-                      marginBottom: '0.375rem',
-                      letterSpacing: '0.04em',
+                      marginBottom: '0.625rem',
+                      lineHeight: 1,
+                      letterSpacing: '-0.02em',
                     }}>
-                      0{n}
+                      {n}
                     </div>
                     <p style={{
                       margin: 0,
