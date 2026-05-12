@@ -149,9 +149,10 @@ export function UploadPage() {
     <ErrorBoundary>
       <div>
         <h1 style={{
-          fontSize: '1.4rem',
+          fontSize: 'var(--text-xl)',
           fontFamily: 'var(--font-heading)',
-          letterSpacing: '0.04em',
+          fontWeight: 600,
+          letterSpacing: '-0.02em',
           marginBottom: '1.5rem',
           color: 'var(--color-text)',
         }}>
@@ -178,47 +179,55 @@ export function UploadPage() {
       <AnimatePresence mode="wait">
         {step === 'upload' && (
           <motion.div key="upload" variants={slideUp} initial="initial" animate="animate" exit="exit">
-            <div className="card-lift" style={{
-              background: 'var(--color-surface)',
-              borderRadius: 'var(--radius-lg)',
-              border: '1px solid var(--color-border)',
-              boxShadow: 'var(--shadow-md)',
-              padding: 'var(--space-lg)',
+            <UploadZone
+              onFileSelect={handleFileSelect}
+              isLoading={uploadMutation.isPending || batchUploadMutation.isPending}
+              multiple={true}
+            />
+            <div style={{
+              marginTop: '1.25rem',
+              display: 'flex',
+              gap: '0.625rem',
+              alignItems: 'flex-start',
             }}>
-              <UploadZone
-                onFileSelect={handleFileSelect}
-                isLoading={uploadMutation.isPending || batchUploadMutation.isPending}
-                multiple={true}
-              />
               <div style={{
-                marginTop: '1.5rem',
-                padding: '1rem 1.25rem',
-                background: 'var(--color-surface-elevated)',
-                borderRadius: 'var(--radius-md)',
-                border: '1px solid var(--color-border)',
+                display: 'grid',
+                gridTemplateColumns: 'repeat(4, 1fr)',
+                gap: '0.75rem',
+                width: '100%',
               }}>
-                <h3 style={{
-                  margin: '0 0 0.5rem',
-                  fontSize: '0.85rem',
-                  fontWeight: 600,
-                  fontFamily: 'var(--font-heading)',
-                  letterSpacing: '0.03em',
-                  color: 'var(--color-accent)',
-                }}>
-                  Как это работает:
-                </h3>
-                <ol style={{
-                  margin: 0,
-                  paddingLeft: '1.25rem',
-                  fontSize: '0.85rem',
-                  color: 'var(--color-text-secondary)',
-                  lineHeight: 1.8,
-                }}>
-                  <li>Загрузите скриншоты или Excel-выписки из банковского приложения</li>
-                  <li>AI распознает сумму, описание и категорию</li>
-                  <li>Проверьте и при необходимости исправьте данные</li>
-                  <li>Сохраните транзакции</li>
-                </ol>
+                {[
+                  { n: '1', text: 'Загрузите скриншот или Excel-выписку из банка' },
+                  { n: '2', text: 'AI распознаёт сумму, описание и категорию' },
+                  { n: '3', text: 'Проверьте и исправьте при необходимости' },
+                  { n: '4', text: 'Сохраните — транзакция добавлена' },
+                ].map(({ n, text }) => (
+                  <div key={n} style={{
+                    padding: '0.875rem 1rem',
+                    background: 'var(--color-surface)',
+                    border: '1px solid var(--color-border)',
+                    borderRadius: 'var(--radius-md)',
+                  }}>
+                    <div style={{
+                      fontSize: 'var(--text-xs)',
+                      fontFamily: 'var(--font-mono)',
+                      fontWeight: 600,
+                      color: 'var(--color-accent)',
+                      marginBottom: '0.375rem',
+                      letterSpacing: '0.04em',
+                    }}>
+                      0{n}
+                    </div>
+                    <p style={{
+                      margin: 0,
+                      fontSize: 'var(--text-sm)',
+                      color: 'var(--color-text-secondary)',
+                      lineHeight: 1.5,
+                    }}>
+                      {text}
+                    </p>
+                  </div>
+                ))}
               </div>
             </div>
           </motion.div>

@@ -259,19 +259,19 @@ export function UploadZone({
       onDrop={handleDrop}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
-      whileHover={{ borderColor: 'var(--color-accent)', boxShadow: '0 0 24px rgba(129, 140, 248, 0.12)' }}
       animate={{
-        borderColor: isDragging ? 'var(--color-primary)' : 'rgba(148, 163, 184, 0.2)',
-        background: isDragging ? 'rgba(129, 140, 248, 0.04)' : 'var(--color-surface)',
+        borderColor: isDragging ? 'var(--color-accent)' : 'var(--color-border-strong)',
+        background: isDragging ? 'var(--color-accent-bg)' : 'transparent',
       }}
+      whileHover={{ borderColor: 'var(--color-accent)' }}
       style={{
         display: 'block',
-        border: '2px dashed rgba(148, 163, 184, 0.2)',
-        borderRadius: 'var(--radius-xl)',
-        padding: '3rem',
+        border: '1.5px dashed var(--color-border-strong)',
+        borderRadius: 'var(--radius-lg)',
+        padding: '4rem 3rem',
         textAlign: 'center',
         cursor: 'pointer',
-        transition: 'all 0.3s ease-out',
+        transition: 'border-color 150ms ease-out, background 150ms ease-out',
       }}
     >
       <input
@@ -281,26 +281,30 @@ export function UploadZone({
         onChange={handleInputChange}
         style={{ display: 'none' }}
       />
-      <motion.div
-        animate={isDragging ? { scale: 1.1, y: -5 } : { scale: 1, y: 0 }}
-        transition={{ type: 'spring', stiffness: 300, damping: 20 }}
-      >
+      <div style={{
+        width: '56px',
+        height: '56px',
+        borderRadius: '50%',
+        background: isDragging ? 'var(--color-accent-bg)' : 'var(--color-surface-2)',
+        display: 'flex',
+        alignItems: 'center',
+        justifyContent: 'center',
+        margin: '0 auto 1.25rem',
+        transition: 'background 150ms ease-out',
+      }}>
         <Upload
-          size={48}
-          style={{
-            color: isDragging ? 'var(--color-primary)' : 'var(--color-accent)',
-            marginBottom: '1rem',
-          }}
+          size={24}
+          style={{ color: isDragging ? 'var(--color-accent)' : 'var(--color-text-muted)' }}
         />
-      </motion.div>
-      <p style={{ margin: 0, fontWeight: 600, fontSize: '0.95rem', color: 'var(--color-text)' }}>
+      </div>
+      <p style={{ margin: 0, fontWeight: 600, fontSize: 'var(--text-base)', color: 'var(--color-text)' }}>
         {multiple ? 'Перетащите файлы сюда' : 'Перетащите файл сюда'}
       </p>
-      <p style={{ margin: '0.5rem 0 0', fontSize: '0.85rem', color: 'var(--color-text-secondary)' }}>
+      <p style={{ margin: '0.375rem 0 0', fontSize: 'var(--text-sm)', color: 'var(--color-text-secondary)' }}>
         {multiple ? 'или нажмите для выбора файлов' : 'или нажмите для выбора файла'}
       </p>
-      <p style={{ margin: '1rem 0 0', fontSize: '0.75rem', color: 'var(--color-text-muted)' }}>
-        Поддерживаются: JPG, PNG, GIF, WebP, Excel (.xlsx, .xls) (до 10MB)
+      <p style={{ margin: '1rem 0 0', fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)', letterSpacing: '0.02em' }}>
+        JPG, PNG, GIF, WebP, Excel (.xlsx, .xls) · до 10MB
       </p>
     </motion.label>
   );
