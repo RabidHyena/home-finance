@@ -96,11 +96,11 @@
 
 /* --- Light theme --- */
 [data-theme="light"] {
-  --color-bg:             #fafafa;
+  --color-bg:             #f4f4f6;
   --color-surface:        #ffffff;
-  --color-surface-2:      #f4f4f5;
-  --color-border:         rgba(0,0,0,0.08);
-  --color-border-strong:  rgba(0,0,0,0.15);
+  --color-surface-2:      #ebebef;
+  --color-border:         rgba(0,0,0,0.10);
+  --color-border-strong:  rgba(0,0,0,0.20);
   --color-text:           #09090b;
   --color-text-secondary: #52525b;
   --color-text-muted:     #71717a;
