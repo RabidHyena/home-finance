@@ -56,8 +56,8 @@ export function Layout({ children }: LayoutProps) {
     <div style={{ minHeight: '100vh', display: 'flex', flexDirection: 'column', background: 'var(--color-bg)' }}>
       {/* Header */}
       <header style={{
-        height: '48px',
-        background: 'var(--color-bg)',
+        height: '56px',
+        background: 'var(--color-surface)',
         borderBottom: '1px solid var(--color-border)',
         position: 'sticky',
         top: 0,

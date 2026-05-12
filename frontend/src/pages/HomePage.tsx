@@ -27,7 +27,7 @@ function StatCard({ label, amount, count, amountColor }: StatCardProps) {
       background: 'var(--color-surface)',
       border: '1px solid var(--color-border)',
       borderRadius: 'var(--radius-lg)',
-      padding: 'var(--space-lg)',
+      padding: '1.75rem',
     }}>
       <p style={labelStyle}>{label}</p>
       <p style={{
@@ -160,7 +160,7 @@ export function HomePage() {
           onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--color-border)'; }}
         >
           <div style={{
-            width: '36px', height: '36px',
+            width: '44px', height: '44px',
             borderRadius: 'var(--radius-md)',
             background: 'var(--color-accent-bg)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
@@ -192,7 +192,7 @@ export function HomePage() {
           onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--color-border)'; }}
         >
           <div style={{
-            width: '36px', height: '36px',
+            width: '44px', height: '44px',
             borderRadius: 'var(--radius-md)',
             background: 'var(--color-accent-bg)',
             display: 'flex', alignItems: 'center', justifyContent: 'center',
