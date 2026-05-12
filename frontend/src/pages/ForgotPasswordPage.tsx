@@ -150,7 +150,7 @@ export function ForgotPasswordPage() {
                 onMouseEnter={(e) => {
                   if (!isLoading) {
                     e.currentTarget.style.background = `linear-gradient(to bottom, rgba(255,255,255,0.07) 0%, transparent 100%), var(--color-accent-hover)`;
-                    e.currentTarget.style.boxShadow = '0 4px 14px rgba(59,130,246,0.35), 0 1px 3px rgba(0,0,0,0.15)';
+                    e.currentTarget.style.boxShadow = '0 4px 14px rgba(6,182,212,0.35), 0 1px 3px rgba(0,0,0,0.15)';
                   }
                 }}
                 onMouseLeave={(e) => {
