@@ -11,7 +11,7 @@ import {
 } from '../hooks/useApi';
 import type { Transaction, TransactionCreate, TransactionType } from '../types';
 import { api } from '../api/client';
-import { staggerContainer, staggerItem, backdropVariants, scaleIn } from '../motion';
+import { backdropVariants, scaleIn } from '../motion';
 
 interface TransactionListPageProps {
   type: TransactionType;
@@ -415,7 +415,7 @@ export function TransactionListPage({
 
       {/* Transactions List */}
       {isLoading ? (
-        <div style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}>
+        <div style={{ border: '1px solid var(--color-border)', borderRadius: 'var(--radius-lg)', overflow: 'hidden' }}>
           {[1, 2, 3, 4, 5].map((i) => <TransactionCardSkeleton key={i} />)}
         </div>
       ) : transactions.length === 0 ? (
@@ -431,18 +431,21 @@ export function TransactionListPage({
         </div>
       ) : (
         <>
-          <motion.div
-            variants={staggerContainer}
-            initial="initial"
-            animate="animate"
-            style={{ display: 'flex', flexDirection: 'column', gap: '0.75rem' }}
-          >
-            {transactions.map((tx) => (
-              <motion.div key={tx.id} variants={staggerItem}>
+          <div style={{
+            border: '1px solid var(--color-border)',
+            borderRadius: 'var(--radius-lg)',
+            overflow: 'hidden',
+            animation: 'fade-up 150ms ease-out',
+          }}>
+            {transactions.map((tx, i) => (
+              <div
+                key={tx.id}
+                style={{ borderBottom: i < transactions.length - 1 ? '1px solid var(--color-border)' : 'none' }}
+              >
                 <TransactionCard transaction={tx} onEdit={setEditingTransaction} onDelete={setDeleteTarget} />
-              </motion.div>
+              </div>
             ))}
-          </motion.div>
+          </div>
 
           <div ref={sentinelRef} style={{ height: '1px' }} />
 
