@@ -256,6 +256,7 @@ export function UploadZone({
 
   return (
     <motion.label
+      className="card-lift"
       onDrop={handleDrop}
       onDragOver={handleDragOver}
       onDragLeave={handleDragLeave}
@@ -263,7 +264,6 @@ export function UploadZone({
         borderColor: isDragging ? 'var(--color-accent)' : 'var(--color-border-strong)',
         background: isDragging ? 'var(--color-accent-bg)' : 'transparent',
       }}
-      whileHover={{ borderColor: 'var(--color-accent)' }}
       style={{
         display: 'block',
         border: '1.5px dashed var(--color-border-strong)',
@@ -271,7 +271,6 @@ export function UploadZone({
         padding: '4rem 3rem',
         textAlign: 'center',
         cursor: 'pointer',
-        transition: 'border-color 150ms ease-out, background 150ms ease-out',
       }}
     >
       <input
