@@ -131,9 +131,9 @@ export function ForgotPasswordPage() {
                 style={{
                   width: '100%',
                   padding: '0.5rem 1rem',
-                  borderRadius: 'var(--radius-md)',
-                  border: 'none',
-                  background: 'var(--color-accent)',
+                  borderRadius: 'var(--radius-lg)',
+                  border: '1px solid rgba(255,255,255,0.08)',
+                  background: `linear-gradient(to bottom, rgba(255,255,255,0.07) 0%, transparent 100%), var(--color-accent)`,
                   color: 'white',
                   fontSize: 'var(--text-md)',
                   fontWeight: 500,
@@ -144,10 +144,21 @@ export function ForgotPasswordPage() {
                   alignItems: 'center',
                   justifyContent: 'center',
                   gap: '0.5rem',
-                  transition: 'background 120ms ease-out',
+                  transition: 'background 120ms ease-out, box-shadow 120ms ease-out',
+                  boxShadow: '0 1px 3px rgba(0,0,0,0.15), inset 0 1px 0 rgba(255,255,255,0.08)',
                 }}
-                onMouseEnter={(e) => { if (!isLoading) e.currentTarget.style.background = 'var(--color-accent-hover)'; }}
-                onMouseLeave={(e) => { if (!isLoading) e.currentTarget.style.background = 'var(--color-accent)'; }}
+                onMouseEnter={(e) => {
+                  if (!isLoading) {
+                    e.currentTarget.style.background = `linear-gradient(to bottom, rgba(255,255,255,0.07) 0%, transparent 100%), var(--color-accent-hover)`;
+                    e.currentTarget.style.boxShadow = '0 4px 14px rgba(5,150,105,0.40), 0 1px 3px rgba(0,0,0,0.15)';
+                  }
+                }}
+                onMouseLeave={(e) => {
+                  if (!isLoading) {
+                    e.currentTarget.style.background = `linear-gradient(to bottom, rgba(255,255,255,0.07) 0%, transparent 100%), var(--color-accent)`;
+                    e.currentTarget.style.boxShadow = '0 1px 3px rgba(0,0,0,0.15), inset 0 1px 0 rgba(255,255,255,0.08)';
+                  }
+                }}
               >
                 {isLoading ? 'Отправка...' : 'Отправить ссылку'}
               </button>
