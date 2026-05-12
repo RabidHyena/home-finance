@@ -166,7 +166,11 @@ h1, h2, h3, h4, h5, h6 {
   font-size: var(--text-md);
   cursor: pointer;
   border: 1px solid transparent;
-  transition: background var(--transition-base), border-color var(--transition-base), color var(--transition-base);
+  transition: background var(--transition-base), border-color var(--transition-base), color var(--transition-base), transform var(--transition-fast);
+}
+
+.btn:active:not(:disabled) {
+  transform: translateY(1px);
 }
 
 .btn:disabled {
@@ -368,3 +372,17 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .tx-row:hover .tx-actions { opacity: 1 !important; }
+
+/* Card hover lift */
+.card-lift {
+  transition: transform 150ms ease-out, box-shadow 150ms ease-out, border-color 150ms ease-out;
+}
+.card-lift:hover {
+  transform: translateY(-2px);
+  box-shadow: 0 8px 20px rgba(0,0,0,0.14), 0 2px 6px rgba(0,0,0,0.08);
+  border-color: var(--color-border-strong) !important;
+}
+.card-lift:active {
+  transform: translateY(0px);
+  box-shadow: none;
+}

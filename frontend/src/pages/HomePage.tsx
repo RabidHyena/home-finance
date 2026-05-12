@@ -23,7 +23,7 @@ interface StatCardProps {
 
 function StatCard({ label, amount, count, amountColor }: StatCardProps) {
   return (
-    <div style={{
+    <div className="card-lift" style={{
       background: 'var(--color-surface)',
       border: '1px solid var(--color-border)',
       borderRadius: 'var(--radius-lg)',
@@ -144,6 +144,7 @@ export function HomePage() {
       <div style={{ display: 'grid', gridTemplateColumns: 'repeat(2, 1fr)', gap: '1rem', marginBottom: '1.5rem' }}>
         <Link
           to="/upload"
+          className="card-lift"
           style={{
             textDecoration: 'none',
             color: 'var(--color-text)',
@@ -154,10 +155,7 @@ export function HomePage() {
             background: 'var(--color-surface)',
             borderRadius: 'var(--radius-lg)',
             border: '1px solid var(--color-border)',
-            transition: 'border-color 120ms ease-out',
           }}
-          onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--color-border-strong)'; }}
-          onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--color-border)'; }}
         >
           <div style={{
             width: '44px', height: '44px',
@@ -176,6 +174,7 @@ export function HomePage() {
 
         <Link
           to="/reports"
+          className="card-lift"
           style={{
             textDecoration: 'none',
             color: 'var(--color-text)',
@@ -186,10 +185,7 @@ export function HomePage() {
             background: 'var(--color-surface)',
             borderRadius: 'var(--radius-lg)',
             border: '1px solid var(--color-border)',
-            transition: 'border-color 120ms ease-out',
           }}
-          onMouseEnter={(e) => { e.currentTarget.style.borderColor = 'var(--color-border-strong)'; }}
-          onMouseLeave={(e) => { e.currentTarget.style.borderColor = 'var(--color-border)'; }}
         >
           <div style={{
             width: '44px', height: '44px',
