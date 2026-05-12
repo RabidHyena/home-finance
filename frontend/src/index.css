@@ -191,13 +191,21 @@ h1, h2, h3, h4, h5, h6 {
   background: linear-gradient(to bottom, rgba(255,255,255,0.07) 0%, transparent 100%), var(--color-accent);
   color: white;
   border-color: rgba(255,255,255,0.08);
-  box-shadow: 0 1px 3px rgba(0,0,0,0.15), inset 0 1px 0 rgba(255,255,255,0.08);
+  box-shadow: 0 0 12px rgba(6,182,212,0.18), 0 1px 3px rgba(0,0,0,0.15), inset 0 1px 0 rgba(255,255,255,0.08);
 }
 
 .btn-primary:hover:not(:disabled) {
   background: linear-gradient(to bottom, rgba(255,255,255,0.07) 0%, transparent 100%), var(--color-accent-hover);
-  box-shadow: 0 4px 14px rgba(6,182,212,0.35), 0 1px 3px rgba(0,0,0,0.15);
+  box-shadow: 0 0 20px rgba(6,182,212,0.40), 0 4px 14px rgba(6,182,212,0.35), 0 1px 3px rgba(0,0,0,0.15);
   transform: translateY(-1px);
+}
+
+[data-theme="light"] .btn-primary {
+  box-shadow: 0 1px 3px rgba(0,0,0,0.12), inset 0 1px 0 rgba(255,255,255,0.08);
+}
+
+[data-theme="light"] .btn-primary:hover:not(:disabled) {
+  box-shadow: 0 4px 14px rgba(8,145,178,0.30), 0 1px 3px rgba(0,0,0,0.12);
 }
 
 .btn-secondary {
@@ -224,7 +232,11 @@ h1, h2, h3, h4, h5, h6 {
   background: linear-gradient(to bottom, rgba(255,255,255,0.07) 0%, transparent 100%), var(--color-accent);
   color: white;
   border-color: rgba(255,255,255,0.08);
-  box-shadow: 0 1px 3px rgba(0,0,0,0.15), inset 0 1px 0 rgba(255,255,255,0.08);
+  box-shadow: 0 0 12px rgba(6,182,212,0.18), 0 1px 3px rgba(0,0,0,0.15), inset 0 1px 0 rgba(255,255,255,0.08);
+}
+
+[data-theme="light"] .btn-success {
+  box-shadow: 0 1px 3px rgba(0,0,0,0.12), inset 0 1px 0 rgba(255,255,255,0.08);
 }
 
 .btn-success:hover:not(:disabled) {
