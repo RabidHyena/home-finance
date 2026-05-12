@@ -19,7 +19,7 @@ const navItems = [
 
 function Divider() {
   return (
-    <span style={{
+    <span aria-hidden="true" style={{
       color: 'var(--color-border-strong)',
       fontSize: 'var(--text-sm)',
       userSelect: 'none',
@@ -32,8 +32,12 @@ export function Layout({ children }: LayoutProps) {
   const navigate = useNavigate();
   const { user, logout } = useAuth();
   const [theme, setTheme] = useState<'dark' | 'light'>(() => {
-    const saved = localStorage.getItem('theme');
-    return saved === 'light' ? 'light' : 'dark';
+    try {
+      const saved = localStorage.getItem('theme');
+      return saved === 'light' ? 'light' : 'dark';
+    } catch {
+      return 'dark';
+    }
   });
 
   useEffect(() => {
@@ -230,6 +234,7 @@ export function Layout({ children }: LayoutProps) {
         })}
         <button
           onClick={handleLogout}
+          title="Выйти"
           style={{
             display: 'flex',
             flexDirection: 'column',
