@@ -86,7 +86,6 @@ export function UploadPage() {
           date: tx.date,
           currency: tx.currency,
           type: tx.type || 'expense' as const,
-          image_path: tx.image_path,
           raw_text: tx.raw_text,
           ai_category: original?.category ?? tx.category,
           ai_confidence: original?.confidence ?? tx.confidence,

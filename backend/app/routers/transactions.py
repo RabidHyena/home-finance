@@ -819,6 +819,8 @@ def delete_all_transactions(
     if type:
         query = query.filter(Transaction.type == type)
     count = query.delete(synchronize_session=False)
+    log_audit(db, "delete_all", user_id=current_user.id, resource_type="transaction",
+              details=f"count={count} type={type}")
     db.commit()
     _invalidate_user_cache(current_user.id)
     logger.info("Deleted %d transactions for user %d", count, current_user.id)

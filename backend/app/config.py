@@ -44,7 +44,8 @@ class Settings(BaseSettings):
 
     # Rate limiting
     rate_limit_window: int = 60  # seconds
-    rate_limit_max_requests: int = 10  # per window
+    rate_limit_max_requests: int = 10  # per window — used by auth endpoint limiter
+    global_rate_limit_rpm: int = 100  # per window — used by global middleware
 
     # App settings
     debug: bool = False

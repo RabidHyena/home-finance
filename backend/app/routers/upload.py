@@ -215,6 +215,13 @@ def upload_and_parse_batch(
             content, file_type = _read_and_validate(file)
             filename = file.filename or ("file.xlsx" if file_type == "excel" else "image.jpg")
             pre.append((filename, content, file_type))
+        except HTTPException as exc:
+            logger.warning("Validation failed for file %s: %s", file.filename, exc.detail)
+            results.append(BatchUploadResult(
+                filename=file.filename or "unknown",
+                status="error",
+                error=exc.detail,
+            ))
         except Exception:
             logger.exception("Validation failed for file: %s", file.filename)
             results.append(BatchUploadResult(

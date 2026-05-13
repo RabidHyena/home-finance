@@ -42,7 +42,6 @@ export interface TransactionCreate {
   date: string;
   currency?: string;
   type?: TransactionType;
-  image_path?: string;
   raw_text?: string;
   ai_category?: string;
   ai_confidence?: number;

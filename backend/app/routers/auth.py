@@ -10,7 +10,7 @@ from app.config import get_settings
 from app.database import get_db
 from app.dependencies import get_current_user
 from app.models import User
-from app.rate_limiter import RateLimiter
+from app.rate_limiter import RateLimiter, get_real_ip
 from app.schemas_auth import ForgotPasswordRequest, ResetPasswordRequest, UserLogin, UserRegister, UserResponse
 from app.services.audit_service import log_audit
 from app.services.auth_service import (
@@ -85,13 +85,14 @@ def _set_token_cookie(response: Response, token: str) -> None:
 
 @router.post("/register", response_model=UserResponse, status_code=201)
 def register(data: UserRegister, response: Response, request: Request, db: Session = Depends(get_db)):
-    _auth_limiter.check(request.client.host if request.client else "unknown")
+    client_ip = get_real_ip(request)
+    _auth_limiter.check(client_ip)
     if get_user_by_email(db, data.email) or get_user_by_username(db, data.username):
         raise HTTPException(status_code=400, detail="Registration failed. Email or username may already be in use.")
 
     user = create_user(db, data.email, data.username, data.password)
     log_audit(db, "register", user_id=user.id, resource_type="user", resource_id=user.id,
-              ip_address=request.client.host if request.client else None)
+              ip_address=client_ip)
     db.commit()
     db.refresh(user)
     token = create_access_token(user.id)
@@ -101,7 +102,8 @@ def register(data: UserRegister, response: Response, request: Request, db: Sessi
 
 @router.post("/login", response_model=UserResponse)
 def login(data: UserLogin, response: Response, request: Request, db: Session = Depends(get_db)):
-    _auth_limiter.check(request.client.host if request.client else "unknown")
+    client_ip = get_real_ip(request)
+    _auth_limiter.check(client_ip)
 
     # Resolve to canonical user first so both email and username map to the same lockout counter.
     # Without this, an attacker gets _MAX_FAILED_ATTEMPTS guesses per login alias (email + username).
@@ -115,7 +117,7 @@ def login(data: UserLogin, response: Response, request: Request, db: Session = D
 
     _clear_failed_logins(login_key)
     log_audit(db, "login", user_id=user.id, resource_type="user", resource_id=user.id,
-              ip_address=request.client.host if request.client else None)
+              ip_address=client_ip)
     db.commit()
     token = create_access_token(user.id)
     _set_token_cookie(response, token)
@@ -131,6 +133,12 @@ def logout(response: Response):
         httponly=True,
         secure=settings.cookie_secure,
         samesite=settings.cookie_samesite,
+    )
+    response.delete_cookie(
+        key="csrf_token",
+        path="/",
+        secure=settings.cookie_secure,
+        samesite="strict",
     )
     return {"message": "Logged out"}
 
@@ -159,8 +167,8 @@ def get_csrf_token(response: Response):
 
 @router.post("/forgot-password")
 def forgot_password(data: ForgotPasswordRequest, request: Request, db: Session = Depends(get_db)):
-    _auth_limiter.check(request.client.host if request.client else "unknown")
-    ip = request.client.host if request.client else None
+    ip = get_real_ip(request)
+    _auth_limiter.check(ip)
     user = get_user_by_email(db, data.email)
     raw_token = create_reset_token(db, data.email)
     result: dict = {"message": "If the email exists, a reset link has been sent."}
@@ -197,7 +205,7 @@ def forgot_password(data: ForgotPasswordRequest, request: Request, db: Session =
 
 @router.post("/reset-password")
 def reset_password(data: ResetPasswordRequest, request: Request, db: Session = Depends(get_db)):
-    ip = request.client.host if request.client else None
+    ip = get_real_ip(request)
     user_id = consume_reset_token(db, data.token, data.new_password)
     if user_id is None:
         raise HTTPException(status_code=400, detail="Invalid or expired reset token")

@@ -88,10 +88,10 @@ app.add_middleware(
     allow_headers=["Content-Type", "Authorization", "X-CSRF-Token"],
 )
 
-# Global rate limiting: 100 req/min default, 10 req/min for uploads
+# Global rate limiting: configurable rpm default, 10 req/min for uploads
 app.add_middleware(
     RateLimitMiddleware,
-    default_rpm=100,
+    default_rpm=settings.global_rate_limit_rpm,
     window=settings.rate_limit_window,
     prefix_limits={"/api/upload": 10},
 )

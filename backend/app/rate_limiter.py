@@ -20,6 +20,23 @@ from starlette.middleware.base import BaseHTTPMiddleware
 
 logger = logging.getLogger(__name__)
 
+
+def get_real_ip(request: Request) -> str:
+    """Return the real client IP, preferring X-Real-IP set by nginx.
+
+    Only reliable when the backend sits behind a trusted proxy (nginx in the
+    Docker stack). Do not call this if the backend is exposed directly to the
+    internet — a caller could spoof the header to bypass rate limits.
+    """
+    real_ip = request.headers.get("X-Real-IP")
+    if real_ip:
+        return real_ip.strip()
+    forwarded_for = request.headers.get("X-Forwarded-For")
+    if forwarded_for:
+        return forwarded_for.split(",")[0].strip()
+    return request.client.host if request.client else "unknown"
+
+
 # Paths that are exempt from global rate limiting (health checks, docs).
 _EXEMPT_PATHS = frozenset({"/health", "/", "/docs", "/openapi.json", "/redoc", "/api/debug/reset"})
 
@@ -119,7 +136,7 @@ class RateLimitMiddleware(BaseHTTPMiddleware):
         if request.url.path in _EXEMPT_PATHS:
             return await call_next(request)
 
-        client_ip = request.client.host if request.client else "unknown"
+        client_ip = get_real_ip(request)
 
         # Skip rate limiting for test clients
         if client_ip == "testclient":

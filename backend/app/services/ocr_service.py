@@ -19,6 +19,8 @@ logger = logging.getLogger(__name__)
 VALID_CATEGORIES = {"Food", "Transport", "Entertainment", "Shopping", "Bills", "Health", "Other",
                      "Salary", "Transfer", "Cashback", "Investment", "OtherIncome"}
 
+VALID_CURRENCIES = {"RUB", "USD", "EUR", "GBP"}
+
 DATE_FORMATS = [
     lambda s: datetime.fromisoformat(s),
     lambda s: datetime.strptime(s, "%Y-%m-%d"),
@@ -274,10 +276,12 @@ If no chart is visible, omit the "chart" field or set it to null."""
         if tx_type not in ("expense", "income"):
             tx_type = "expense"
 
-        # Extract currency if provided
+        # Extract currency if provided; reject AI-hallucinated values not in the allowed set
         currency = data.get("currency", "RUB")
-        if not isinstance(currency, str) or len(currency) != 3:
+        if not isinstance(currency, str) or currency.upper() not in VALID_CURRENCIES:
             currency = "RUB"
+        else:
+            currency = currency.upper()
 
         category, confidence = self._apply_learned_category(description, category, confidence)
 
@@ -287,7 +291,7 @@ If no chart is visible, omit the "chart" field or set it to null."""
             date=parsed_date,
             category=category,
             type=tx_type,
-            currency=currency.upper(),
+            currency=currency,
             raw_text="",  # filled by caller
             confidence=confidence,
         )

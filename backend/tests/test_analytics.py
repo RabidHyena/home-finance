@@ -213,3 +213,44 @@ class TestForecast:
         data = resp.json()
         for h in data["historical"]:
             assert h["is_forecast"] is False
+
+
+class TestAnalyticsDataIsolation:
+    """Verify that analytics endpoints only return data belonging to the requesting user."""
+
+    def test_comparison_isolation(self, auth_client, second_auth_client):
+        make_transaction(auth_client, amount=9999, category="Food", date="2026-01-10T10:00:00")
+
+        resp = second_auth_client.get("/api/transactions/analytics/comparison?year=2026&month=1")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["current"]["total"] == 0
+        assert data["current"]["count"] == 0
+
+    def test_trends_isolation(self, auth_client, second_auth_client):
+        make_transaction(auth_client, amount=5000, date="2025-12-15T10:00:00")
+        make_transaction(auth_client, amount=7000, date="2026-01-15T10:00:00")
+
+        resp = second_auth_client.get("/api/transactions/analytics/trends?months=6")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["statistics"]["average"] == 0
+
+    def test_forecast_isolation(self, auth_client, second_auth_client):
+        make_transaction(auth_client, amount=5000, date="2025-11-15T10:00:00")
+        make_transaction(auth_client, amount=6000, date="2025-12-15T10:00:00")
+        make_transaction(auth_client, amount=7000, date="2026-01-15T10:00:00")
+
+        resp = second_auth_client.get("/api/transactions/analytics/forecast?history_months=6")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["statistics"]["average"] == 0
+        assert data["forecast"] == []
+
+    def test_ai_accuracy_isolation(self, auth_client, second_auth_client):
+        make_transaction(auth_client, category="Food", ai_category="Food", ai_confidence=0.95)
+
+        resp = second_auth_client.get("/api/transactions/analytics/ai-accuracy")
+        assert resp.status_code == 200
+        data = resp.json()
+        assert data["total_predictions"] == 0

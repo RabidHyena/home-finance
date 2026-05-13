@@ -66,8 +66,9 @@ class ApiError extends Error {
   }
 }
 
-// Helper to handle API responses
-async function handleResponse<T>(response: Response): Promise<T> {
+// Throw ApiError for non-2xx responses without consuming the body.
+// Use this before calling .blob() or other non-JSON body readers.
+async function assertResponseOk(response: Response): Promise<void> {
   if (response.status === 401) {
     window.dispatchEvent(new CustomEvent('auth:unauthorized'));
     throw new ApiError('Unauthorized', 401);
@@ -75,16 +76,18 @@ async function handleResponse<T>(response: Response): Promise<T> {
   if (!response.ok) {
     const err = await response.json().catch(() => null);
     const message = err?.detail || `Request failed (${response.status})`;
-
-    // Preserve Retry-After for 429 responses
     let retryAfter: number | undefined;
     if (response.status === 429) {
       const header = response.headers.get('Retry-After');
       if (header) retryAfter = parseInt(header, 10) || undefined;
     }
-
     throw new ApiError(message, response.status, retryAfter);
   }
+}
+
+// Helper to handle API responses
+async function handleResponse<T>(response: Response): Promise<T> {
+  await assertResponseOk(response);
   if (response.status === 204 || response.headers.get('content-length') === '0') {
     return undefined as T;
   }
@@ -436,20 +439,7 @@ export const api = {
     const response = await fetch(`${API_BASE}/api/transactions/export?${params}`, {
       credentials: 'include',
     });
-    if (response.status === 401) {
-      window.dispatchEvent(new CustomEvent('auth:unauthorized'));
-      throw new ApiError('Unauthorized', 401);
-    }
-    if (!response.ok) {
-      const err = await response.json().catch(() => null);
-      const message = err?.detail || `Request failed (${response.status})`;
-      let retryAfter: number | undefined;
-      if (response.status === 429) {
-        const header = response.headers.get('Retry-After');
-        if (header) retryAfter = parseInt(header, 10) || undefined;
-      }
-      throw new ApiError(message, response.status, retryAfter);
-    }
+    await assertResponseOk(response);
     return response.blob();
   },
 
@@ -471,14 +461,7 @@ export const api = {
     const response = await fetch(`${API_BASE}/api/transactions/export/xlsx?${params}`, {
       credentials: 'include',
     });
-    if (response.status === 401) {
-      window.dispatchEvent(new CustomEvent('auth:unauthorized'));
-      throw new ApiError('Unauthorized', 401);
-    }
-    if (!response.ok) {
-      const err = await response.json().catch(() => null);
-      throw new ApiError(err?.detail || `Request failed (${response.status})`, response.status);
-    }
+    await assertResponseOk(response);
     return response.blob();
   },
 
