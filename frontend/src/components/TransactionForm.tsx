@@ -1,7 +1,8 @@
-import { useState } from 'react';
+import { useState, useMemo } from 'react';
 import { format } from 'date-fns';
 import type { Transaction, TransactionCreate, ParsedTransaction, Category, Currency, TransactionType } from '../types';
 import { CATEGORIES, CATEGORY_LABELS, INCOME_CATEGORIES, INCOME_CATEGORY_LABELS, CURRENCIES, CURRENCY_SYMBOLS, CURRENCY_LABELS } from '../types';
+import { Select } from './Select';
 
 function deriveFormState(initialData?: Partial<TransactionCreate> | ParsedTransaction | Transaction) {
   if (initialData) {
@@ -50,6 +51,16 @@ export function TransactionForm({
   const [category, setCategory] = useState<Category | ''>(() => deriveFormState(initialData).category);
   const [date, setDate] = useState(() => deriveFormState(initialData).date);
   const [currency, setCurrency] = useState<Currency>(() => deriveFormState(initialData).currency);
+
+  const categoryOptions = useMemo(() => txType === 'income'
+    ? INCOME_CATEGORIES.map(cat => ({ value: cat, label: INCOME_CATEGORY_LABELS[cat] }))
+    : CATEGORIES.map(cat => ({ value: cat, label: CATEGORY_LABELS[cat as Category] }))
+  , [txType]);
+
+  const currencyOptions = useMemo(() => CURRENCIES.map(c => ({
+    value: c,
+    label: `${CURRENCY_SYMBOLS[c]} — ${CURRENCY_LABELS[c]}`,
+  })), []);
 
   if (initialData !== prevInitialData) {
     setPrevInitialData(initialData);
@@ -152,44 +163,25 @@ export function TransactionForm({
         <label className="label" htmlFor="category">
           Категория
         </label>
-        <select
+        <Select
           id="category"
-          className="select"
           value={category}
-          onChange={(e) => setCategory(e.target.value as Category | '')}
-        >
-          <option value="">Выберите категорию</option>
-          {txType === 'income'
-            ? INCOME_CATEGORIES.map((cat) => (
-                <option key={cat} value={cat}>
-                  {INCOME_CATEGORY_LABELS[cat]}
-                </option>
-              ))
-            : CATEGORIES.map((cat) => (
-                <option key={cat} value={cat}>
-                  {CATEGORY_LABELS[cat]}
-                </option>
-              ))
-          }
-        </select>
+          onChange={v => setCategory(v as Category | '')}
+          options={categoryOptions}
+          placeholder="Выберите категорию"
+        />
       </div>
 
       <div style={{ marginBottom: '1rem' }}>
         <label className="label" htmlFor="currency">
           Валюта
         </label>
-        <select
+        <Select
           id="currency"
-          className="select"
           value={currency}
-          onChange={(e) => setCurrency(e.target.value as Currency)}
-        >
-          {CURRENCIES.map((curr) => (
-            <option key={curr} value={curr}>
-              {CURRENCY_SYMBOLS[curr]} - {CURRENCY_LABELS[curr]}
-            </option>
-          ))}
-        </select>
+          onChange={v => setCurrency(v as Currency)}
+          options={currencyOptions}
+        />
       </div>
 
       <div style={{ marginBottom: '1.5rem' }}>

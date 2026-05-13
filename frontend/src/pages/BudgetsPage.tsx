@@ -7,7 +7,7 @@ import {
   useUpdateBudget,
   useDeleteBudget,
 } from '../hooks/useApi';
-import { useToast, ConfirmModal } from '../components';
+import { useToast, ConfirmModal, Select } from '../components';
 import { CATEGORIES, CATEGORY_LABELS, type Category } from '../types';
 import type { BudgetStatus } from '../types';
 import { staggerContainer, staggerItem, slideUp } from '../motion';
@@ -154,17 +154,12 @@ export function BudgetsPage() {
               <div style={{ display: 'grid', gridTemplateColumns: '1fr 1fr', gap: '1rem', marginBottom: '1rem' }}>
                 <div>
                   <label className="label">Категория</label>
-                  <select
-                    className="select"
+                  <Select
                     value={formData.category}
-                    onChange={(e) => setFormData({ ...formData, category: e.target.value as Category })}
+                    onChange={v => setFormData({ ...formData, category: v as Category })}
+                    options={availableCategories.map(cat => ({ value: cat, label: CATEGORY_LABELS[cat] }))}
                     disabled={!!editingId}
-                    required
-                  >
-                    {availableCategories.map(cat => (
-                      <option key={cat} value={cat}>{CATEGORY_LABELS[cat]}</option>
-                    ))}
-                  </select>
+                  />
                 </div>
                 <div>
                   <label className="label">Лимит (₽)</label>

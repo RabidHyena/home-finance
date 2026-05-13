@@ -1,7 +1,7 @@
 import { useMemo, useState } from 'react';
 import { Calendar } from 'lucide-react';
 import { motion } from 'framer-motion';
-import { MonthlyChart, CategoryChart, MonthComparison, TrendsChart, ForecastChart, StatCardSkeleton, ChartSkeleton } from '../components';
+import { MonthlyChart, CategoryChart, MonthComparison, TrendsChart, ForecastChart, StatCardSkeleton, ChartSkeleton, Select } from '../components';
 import { useMonthlyReports, useMonthComparison, useSpendingTrends, useForecast } from '../hooks/useApi';
 import { MONTH_NAMES, CATEGORY_LABELS, INCOME_CATEGORY_LABELS, type Category, type IncomeCategory, type TransactionType } from '../types';
 import { staggerContainer, staggerItem } from '../motion';
@@ -149,21 +149,18 @@ export function ReportsPage() {
           {/* Month Selector */}
           <motion.div variants={staggerItem} style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.5rem' }}>
             <Calendar size={18} color="var(--color-accent)" />
-            <select
-              className="select"
+            <Select
               value={selectedReport ? `${selectedReport.year}-${selectedReport.month}` : ''}
-              onChange={(e) => {
-                const [year, month] = e.target.value.split('-').map(Number);
+              onChange={v => {
+                const [year, month] = v.split('-').map(Number);
                 setSelectedPeriod({ year, month });
               }}
-              style={{ width: 'auto', minWidth: '200px' }}
-            >
-              {reports.map((report) => (
-                <option key={`${report.year}-${report.month}`} value={`${report.year}-${report.month}`}>
-                  {MONTH_NAMES[report.month - 1]} {report.year}
-                </option>
-              ))}
-            </select>
+              options={reports.map(r => ({
+                value: `${r.year}-${r.month}`,
+                label: `${MONTH_NAMES[r.month - 1]} ${r.year}`,
+              }))}
+              style={{ minWidth: '210px' }}
+            />
           </motion.div>
 
           {/* Summary Cards */}

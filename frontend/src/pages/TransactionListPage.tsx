@@ -1,7 +1,7 @@
 import { useState, useRef, useCallback, useEffect } from 'react';
 import { Plus, Filter, Loader2, Download, Trash2 } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
-import { TransactionCard, TransactionForm, ConfirmModal, useToast, TransactionCardSkeleton } from '../components';
+import { TransactionCard, TransactionForm, ConfirmModal, useToast, TransactionCardSkeleton, Select } from '../components';
 import {
   useInfiniteTransactions,
   useCreateTransaction,
@@ -355,17 +355,15 @@ export function TransactionListPage({
       {/* Category Filter */}
       <div style={{ display: 'flex', alignItems: 'center', gap: '0.75rem', marginBottom: '1.25rem' }}>
         <Filter size={18} color="var(--color-text-muted)" />
-        <select
-          className="select"
+        <Select
           value={filter}
-          onChange={(e) => setFilter(e.target.value)}
-          style={{ width: 'auto', minWidth: '150px' }}
-        >
-          <option value="">Все категории</option>
-          {categories.map((cat) => (
-            <option key={cat} value={cat}>{categoryLabels[cat]}</option>
-          ))}
-        </select>
+          onChange={setFilter}
+          options={[
+            { value: '', label: 'Все категории' },
+            ...categories.map(cat => ({ value: cat, label: categoryLabels[cat] })),
+          ]}
+          style={{ minWidth: '170px' }}
+        />
         {filter && (
           <button className="btn btn-secondary" onClick={() => setFilter('')} style={{ padding: '0.25rem 0.75rem' }}>
             Сбросить

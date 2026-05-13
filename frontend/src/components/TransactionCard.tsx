@@ -46,11 +46,12 @@ export const TransactionCard = memo(function TransactionCard({
     >
       {/* Category dot */}
       <span style={{
-        width: '8px',
-        height: '8px',
+        width: '9px',
+        height: '9px',
         borderRadius: '50%',
         background: categoryColor,
         flexShrink: 0,
+        boxShadow: `0 0 5px ${categoryColor}55`,
       }} />
 
       {/* Description */}
@@ -99,7 +100,7 @@ export const TransactionCard = memo(function TransactionCard({
         fontVariantNumeric: 'tabular-nums',
         fontWeight: 600,
         fontSize: 'var(--text-md)',
-        color: isIncome ? 'var(--color-accent)' : 'var(--color-text)',
+        color: isIncome ? 'var(--color-income)' : 'var(--color-text)',
         whiteSpace: 'nowrap',
         flexShrink: 0,
         minWidth: '80px',

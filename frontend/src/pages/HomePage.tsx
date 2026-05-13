@@ -1,5 +1,5 @@
 import { Link } from 'react-router-dom';
-import { ArrowRight, Plus, BarChart3 } from 'lucide-react';
+import { ArrowRight, Plus, BarChart3, Receipt } from 'lucide-react';
 import { TransactionCard, StatCardSkeleton, TransactionCardSkeleton } from '../components';
 import { useTransactions, useMonthlyReports } from '../hooks/useApi';
 import { MONTH_NAMES } from '../types';
@@ -22,33 +22,54 @@ interface StatCardProps {
 }
 
 function StatCard({ label, amount, count, amountColor }: StatCardProps) {
+  const accentColor = amountColor || 'var(--color-text)';
+  const accentBg = amountColor
+    ? amountColor.includes('income') ? 'var(--color-income-bg)'
+    : amountColor.includes('danger') ? 'var(--color-danger-bg)'
+    : amountColor.includes('accent') ? 'var(--color-accent-bg)'
+    : 'var(--color-surface-2)'
+    : 'var(--color-surface-2)';
+
   return (
     <div className="card-lift" style={{
       background: 'var(--color-surface)',
       border: '1px solid var(--color-border)',
       borderRadius: 'var(--radius-lg)',
-      padding: '1.75rem',
+      padding: '1.5rem',
+      display: 'flex',
+      flexDirection: 'column',
+      gap: '0.25rem',
     }}>
-      <p style={labelStyle}>{label}</p>
+      <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'space-between', marginBottom: '0.25rem' }}>
+        <p style={labelStyle}>{label}</p>
+        {amountColor && (
+          <span style={{
+            width: '7px', height: '7px', borderRadius: '50%',
+            background: accentColor,
+            boxShadow: `0 0 6px ${accentBg}`,
+            flexShrink: 0,
+          }} />
+        )}
+      </div>
       <p style={{
-        margin: '0.5rem 0 0',
+        margin: 0,
         fontFamily: 'var(--font-mono)',
         fontVariantNumeric: 'tabular-nums',
         fontSize: 'var(--text-2xl)',
         fontWeight: 600,
-        color: amountColor || 'var(--color-text)',
-        letterSpacing: '-0.01em',
+        color: accentColor,
+        letterSpacing: '-0.02em',
+        lineHeight: 1.1,
       }}>
         {amount.toLocaleString('ru-RU')} ₽
       </p>
-      <div style={{ borderTop: '1px solid var(--color-border)', margin: '0.75rem 0 0.5rem' }} />
-      <p style={{ margin: 0, fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)' }}>
+      <p style={{ margin: '0.625rem 0 0', fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)', borderTop: '1px solid var(--color-border)', paddingTop: '0.625rem' }}>
         {count != null ? (
           <>
-            <span style={{ fontFamily: 'var(--font-mono)' }}>{count}</span>
+            <span style={{ fontFamily: 'var(--font-mono)', color: 'var(--color-text-secondary)' }}>{count}</span>
             {' транзакций'}
           </>
-        ) : '—'}
+        ) : ' '}
       </p>
     </div>
   );
@@ -131,12 +152,17 @@ export function HomePage() {
         marginBottom: '1.5rem',
       }}>
         <StatCard label={expenseLabel} amount={expenseTotal} count={currentExpenseMonth?.transaction_count ?? null} />
-        <StatCard label={incomeLabel} amount={incomeTotal} count={currentIncomeMonth?.transaction_count ?? null} />
+        <StatCard
+          label={incomeLabel}
+          amount={incomeTotal}
+          count={currentIncomeMonth?.transaction_count ?? null}
+          amountColor='var(--color-income)'
+        />
         <StatCard
           label={balanceLabel}
           amount={netBalance}
           count={null}
-          amountColor={netBalance >= 0 ? 'var(--color-accent)' : 'var(--color-danger)'}
+          amountColor={netBalance >= 0 ? 'var(--color-income)' : 'var(--color-danger)'}
         />
       </div>
 
@@ -228,11 +254,27 @@ export function HomePage() {
           color: 'var(--color-text-secondary)',
           background: 'var(--color-surface)',
           borderRadius: 'var(--radius-lg)',
-          border: '1px solid var(--color-border)',
-          padding: 'var(--space-xl)',
+          border: '1px dashed var(--color-border-strong)',
+          padding: '2.5rem var(--space-xl)',
+          display: 'flex',
+          flexDirection: 'column',
+          alignItems: 'center',
+          gap: '0.5rem',
         }}>
-          <p>Нет транзакций</p>
-          <Link to="/upload" className="btn btn-primary" style={{ marginTop: '1rem' }}>
+          <div style={{
+            width: '44px', height: '44px',
+            borderRadius: 'var(--radius-lg)',
+            background: 'var(--color-surface-2)',
+            display: 'flex', alignItems: 'center', justifyContent: 'center',
+            marginBottom: '0.25rem',
+          }}>
+            <Receipt size={20} color="var(--color-text-muted)" />
+          </div>
+          <p style={{ margin: 0, fontWeight: 500, color: 'var(--color-text)' }}>Нет транзакций</p>
+          <p style={{ margin: 0, fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)' }}>
+            Загрузите скриншот чека или выписки
+          </p>
+          <Link to="/upload" className="btn btn-primary" style={{ marginTop: '0.75rem' }}>
             Добавить первую
           </Link>
         </div>

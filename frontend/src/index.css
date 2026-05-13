@@ -18,6 +18,10 @@
   --color-accent-hover:    #0891b2;
   --color-accent-bg:       rgba(6,182,212,0.12);
 
+  --color-income:          #10b981;
+  --color-income-hover:    #059669;
+  --color-income-bg:       rgba(16,185,129,0.08);
+
   --color-danger:          #dc2626;
   --color-danger-bg:       rgba(220,38,38,0.08);
   --color-warning:         #d97706;
@@ -33,8 +37,8 @@
   --color-primary-deep:     var(--color-accent);
   --color-primary-glow:     transparent;
   --color-accent-glow:      transparent;
-  --color-success:          var(--color-accent);
-  --color-success-hover:    var(--color-accent-hover);
+  --color-success:          var(--color-income);
+  --color-success-hover:    var(--color-income-hover);
   --color-danger-hover:     #b91c1c;
   --color-warning-hover:    #b45309;
   --color-text-inverse:     #09090b;
@@ -108,6 +112,9 @@
   --color-accent:         #0891b2;
   --color-accent-hover:   #0e7490;
   --color-accent-bg:      rgba(8,145,178,0.10);
+  --color-income:         #059669;
+  --color-income-hover:   #047857;
+  --color-income-bg:      rgba(5,150,105,0.08);
   --gradient-hero:        var(--color-bg);
   --gradient-warm:        var(--color-surface-2);
   --gradient-cool:        var(--color-surface-2);
@@ -280,6 +287,7 @@ h1, h2, h3, h4, h5, h6 {
 .input:focus {
   outline: none;
   border-color: var(--color-accent);
+  box-shadow: 0 0 0 3px rgba(6,182,212,0.12);
 }
 
 .input::placeholder {
@@ -318,6 +326,7 @@ h1, h2, h3, h4, h5, h6 {
 .select:focus {
   outline: none;
   border-color: var(--color-accent);
+  box-shadow: 0 0 0 3px rgba(6,182,212,0.12);
 }
 
 /* ============================================
@@ -341,6 +350,12 @@ h1, h2, h3, h4, h5, h6 {
 
 .toast-enter {
   animation: toast-enter 150ms ease-out;
+}
+
+/* Custom Select dropdown */
+@keyframes select-dropdown-in {
+  from { opacity: 0; transform: translateY(-6px) scale(0.97); }
+  to   { opacity: 1; transform: translateY(0) scale(1); }
 }
 
 /* Skeleton shimmer */

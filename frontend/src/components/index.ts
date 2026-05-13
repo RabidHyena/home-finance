@@ -18,3 +18,5 @@ export { Skeleton, TransactionCardSkeleton, StatCardSkeleton, ChartSkeleton } fr
 export { ErrorBoundary } from './ErrorBoundary';
 export { ProtectedRoute } from './ProtectedRoute';
 export { PageTransition } from './PageTransition';
+export { Select } from './Select';
+export type { SelectOption } from './Select';

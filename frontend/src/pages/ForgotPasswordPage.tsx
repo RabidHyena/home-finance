@@ -62,9 +62,9 @@ export function ForgotPasswordPage() {
           maxWidth: '420px',
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', marginBottom: '2rem' }}>
-          <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'var(--color-accent)', display: 'inline-block' }} />
-          <span style={{ fontSize: 'var(--text-md)', fontWeight: 600, color: 'var(--color-text)', fontFamily: 'var(--font-body)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.625rem', marginBottom: '2rem' }}>
+          <span style={{ width: '30px', height: '30px', borderRadius: '8px', background: 'var(--color-accent)', display: 'inline-flex', alignItems: 'center', justifyContent: 'center', fontSize: '12px', fontWeight: 700, color: '#fff', letterSpacing: '-0.03em', boxShadow: '0 0 16px rgba(6,182,212,0.32)', flexShrink: 0 }}>HF</span>
+          <span style={{ fontSize: 'var(--text-md)', fontWeight: 600, color: 'var(--color-text)', fontFamily: 'var(--font-body)', letterSpacing: '-0.01em' }}>
             Home Finance
           </span>
         </div>

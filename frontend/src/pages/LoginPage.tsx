@@ -1,6 +1,6 @@
 import { useState } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
-import { LogIn } from 'lucide-react';
+import { LogIn, Eye, EyeOff } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
 import { useAuth } from '../contexts/useAuth';
 import { slideUp, staggerContainer, staggerItem } from '../motion';
@@ -11,6 +11,7 @@ export function LoginPage() {
   const [formData, setFormData] = useState({ login: '', password: '' });
   const [error, setError] = useState('');
   const [isLoading, setIsLoading] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
 
   const handleSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
@@ -59,6 +60,10 @@ export function LoginPage() {
       alignItems: 'center',
       justifyContent: 'center',
       background: 'var(--color-bg)',
+      backgroundImage: [
+        'radial-gradient(ellipse at 50% 0%, rgba(6,182,212,0.07) 0%, transparent 55%)',
+        'radial-gradient(ellipse at 85% 80%, rgba(6,182,212,0.04) 0%, transparent 40%)',
+      ].join(', '),
       padding: '1rem',
       position: 'relative',
       overflow: 'hidden',
@@ -78,9 +83,16 @@ export function LoginPage() {
           position: 'relative',
         }}
       >
-        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.5rem', marginBottom: '2rem' }}>
-          <span style={{ width: '6px', height: '6px', borderRadius: '50%', background: 'var(--color-accent)', display: 'inline-block' }} />
-          <span style={{ fontSize: 'var(--text-md)', fontWeight: 600, color: 'var(--color-text)', fontFamily: 'var(--font-body)' }}>
+        <div style={{ display: 'flex', alignItems: 'center', justifyContent: 'center', gap: '0.625rem', marginBottom: '2rem' }}>
+          <span style={{
+            width: '30px', height: '30px',
+            borderRadius: '8px',
+            background: 'var(--color-accent)',
+            display: 'inline-flex', alignItems: 'center', justifyContent: 'center',
+            fontSize: '12px', fontWeight: 700, color: '#fff', letterSpacing: '-0.03em',
+            boxShadow: '0 0 16px rgba(6,182,212,0.32)',
+          }}>HF</span>
+          <span style={{ fontSize: 'var(--text-md)', fontWeight: 600, color: 'var(--color-text)', fontFamily: 'var(--font-body)', letterSpacing: '-0.01em' }}>
             Home Finance
           </span>
         </div>
@@ -138,15 +150,36 @@ export function LoginPage() {
 
           <motion.div variants={staggerItem} style={{ marginBottom: '1.5rem' }}>
             <label style={labelStyle}>Пароль</label>
-            <input
-              type="password"
-              value={formData.password}
-              onChange={(e) => setFormData({ ...formData, password: e.target.value })}
-              required
-              style={inputStyle}
-              onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--color-accent)'; }}
-              onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--color-border-strong)'; }}
-            />
+            <div style={{ position: 'relative' }}>
+              <input
+                type={showPassword ? 'text' : 'password'}
+                value={formData.password}
+                onChange={(e) => setFormData({ ...formData, password: e.target.value })}
+                required
+                style={{ ...inputStyle, paddingRight: '2.75rem' }}
+                onFocus={(e) => { e.currentTarget.style.borderColor = 'var(--color-accent)'; e.currentTarget.style.boxShadow = '0 0 0 3px rgba(6,182,212,0.12)'; }}
+                onBlur={(e) => { e.currentTarget.style.borderColor = 'var(--color-border-strong)'; e.currentTarget.style.boxShadow = 'none'; }}
+              />
+              <button
+                type="button"
+                onClick={() => setShowPassword(v => !v)}
+                style={{
+                  position: 'absolute', right: '0.75rem', top: '50%', transform: 'translateY(-50%)',
+                  border: 'none', background: 'transparent', cursor: 'pointer',
+                  color: 'var(--color-text-muted)',
+                  display: 'flex', alignItems: 'center', justifyContent: 'center',
+                  padding: '0.25rem',
+                  borderRadius: 'var(--radius-sm)',
+                  transition: 'color 120ms ease-out',
+                }}
+                onMouseEnter={(e) => { e.currentTarget.style.color = 'var(--color-text)'; }}
+                onMouseLeave={(e) => { e.currentTarget.style.color = 'var(--color-text-muted)'; }}
+                tabIndex={-1}
+                aria-label={showPassword ? 'Скрыть пароль' : 'Показать пароль'}
+              >
+                {showPassword ? <EyeOff size={16} /> : <Eye size={16} />}
+              </button>
+            </div>
           </motion.div>
 
           <motion.div variants={staggerItem}>
