@@ -6,7 +6,9 @@ import {
   CartesianGrid,
   Tooltip,
   ResponsiveContainer,
+  Cell,
 } from 'recharts';
+import { useState } from 'react';
 import { MONTH_NAMES_SHORT } from '../types';
 import type { MonthlyReport } from '../types';
 
@@ -14,7 +16,12 @@ interface MonthlyChartProps {
   data: MonthlyReport[];
 }
 
+const BAR_COLOR = '#818cf8';
+const BAR_HOVER_COLOR = '#a5b4fc';
+
 export function MonthlyChart({ data }: MonthlyChartProps) {
+  const [activeIndex, setActiveIndex] = useState<number | null>(null);
+
   const chartData = [...data]
     .reverse()
     .map((report) => ({
@@ -34,7 +41,10 @@ export function MonthlyChart({ data }: MonthlyChartProps) {
   return (
     <div style={{ width: '100%', height: 300 }}>
       <ResponsiveContainer>
-        <BarChart data={chartData}>
+        <BarChart
+          data={chartData}
+          onMouseLeave={() => setActiveIndex(null)}
+        >
           <CartesianGrid strokeDasharray="3 3" stroke="rgba(148, 163, 184, 0.06)" />
           <XAxis
             dataKey="name"
@@ -52,24 +62,35 @@ export function MonthlyChart({ data }: MonthlyChartProps) {
             }}
           />
           <Tooltip
+            cursor={false}
             formatter={(value) => [
               `${Number(value).toLocaleString('ru-RU')} ₽`,
               'Сумма',
             ]}
-            labelStyle={{ color: '#e2e8f0', fontWeight: 500 }}
+            labelStyle={{ color: 'var(--color-text)', fontWeight: 500, marginBottom: '0.2rem' }}
             contentStyle={{
               borderRadius: '0.75rem',
-              border: '1px solid rgba(148, 163, 184, 0.12)',
-              boxShadow: '0 4px 16px rgba(0,0,0,0.3)',
-              background: '#1e2130',
-              color: '#e2e8f0',
+              border: '1px solid var(--color-border)',
+              boxShadow: 'var(--shadow-md)',
+              background: 'var(--color-surface)',
+              color: 'var(--color-text)',
+              padding: '0.5rem 0.75rem',
             }}
+            itemStyle={{ color: BAR_COLOR, fontWeight: 600 }}
           />
           <Bar
             dataKey="amount"
-            fill="#818cf8"
             radius={[6, 6, 0, 0]}
-          />
+            maxBarSize={72}
+            onMouseEnter={(_, index) => setActiveIndex(index)}
+          >
+            {chartData.map((_, index) => (
+              <Cell
+                key={index}
+                fill={index === activeIndex ? BAR_HOVER_COLOR : BAR_COLOR}
+              />
+            ))}
+          </Bar>
         </BarChart>
       </ResponsiveContainer>
     </div>

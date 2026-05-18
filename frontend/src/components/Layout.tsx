@@ -1,8 +1,10 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { Link, useLocation, useNavigate } from 'react-router-dom';
 import { Home, Upload, List, TrendingUp, BarChart3, PiggyBank, LogOut, Sun, Moon, ChevronDown } from 'lucide-react';
+import { useQueryClient } from '@tanstack/react-query';
 import { OfflineIndicator } from './OfflineIndicator';
 import { useAuth } from '../contexts/useAuth';
+import { api } from '../api/client';
 
 interface LayoutProps {
   children: React.ReactNode;
@@ -25,10 +27,37 @@ const mobileNavItems = [
   { path: '/budgets', icon: PiggyBank, label: 'Бюджеты' },
 ];
 
+const STALE = 1000 * 60 * 5;
+
 export function Layout({ children }: LayoutProps) {
   const location = useLocation();
   const navigate = useNavigate();
   const { user, logout } = useAuth();
+  const qc = useQueryClient();
+
+  const prefetch = useCallback((path: string) => {
+    // Never prefetch if already on this page — avoids race conditions with
+    // in-flight mutations (e.g. stale prefetch overwrites fresh mutation data)
+    if (path === location.pathname) return;
+
+    // Prefetch JS chunk so it's ready before the click
+    if (path === '/transactions') void import('../pages/TransactionListPage');
+    else if (path === '/income') void import('../pages/IncomePage');
+    else if (path === '/reports') void import('../pages/ReportsPage');
+    else if (path === '/budgets') void import('../pages/BudgetsPage');
+    else if (path === '/upload') void import('../pages/UploadPage');
+
+    // Prefetch API data for pages that load heavy queries
+    const now = new Date();
+    const year = now.getFullYear();
+    const month = now.getMonth() + 1;
+    if (path === '/reports') {
+      void qc.prefetchQuery({ queryKey: ['reports', undefined, 'expense'], queryFn: () => api.getMonthlyReports(undefined, 'expense'), staleTime: STALE });
+    } else if (path === '/budgets') {
+      void qc.prefetchQuery({ queryKey: ['budgets-status', year, month], queryFn: () => api.getBudgetsStatus(year, month), staleTime: STALE });
+      void qc.prefetchQuery({ queryKey: ['budgets'], queryFn: () => api.getBudgets(), staleTime: STALE });
+    }
+  }, [qc, location.pathname]);
   const [theme, setTheme] = useState<'dark' | 'light'>(() => {
     try {
       const saved = localStorage.getItem('theme');
@@ -143,6 +172,11 @@ export function Layout({ children }: LayoutProps) {
                 <Link
                   key={item.path}
                   to={item.path}
+                  onMouseEnter={(e) => {
+                    prefetch(item.path);
+                    if (!isActive) { e.currentTarget.style.color = 'var(--color-text)'; e.currentTarget.style.background = 'var(--color-surface-2)'; }
+                  }}
+                  onMouseLeave={(e) => { if (!isActive) { e.currentTarget.style.color = 'var(--color-text-secondary)'; e.currentTarget.style.background = 'transparent'; } }}
                   style={{
                     textDecoration: 'none',
                     color: isActive ? 'var(--color-accent)' : 'var(--color-text-secondary)',
@@ -155,8 +189,6 @@ export function Layout({ children }: LayoutProps) {
                     borderRadius: 'var(--radius-md)',
                     background: isActive ? 'var(--color-accent-bg)' : 'transparent',
                   }}
-                  onMouseEnter={(e) => { if (!isActive) { e.currentTarget.style.color = 'var(--color-text)'; e.currentTarget.style.background = 'var(--color-surface-2)'; } }}
-                  onMouseLeave={(e) => { if (!isActive) { e.currentTarget.style.color = 'var(--color-text-secondary)'; e.currentTarget.style.background = 'transparent'; } }}
                 >
                   {item.label}
                 </Link>
@@ -300,6 +332,7 @@ export function Layout({ children }: LayoutProps) {
             <Link
               key={item.path}
               to={item.path}
+              onMouseEnter={() => prefetch(item.path)}
               style={{
                 display: 'flex',
                 flexDirection: 'column',

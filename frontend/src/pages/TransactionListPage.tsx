@@ -258,15 +258,7 @@ export function TransactionListPage({
             </span>
           )}
         </h1>
-        <div style={{ display: 'flex', gap: '0.5rem' }}>
-          <button
-            className="btn btn-secondary"
-            onClick={() => setShowDeleteAll(true)}
-            disabled={total === 0}
-            style={{ color: 'var(--color-danger)' }}
-          >
-            <Trash2 size={16} /> Удалить все
-          </button>
+        <div style={{ display: 'flex', gap: '0.5rem', alignItems: 'center' }}>
           <button
             className="btn btn-secondary"
             onClick={handleExport}
@@ -289,6 +281,16 @@ export function TransactionListPage({
             style={btnStyle}
           >
             <Plus size={16} /> Добавить
+          </button>
+          <div style={{ width: '1px', height: '24px', background: 'var(--color-border)', margin: '0 0.25rem' }} />
+          <button
+            className="btn btn-secondary"
+            onClick={() => setShowDeleteAll(true)}
+            disabled={total === 0}
+            style={{ color: 'var(--color-danger)' }}
+            title="Удалить все транзакции"
+          >
+            <Trash2 size={16} />
           </button>
         </div>
       </div>

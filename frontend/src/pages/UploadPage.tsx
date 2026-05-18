@@ -205,6 +205,7 @@ export function UploadPage() {
                     padding: '1.25rem 1rem',
                     background: 'var(--color-surface)',
                     border: '1px solid var(--color-border)',
+                    borderTop: '2px solid var(--color-accent)',
                     borderRadius: 'var(--radius-md)',
                     textAlign: 'center',
                   }}>

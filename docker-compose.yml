@@ -39,8 +39,6 @@ services:
       RATE_LIMIT_WINDOW: ${RATE_LIMIT_WINDOW:-60}
       RATE_LIMIT_MAX_REQUESTS: ${RATE_LIMIT_MAX_REQUESTS:-100}
       SEED_ADMIN_PASSWORD: ${SEED_ADMIN_PASSWORD:-}
-    volumes:
-      - ./uploads:/app/uploads
     ports:
       - "127.0.0.1:8000:8000"
     depends_on:
@@ -56,6 +54,7 @@ services:
     read_only: true
     tmpfs:
       - /tmp
+      - /app/uploads:uid=999,gid=999,mode=700
     deploy:
       resources:
         limits:

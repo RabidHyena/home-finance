@@ -89,29 +89,15 @@ export function ReportsPage() {
               padding: '0.5rem 1.5rem',
               borderRadius: 'var(--radius-full)',
               border: 'none',
-              background: 'transparent',
+              background: activeTab === tab ? 'var(--color-accent)' : 'transparent',
               color: activeTab === tab ? 'white' : 'var(--color-text-muted)',
               fontWeight: activeTab === tab ? 500 : 400,
               cursor: 'pointer',
               fontSize: '0.875rem',
               fontFamily: 'var(--font-body)',
-              zIndex: 1,
-              transition: 'color 150ms ease-out',
+              transition: 'background 200ms ease-out, color 200ms ease-out',
             }}
           >
-            {activeTab === tab && (
-              <motion.div
-                layoutId="reports-tab-indicator"
-                style={{
-                  position: 'absolute',
-                  inset: 0,
-                  borderRadius: 'var(--radius-full)',
-                  background: 'var(--color-accent)',
-                  zIndex: -1,
-                }}
-                transition={{ type: 'spring', bounce: 0.2, duration: 0.35 }}
-              />
-            )}
             {tab === 'expense' ? 'Расходы' : 'Доходы'}
           </button>
         ))}
@@ -176,7 +162,6 @@ export function ReportsPage() {
                 borderRadius: 'var(--radius-lg)',
                 border: '1px solid var(--color-border)',
                 padding: 'var(--space-lg)',
-                boxShadow: 'var(--shadow-sm)',
               }}>
                 <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                   {isIncome ? 'Всего получено' : 'Всего потрачено'}
@@ -196,7 +181,6 @@ export function ReportsPage() {
                 borderRadius: 'var(--radius-lg)',
                 border: '1px solid var(--color-border)',
                 padding: 'var(--space-lg)',
-                boxShadow: 'var(--shadow-sm)',
               }}>
                 <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                   Транзакций
@@ -210,7 +194,6 @@ export function ReportsPage() {
                 borderRadius: 'var(--radius-lg)',
                 border: '1px solid var(--color-border)',
                 padding: 'var(--space-lg)',
-                boxShadow: 'var(--shadow-sm)',
               }}>
                 <p style={{ margin: 0, fontSize: '0.8rem', color: 'var(--color-text-muted)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
                   Средний чек
@@ -225,6 +208,7 @@ export function ReportsPage() {
           )}
 
           {/* Month Comparison */}
+          {comparisonQuery.isLoading && <div style={{ marginBottom: '1.5rem' }}><ChartSkeleton height="280px" /></div>}
           {comparisonQuery.data && (
             <motion.div variants={staggerItem} style={{ marginBottom: '1.5rem' }}>
               <MonthComparison data={comparisonQuery.data} />
@@ -271,7 +255,6 @@ export function ReportsPage() {
             background: 'var(--color-surface)',
             borderRadius: 'var(--radius-lg)',
             border: '1px solid var(--color-border)',
-            boxShadow: 'var(--shadow-sm)',
             padding: 'var(--space-lg)',
           }}>
             <h2 style={{ margin: '0 0 1rem', fontSize: '1rem', fontFamily: 'var(--font-heading)', letterSpacing: '0.03em' }}>
@@ -287,7 +270,6 @@ export function ReportsPage() {
               background: 'var(--color-surface)',
               borderRadius: 'var(--radius-lg)',
               border: '1px solid var(--color-border)',
-              boxShadow: 'var(--shadow-sm)',
               padding: 'var(--space-lg)',
             }}>
               <h2 style={{ margin: '0 0 1rem', fontSize: '1rem', fontFamily: 'var(--font-heading)', letterSpacing: '0.03em' }}>

@@ -148,9 +148,10 @@ def upload_and_parse(
     """Upload a bank screenshot or Excel statement and parse transaction data."""
     content, file_type = _read_and_validate(file)
     filename = file.filename or ("file.xlsx" if file_type == "excel" else "image.jpg")
-    file_path = _save_file(content, filename)
+    file_path = None
 
     try:
+        file_path = _save_file(content, filename)
         result = _parse_file(content, filename, file_type, db, current_user.id)
         return ParsedTransactions(**result)
     except HTTPException:
@@ -158,11 +159,15 @@ def upload_and_parse(
     except ValueError as e:
         logger.warning("Could not parse data from uploaded file: %s", e)
         raise HTTPException(status_code=422, detail=f"Could not parse data from file: {e}")
+    except PermissionError:
+        logger.exception("Upload directory is not writable")
+        raise HTTPException(status_code=500, detail="Server storage error. Please contact support.")
     except Exception:
         logger.exception("Failed to parse uploaded file")
         raise HTTPException(status_code=500, detail="Failed to parse file. Please try again.")
     finally:
-        file_path.unlink(missing_ok=True)
+        if file_path is not None:
+            file_path.unlink(missing_ok=True)
 
 
 @router.post("/parse-only", response_model=ParsedTransaction)
@@ -233,9 +238,10 @@ def upload_and_parse_batch(
     user_id = current_user.id
 
     def _process_one(filename: str, content: bytes, file_type: str) -> BatchUploadResult:
-        file_path = _save_file(content, filename)
+        file_path = None
         worker_db = SessionLocal()
         try:
+            file_path = _save_file(content, filename)
             parsed = _parse_file(content, filename, file_type, worker_db, user_id)
             return BatchUploadResult(
                 filename=filename,
@@ -251,7 +257,7 @@ def upload_and_parse_batch(
             )
         finally:
             worker_db.close()
-            if file_path.exists():
+            if file_path is not None and file_path.exists():
                 file_path.unlink(missing_ok=True)
 
     with ThreadPoolExecutor(max_workers=min(len(pre), 4)) as pool:

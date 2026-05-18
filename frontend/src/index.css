@@ -53,14 +53,14 @@
   --gradient-mesh:         none;
   --gradient-card-shine:   none;
 
-  /* Shadows — no color, no glow */
-  --shadow-sm:           0 1px 2px rgba(0,0,0,0.05);
-  --shadow-md:           0 4px 6px rgba(0,0,0,0.07), 0 2px 4px rgba(0,0,0,0.06);
-  --shadow-lg:           0 10px 15px rgba(0,0,0,0.10), 0 4px 6px rgba(0,0,0,0.05);
+  /* Shadows — dark theme: high-opacity black needed for dark-on-dark depth */
+  --shadow-sm:           0 1px 4px rgba(0,0,0,0.40);
+  --shadow-md:           0 4px 12px rgba(0,0,0,0.50), 0 2px 4px rgba(0,0,0,0.35);
+  --shadow-lg:           0 10px 30px rgba(0,0,0,0.60), 0 4px 8px rgba(0,0,0,0.40);
   --shadow-glow-primary: none;
   --shadow-glow-accent:  none;
-  --shadow-card:         0 1px 2px rgba(0,0,0,0.05);
-  --shadow-inset:        inset 0 1px 2px rgba(0,0,0,0.05);
+  --shadow-card:         0 1px 4px rgba(0,0,0,0.40);
+  --shadow-inset:        inset 0 1px 3px rgba(0,0,0,0.30);
 
   /* Border radius — stricter */
   --radius-sm:   4px;
@@ -118,6 +118,13 @@
   --gradient-hero:        var(--color-bg);
   --gradient-warm:        var(--color-surface-2);
   --gradient-cool:        var(--color-surface-2);
+
+  /* Shadows — light theme: moderate opacity, visible on white */
+  --shadow-sm:           0 1px 3px rgba(0,0,0,0.10), 0 1px 2px rgba(0,0,0,0.07);
+  --shadow-md:           0 4px 8px rgba(0,0,0,0.13), 0 2px 4px rgba(0,0,0,0.09);
+  --shadow-lg:           0 10px 24px rgba(0,0,0,0.16), 0 4px 8px rgba(0,0,0,0.10);
+  --shadow-card:         0 1px 3px rgba(0,0,0,0.10), 0 1px 2px rgba(0,0,0,0.07);
+  --shadow-inset:        inset 0 1px 2px rgba(0,0,0,0.07);
 }
 
 /* ============================================
@@ -298,11 +305,9 @@ h1, h2, h3, h4, h5, h6 {
   display: block;
   margin-bottom: var(--space-sm);
   font-family: var(--font-body);
-  font-size: var(--text-xs);
+  font-size: 0.875rem;
   font-weight: 500;
-  text-transform: uppercase;
-  letter-spacing: 0.06em;
-  color: var(--color-text-muted);
+  color: var(--color-text-secondary);
 }
 
 .select {
@@ -409,6 +414,10 @@ h1, h2, h3, h4, h5, h6 {
 }
 
 .tx-row:hover .tx-actions { opacity: 1 !important; }
+
+/* Recharts SVG получает tabindex="0" — убираем браузерный focus ring при клике */
+.recharts-surface:focus,
+.recharts-surface:focus-visible { outline: none; }
 
 /* Card hover lift */
 .card-lift {

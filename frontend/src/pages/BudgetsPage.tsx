@@ -254,7 +254,6 @@ export function BudgetsPage() {
                 background: 'var(--color-surface)',
                 borderRadius: 'var(--radius-lg)',
                 border: '1px solid var(--color-border)',
-                boxShadow: 'var(--shadow-sm)',
                 padding: 'var(--space-lg)',
                 transition: 'border-color 0.25s',
               }}
@@ -304,7 +303,7 @@ export function BudgetsPage() {
                     animate={{ width: `${Math.min(status.percentage, 100)}%` }}
                     transition={{ duration: 0.8, ease: [0.25, 0.46, 0.45, 0.94] }}
                     style={{
-                      background: 'var(--color-accent)',
+                      background: status.exceeded ? 'var(--color-danger)' : 'var(--color-accent)',
                       height: '100%',
                       borderRadius: 'var(--radius-full)',
                     }}

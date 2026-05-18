@@ -113,7 +113,7 @@ export function ResetPasswordPage() {
         <form onSubmit={handleSubmit}>
           {['Новый пароль', 'Подтвердите пароль'].map((label, i) => (
             <div key={i} style={{ marginBottom: '1rem' }}>
-              <label style={{ display: 'block', fontSize: '0.8rem', fontWeight: 500, marginBottom: '0.5rem', color: 'var(--color-text-secondary)', textTransform: 'uppercase', letterSpacing: '0.04em' }}>
+              <label style={{ display: 'block', fontSize: '0.875rem', fontWeight: 500, marginBottom: '0.5rem', color: 'var(--color-text-secondary)' }}>
                 {label}
               </label>
               <input

@@ -44,12 +44,10 @@ export function LoginPage() {
 
   const labelStyle: React.CSSProperties = {
     display: 'block',
-    fontSize: '0.8rem',
+    fontSize: '0.875rem',
     fontWeight: 500,
     marginBottom: '0.5rem',
     color: 'var(--color-text-secondary)',
-    letterSpacing: '0.04em',
-    textTransform: 'uppercase',
     fontFamily: 'var(--font-body)',
   };
 

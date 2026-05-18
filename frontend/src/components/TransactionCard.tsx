@@ -100,7 +100,7 @@ export const TransactionCard = memo(function TransactionCard({
         fontVariantNumeric: 'tabular-nums',
         fontWeight: 600,
         fontSize: 'var(--text-md)',
-        color: isIncome ? 'var(--color-income)' : 'var(--color-text)',
+        color: isIncome ? 'var(--color-income)' : 'var(--color-danger)',
         whiteSpace: 'nowrap',
         flexShrink: 0,
         minWidth: '80px',
