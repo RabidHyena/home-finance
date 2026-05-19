@@ -3,7 +3,7 @@ import { api } from '../api/client';
 import type { TransactionCreate, TransactionUpdate, TransactionType, BudgetCreate, BudgetUpdate } from '../types';
 
 // Consolidated query keys
-const keys = {
+export const keys = {
   transactions: ['transactions'] as const,
   reports: ['reports'] as const,
   monthComparison: ['month-comparison'] as const,

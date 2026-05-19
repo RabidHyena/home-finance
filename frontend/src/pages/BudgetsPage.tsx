@@ -7,6 +7,7 @@ import {
   useCreateBudget,
   useUpdateBudget,
   useDeleteBudget,
+  keys,
 } from '../hooks/useApi';
 import { api } from '../api/client';
 import { useToast, ConfirmModal, Select } from '../components';
@@ -28,7 +29,7 @@ export function BudgetsPage() {
   // Fetch fresh budget statuses and write synchronously to cache
   const syncBudgets = useCallback(async () => {
     const fresh = await api.getBudgetsStatus(currentYear, currentMonth);
-    qc.setQueryData(['budgets-status', currentYear, currentMonth], fresh);
+    qc.setQueryData([...keys.budgetsStatus, currentYear, currentMonth], fresh);
   }, [qc, currentYear, currentMonth]);
 
   const [showForm, setShowForm] = useState(false);

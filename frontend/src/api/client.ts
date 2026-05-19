@@ -451,6 +451,13 @@ export const api = {
     search?: string,
     type?: TransactionType
   ): Promise<Blob> {
+    if (USE_MOCK) {
+      await delay(500);
+      return new Blob(['mock xlsx content'], {
+        type: 'application/vnd.openxmlformats-officedocument.spreadsheetml.sheet',
+      });
+    }
+
     const params = new URLSearchParams();
     if (category) params.append('category', category);
     if (dateFrom) params.append('date_from', dateFrom);

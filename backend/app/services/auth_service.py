@@ -38,13 +38,6 @@ def decode_access_token(token: str) -> Optional[int]:
         return None
 
 
-def authenticate_user(db: Session, login: str, password: str) -> Optional[User]:
-    user = get_user_by_email(db, login) or get_user_by_username(db, login)
-    if not user or not verify_password(password, user.hashed_password):
-        return None
-    return user
-
-
 def get_user_by_email(db: Session, email: str) -> Optional[User]:
     return db.query(User).filter(User.email == email).first()
 

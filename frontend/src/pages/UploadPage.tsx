@@ -140,8 +140,13 @@ export function UploadPage() {
   };
 
   const allBatchFilesSaved = batchResults
-    ? batchResults.results.every((r, idx) =>
-        r.status === 'error' || savedBatchFiles.has(idx))
+    ? batchResults.results.every((r, idx) => {
+        if (r.status === 'error') return true;
+        if (savedBatchFiles.has(idx)) return true;
+        // chart-only result: no transactions to save, only chart
+        if (r.data && r.data.transactions.length === 0 && savedBatchCharts.has(idx)) return true;
+        return false;
+      })
     : false;
 
   return (

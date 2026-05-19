@@ -107,6 +107,7 @@ def _resize_image_if_needed(content: bytes, max_dimension: int = 2048) -> bytes:
     """Resize image to max_dimension on longest side if needed. Falls back to original on error."""
     try:
         from PIL import Image
+        from PIL.Image import DecompressionBombError
         import io as _io
         img = Image.open(_io.BytesIO(content))
         if img.mode not in ('RGB', 'L'):
@@ -122,6 +123,10 @@ def _resize_image_if_needed(content: bytes, max_dimension: int = 2048) -> bytes:
         resized = buf.getvalue()
         logger.info("Resized image from %dx%d to %dx%d (%d -> %d bytes)", w, h, new_w, new_h, len(content), len(resized))
         return resized
+    except DecompressionBombError:
+        raise HTTPException(status_code=400, detail="Image exceeds maximum allowed dimensions")
+    except HTTPException:
+        raise
     except Exception:
         logger.warning("Failed to resize image, using original", exc_info=True)
         return content

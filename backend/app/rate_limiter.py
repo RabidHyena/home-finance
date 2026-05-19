@@ -38,7 +38,7 @@ def get_real_ip(request: Request) -> str:
 
 
 # Paths that are exempt from global rate limiting (health checks, docs).
-_EXEMPT_PATHS = frozenset({"/health", "/", "/docs", "/openapi.json", "/redoc", "/api/debug/reset"})
+_EXEMPT_PATHS = frozenset({"/health", "/", "/docs", "/openapi.json", "/redoc"})
 
 # Registry of all RateLimiter instances — used by debug reset to clear all state at once.
 _registry: list["RateLimiter"] = []

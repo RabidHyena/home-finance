@@ -1,3 +1,4 @@
+import concurrent.futures
 import logging
 import secrets
 import threading
@@ -26,6 +27,8 @@ from app.services.auth_service import (
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/api/auth", tags=["auth"])
+
+_email_executor = concurrent.futures.ThreadPoolExecutor(max_workers=2, thread_name_prefix="email")
 
 settings = get_settings()
 _auth_limiter = RateLimiter(
@@ -199,7 +202,7 @@ def forgot_password(data: ForgotPasswordRequest, request: Request, db: Session =
                 smtp_tls=settings.smtp_tls,
                 frontend_url=settings.frontend_url,
             )
-        threading.Thread(target=_send, daemon=True).start()
+        _email_executor.submit(_send)
     return result
 
 

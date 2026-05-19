@@ -478,8 +478,13 @@ def get_spending_forecast(
         })
         current = current + relativedelta(months=1)
 
-    # Calculate statistics
-    amounts = [h["amount"] for h in historical if h["amount"] > 0]
+    # Calculate statistics — exclude current (incomplete) month from the average
+    # to avoid biasing the forecast downward mid-month.
+    current_month_key = (end_date.year, end_date.month)
+    amounts = [
+        h["amount"] for h in historical
+        if h["amount"] > 0 and (h["year"], h["month"]) != current_month_key
+    ]
     if not amounts:
         # No data to forecast
         return {
