@@ -76,6 +76,7 @@ export function TrendsChart({ data }: TrendsChartProps) {
                 <XAxis dataKey="name" style={{ fontSize: '0.75rem' }} angle={-45} textAnchor="end" height={60} tick={{ fill: '#94a3b8' }} axisLine={{ stroke: 'rgba(148, 163, 184, 0.12)' }} />
                 <YAxis style={{ fontSize: '0.75rem' }} tickFormatter={(value) => `${(Number(value) / 1000).toFixed(0)}k`} tick={{ fill: '#94a3b8' }} axisLine={{ stroke: 'rgba(148, 163, 184, 0.12)' }} />
                 <Tooltip
+                  isAnimationActive={false}
                   formatter={(value: number | undefined) => {
                     if (value === undefined || value === null) return null;
                     return `${Number(value).toLocaleString('ru-RU', { maximumFractionDigits: 0 })} ₽`;

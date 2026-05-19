@@ -284,10 +284,9 @@ export function TransactionListPage({
           </button>
           <div style={{ width: '1px', height: '24px', background: 'var(--color-border)', margin: '0 0.25rem' }} />
           <button
-            className="btn btn-secondary"
+            className="btn btn-danger"
             onClick={() => setShowDeleteAll(true)}
             disabled={total === 0}
-            style={{ color: 'var(--color-danger)' }}
             title="Удалить все транзакции"
           >
             <Trash2 size={16} />

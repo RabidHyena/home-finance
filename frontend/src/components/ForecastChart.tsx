@@ -117,7 +117,7 @@ export function ForecastChart({ data }: ForecastChartProps) {
                 <CartesianGrid strokeDasharray="3 3" stroke="rgba(148, 163, 184, 0.06)" />
                 <XAxis dataKey="name" style={{ fontSize: '0.75rem' }} angle={-45} textAnchor="end" height={80} tick={{ fill: '#94a3b8' }} axisLine={{ stroke: 'rgba(148, 163, 184, 0.12)' }} />
                 <YAxis style={{ fontSize: '0.75rem' }} tickFormatter={(value) => `${(Number(value) / 1000).toFixed(0)}k`} tick={{ fill: '#94a3b8' }} axisLine={{ stroke: 'rgba(148, 163, 184, 0.12)' }} />
-                <Tooltip content={<CustomTooltip />} />
+                <Tooltip content={<CustomTooltip />} isAnimationActive={false} />
                 <Legend wrapperStyle={{ color: '#94a3b8' }} />
 
                 {/* Stacked confidence band: transparent base + yellow top layer */}

@@ -296,13 +296,13 @@ export function UploadZone({
           style={{ color: isDragging ? 'var(--color-accent)' : 'var(--color-text-muted)' }}
         />
       </div>
-      <p style={{ margin: 0, fontWeight: 600, fontSize: 'var(--text-base)', color: 'var(--color-text)' }}>
+      <p style={{ margin: 0, fontWeight: 600, fontSize: 'var(--text-lg)', color: 'var(--color-text)' }}>
         {multiple ? 'Перетащите файлы сюда' : 'Перетащите файл сюда'}
       </p>
-      <p style={{ margin: '0.375rem 0 0', fontSize: 'var(--text-sm)', color: 'var(--color-text-secondary)' }}>
+      <p style={{ margin: '0.375rem 0 0', fontSize: 'var(--text-md)', color: 'var(--color-text-secondary)' }}>
         {multiple ? 'или нажмите для выбора файлов' : 'или нажмите для выбора файла'}
       </p>
-      <p style={{ margin: '1rem 0 0', fontSize: 'var(--text-xs)', color: 'var(--color-text-muted)', letterSpacing: '0.02em' }}>
+      <p style={{ margin: '1rem 0 0', fontSize: 'var(--text-sm)', color: 'var(--color-text-muted)', letterSpacing: '0.02em' }}>
         JPG, PNG, GIF, WebP, Excel (.xlsx, .xls) · до 10MB
       </p>
     </motion.label>

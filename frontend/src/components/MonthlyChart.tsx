@@ -63,6 +63,7 @@ export function MonthlyChart({ data }: MonthlyChartProps) {
           />
           <Tooltip
             cursor={false}
+            isAnimationActive={false}
             formatter={(value) => [
               `${Number(value).toLocaleString('ru-RU')} ₽`,
               'Сумма',
