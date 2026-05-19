@@ -90,42 +90,21 @@ export function useBudgetsStatus(year?: number, month?: number) {
 }
 
 export function useCreateBudget() {
-  const qc = useQueryClient();
   return useMutation({
     mutationFn: (data: BudgetCreate) => api.createBudget(data),
-    onSuccess: async () => {
-      await Promise.all([
-        qc.refetchQueries({ queryKey: keys.budgets }),
-        qc.refetchQueries({ queryKey: keys.budgetsStatus }),
-      ]);
-    },
   });
 }
 
 export function useUpdateBudget() {
-  const qc = useQueryClient();
   return useMutation({
     mutationFn: ({ id, data }: { id: number; data: BudgetUpdate }) =>
       api.updateBudget(id, data),
-    onSuccess: async () => {
-      await Promise.all([
-        qc.refetchQueries({ queryKey: keys.budgets }),
-        qc.refetchQueries({ queryKey: keys.budgetsStatus }),
-      ]);
-    },
   });
 }
 
 export function useDeleteBudget() {
-  const qc = useQueryClient();
   return useMutation({
     mutationFn: (id: number) => api.deleteBudget(id),
-    onSuccess: async () => {
-      await Promise.all([
-        qc.refetchQueries({ queryKey: keys.budgets }),
-        qc.refetchQueries({ queryKey: keys.budgetsStatus }),
-      ]);
-    },
   });
 }
 

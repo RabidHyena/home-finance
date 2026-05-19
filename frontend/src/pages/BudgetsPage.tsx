@@ -1,12 +1,14 @@
 import { useState, useCallback, useMemo } from 'react';
 import { Plus, Trash2, Edit2, Check, X } from 'lucide-react';
 import { motion, AnimatePresence } from 'framer-motion';
+import { useQueryClient } from '@tanstack/react-query';
 import {
   useBudgetsStatus,
   useCreateBudget,
   useUpdateBudget,
   useDeleteBudget,
 } from '../hooks/useApi';
+import { api } from '../api/client';
 import { useToast, ConfirmModal, Select } from '../components';
 import { CATEGORIES, CATEGORY_LABELS, type Category } from '../types';
 import type { BudgetStatus } from '../types';
@@ -16,11 +18,18 @@ export function BudgetsPage() {
   const currentYear = new Date().getFullYear();
   const currentMonth = new Date().getMonth() + 1;
 
+  const qc = useQueryClient();
   const { data: budgetStatuses = [], isLoading } = useBudgetsStatus(currentYear, currentMonth);
   const createMutation = useCreateBudget();
   const updateMutation = useUpdateBudget();
   const deleteMutation = useDeleteBudget();
   const toast = useToast();
+
+  // Fetch fresh budget statuses and write synchronously to cache
+  const syncBudgets = useCallback(async () => {
+    const fresh = await api.getBudgetsStatus(currentYear, currentMonth);
+    qc.setQueryData(['budgets-status', currentYear, currentMonth], fresh);
+  }, [qc, currentYear, currentMonth]);
 
   const [showForm, setShowForm] = useState(false);
   const [editingId, setEditingId] = useState<number | null>(null);
@@ -48,6 +57,7 @@ export function BudgetsPage() {
             period: formData.period,
           },
         });
+        await syncBudgets();
         toast.success('Бюджет обновлен');
         setEditingId(null);
       } else {
@@ -56,6 +66,7 @@ export function BudgetsPage() {
           limit_amount: parseFloat(formData.limit_amount),
           period: formData.period,
         });
+        await syncBudgets();
         toast.success('Бюджет создан');
       }
 
@@ -64,7 +75,7 @@ export function BudgetsPage() {
     } catch (err) {
       toast.error(err instanceof Error ? err.message : 'Ошибка сохранения');
     }
-  }, [editingId, formData, updateMutation, createMutation, toast]);
+  }, [editingId, formData, updateMutation, createMutation, toast, syncBudgets]);
 
   const handleEdit = useCallback((status: BudgetStatus) => {
     setEditingId(status.budget.id);
@@ -79,13 +90,14 @@ export function BudgetsPage() {
   const handleDelete = useCallback(async (id: number) => {
     try {
       await deleteMutation.mutateAsync(id);
+      await syncBudgets();
       toast.success('Бюджет удален');
     } catch {
       toast.error('Не удалось удалить бюджет');
     } finally {
       setDeleteId(null);
     }
-  }, [deleteMutation, toast]);
+  }, [deleteMutation, toast, syncBudgets]);
 
   const usedCategories = useMemo(() => new Set(budgetStatuses.map(s => s.budget.category)), [budgetStatuses]);
   const availableCategories = useMemo(() => {
@@ -244,11 +256,10 @@ export function BudgetsPage() {
           <p style={{ fontSize: '0.875rem', color: 'var(--color-text-muted)' }}>Создайте бюджет для отслеживания расходов по категориям</p>
         </motion.div>
       ) : (
-        <motion.div variants={staggerContainer} initial="initial" animate="animate" style={{ display: 'grid', gap: '1rem' }}>
+        <div style={{ display: 'grid', gap: '1rem' }}>
           {budgetStatuses.map((status) => (
-            <motion.div
-              key={status.budget.id}
-              variants={staggerItem}
+            <div
+              key={status.budget.category}
               className="card-lift"
               style={{
                 background: 'var(--color-surface)',
@@ -350,9 +361,9 @@ export function BudgetsPage() {
                   </p>
                 </div>
               </div>
-            </motion.div>
+            </div>
           ))}
-        </motion.div>
+        </div>
       )}
 
       <ConfirmModal
